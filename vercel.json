@@ -1,0 +1,11 @@
+{
+  "buildCommand": "echo 'Static site - no build needed'",
+  "outputDirectory": "Frontend",
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
