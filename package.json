@@ -1,0 +1,9 @@
+{
+  "name": "vidya-setu",
+  "version": "1.0.0",
+  "description": "Vidya Setu - Job + Scholarship Platform",
+  "scripts": {
+    "start": "cd Backend && node server.js",
+    "install": "cd Backend && npm install"
+  }
+}
