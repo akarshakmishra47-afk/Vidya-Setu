@@ -5294,12 +5294,16 @@
       const BTECH_COMPANIES = [
         'tcs', 'infosys', 'wipro', 'hcl', 'tech mahindra', 'accenture', 'ibm', 'cognizant',
         'capgemini', 'mindtree', 'ltimindtree', 'tata', 'dell', 'microsoft', 'google', 'amazon',
-        'flipkart', 'amazon', 'uber', 'paypal', 'atlassian', 'salesforce', 'github', 'jetbrains',
+        'flipkart', 'uber', 'paypal', 'atlassian', 'salesforce', 'github', 'jetbrains',
         'adobe', 'oracle', 'deloitte', 'pwc', 'ey', 'kpmg', 'goldman sachs', 'morgan stanley',
         'barclays', 'jpmorgan', 'qualtrics', 'databricks', 'stripe', 'datadog', 'cohesity',
-        'zendesk', 'okta', 'hashicorp', 'cloudflare', 'datadog', 'splunk', 'elastic',
-        'gitlab', 'nextjs', 'vercel', 'fly.io', 'heroku', 'aws', 'azure', 'gcp', 'cloud'
+        'zendesk', 'okta', 'hashicorp', 'cloudflare', 'splunk', 'elastic',
+        'gitlab', 'nextjs', 'vercel', 'fly.io', 'heroku', 'aws', 'azure', 'gcp', 'cloud',
+        'techcorp', 'startup', 'software', 'engineering', 'services', 'tech', 'it solutions'
       ];
+
+      // Tech keywords for B.Tech relevance
+      const BTECH_KEYWORDS = ['developer', 'engineer', 'python', 'java', 'react', 'node', 'backend', 'frontend', 'full stack', 'qa', 'devops'];
 
       // Apply Global Search Filter
       const searchLower = search.toLowerCase().trim();
@@ -5319,7 +5323,10 @@
       const aktusJobs = filteredJobs.filter(j => {
         if (j.primaryType !== "Job") return false;
         const companyLower = (j.company || "").toLowerCase();
-        return BTECH_COMPANIES.some(c => companyLower.includes(c));
+        const titleLower = (j.title || "").toLowerCase();
+        // Match if company is in list OR job title has B.Tech keywords
+        return BTECH_COMPANIES.some(c => companyLower.includes(c)) || 
+               BTECH_KEYWORDS.some(k => titleLower.includes(k));
       });
       const latestFiltered = internFilter === "Paid" ? paidInternships : freeInternships;
 
