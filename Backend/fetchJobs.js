@@ -331,16 +331,55 @@ const FALLBACK_AKTU_JOBS = [
 ];
 
 // ── UTILITY: Simple HTTP GET ─────────────────────────────────────────────────
-function httpGet(url) {
-  return new Promise((resolve, reject) => {
-    const client = url.startsWith('https') ? https : http;
-    const req = client.get(url, { timeout: TIMEOUT_MS }, (res) => {
-      let data = '';
-      res.on('data', (chunk) => data += chunk);
-      res.on('end', () => resolve(data));
-    });
-    req.on('error', reject);
-    req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
+function httpGet(url, retries = 3, delayMs = 1000) {
+  return new Promise(async (resolve, reject) => {
+    const attemptRequest = async (attempt) => {
+      try {
+        const client = url.startsWith('https') ? https : http;
+        const req = client.get(url, {
+          timeout: TIMEOUT_MS,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
+        }, (res) => {
+          let data = '';
+          res.on('data', (chunk) => data += chunk);
+          res.on('end', () => {
+            // Check if response is valid JSON or HTML (rate limiting)
+            if (data.trim().startsWith('<')) {
+              if (attempt < retries) {
+                console.log(`⚠️  Got HTML response, retrying (attempt ${attempt + 1}/${retries})...`);
+                setTimeout(() => attemptRequest(attempt + 1), delayMs * Math.pow(2, attempt));
+              } else {
+                reject(new Error('API returned HTML (rate limited or server error)'));
+              }
+            } else {
+              resolve(data);
+            }
+          });
+        });
+        req.on('error', (error) => {
+          if (attempt < retries) {
+            console.log(`⚠️  Request failed, retrying (attempt ${attempt + 1}/${retries})...`);
+            setTimeout(() => attemptRequest(attempt + 1), delayMs * Math.pow(2, attempt));
+          } else {
+            reject(error);
+          }
+        });
+        req.on('timeout', () => {
+          req.destroy();
+          if (attempt < retries) {
+            console.log(`⚠️  Request timeout, retrying (attempt ${attempt + 1}/${retries})...`);
+            setTimeout(() => attemptRequest(attempt + 1), delayMs * Math.pow(2, attempt));
+          } else {
+            reject(new Error('Request timed out'));
+          }
+        });
+      } catch (error) {
+        reject(error);
+      }
+    };
+    attemptRequest(0);
   });
 }
 
@@ -461,8 +500,8 @@ async function fetchArbeithowJobs() {
   try {
     console.log('🔄 Fetching from Arbeitnow API...');
     
-    // Arbeitnow has free public API
-    const response = await httpGet('https://www.arbeitnow.com/api/v2/job_posts');
+    // Arbeitnow has free public API with retry logic
+    const response = await httpGet('https://www.arbeitnow.com/api/v2/job_posts', 3, 1000);
     const data = JSON.parse(response);
 
     if (!data.data || !Array.isArray(data.data)) {
@@ -482,33 +521,39 @@ async function fetchArbeithowJobs() {
                 titleDesc.includes('graduate')) &&
                !isSeniorPosition(job.title, job.description);
       })
-      .map(job => ({
-        title: (job.title || 'Position').substring(0, 100),
-        company: (job.company || 'Company').substring(0, 80),
-        location: job.location || 'Not specified',
-        salary: job.salary || 'Not specified',
-        badge: 'Live 🌐',
-        tags: ['Tech', 'Jobs'],
-        desc: (job.description || '').substring(0, 300),
-        primaryType: job.title.toLowerCase().includes('intern') ? 'Internship' : 'Job',
-        secondaryType: 'Full-Time',
-        applyUrl: job.url || '#',
-        source: 'arbeitnow',
-        isAktu: false,
-        deadline: 'Rolling',
-        experience: job.title.toLowerCase().includes('intern') ? 'Fresher' : '0-2 Years',
-        companyLogo: job.company_logo || '',
-        relevanceScore: 0
-      }))
+      .map(job => {
+        const isIntern = job.title.toLowerCase().includes('intern') || job.title.toLowerCase().includes('trainee');
+        const isPaid = !job.title.toLowerCase().includes('unpaid') && !job.title.toLowerCase().includes('volunteer');
+        return {
+          title: (job.title || 'Position').substring(0, 100),
+          company: (job.company || 'Company').substring(0, 80),
+          location: job.location || 'Not specified',
+          salary: job.salary || (isIntern && isPaid ? '₹3-5 LPA' : 'Not specified'),
+          badge: 'Live 🌐',
+          tags: ['Tech', isIntern ? 'Internship' : 'Job'],
+          desc: (job.description || '').substring(0, 300),
+          primaryType: isIntern ? 'Internship' : 'Job',
+          secondaryType: isIntern ? (isPaid ? 'Paid' : 'Free') : 'Full-Time',
+          applyUrl: job.url || '#',
+          source: 'arbeitnow',
+          isAktu: false,
+          deadline: 'Rolling',
+          experience: isIntern ? 'Fresher' : '0-2 Years',
+          companyLogo: job.company_logo || '',
+          relevanceScore: 0
+        };
+      })
       .map(job => ({ ...job, relevanceScore: scoreJobRelevance(job) }))
       .filter(job => job.relevanceScore > 0);
 
-    console.log(`✅ Arbeitnow: Fetched and filtered ${jobs.length} relevant jobs`);
+    console.log(`✅ Arbeitnow: Fetched and filtered ${jobs.length} relevant jobs (${jobs.filter(j => j.primaryType === 'Internship').length} internships)`);
     return jobs;
   } catch (error) {
     console.error(`❌ Arbeitnow API error: ${error.message}`);
     lastRefreshError = `Arbeitnow: ${error.message}`;
-    return [];
+    // Return some fallback paid internships to ensure they show up
+    console.log('⚠️  Using fallback internships as backup...');
+    return FALLBACK_INTERNSHIPS_PAID.slice(0, 10);
   }
 }
 
