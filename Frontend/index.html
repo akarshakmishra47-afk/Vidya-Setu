@@ -5290,6 +5290,17 @@
         return steps;
       };
 
+      // List of service-based and product-based companies
+      const BTECH_COMPANIES = [
+        'tcs', 'infosys', 'wipro', 'hcl', 'tech mahindra', 'accenture', 'ibm', 'cognizant',
+        'capgemini', 'mindtree', 'ltimindtree', 'tata', 'dell', 'microsoft', 'google', 'amazon',
+        'flipkart', 'amazon', 'uber', 'paypal', 'atlassian', 'salesforce', 'github', 'jetbrains',
+        'adobe', 'oracle', 'deloitte', 'pwc', 'ey', 'kpmg', 'goldman sachs', 'morgan stanley',
+        'barclays', 'jpmorgan', 'qualtrics', 'databricks', 'stripe', 'datadog', 'cohesity',
+        'zendesk', 'okta', 'hashicorp', 'cloudflare', 'datadog', 'splunk', 'elastic',
+        'gitlab', 'nextjs', 'vercel', 'fly.io', 'heroku', 'aws', 'azure', 'gcp', 'cloud'
+      ];
+
       // Apply Global Search Filter
       const searchLower = search.toLowerCase().trim();
       const filteredJobs = allJobs.filter(j => {
@@ -5304,7 +5315,12 @@
       // Filtered views
       const paidInternships = filteredJobs.filter(j => j.primaryType === "Internship" && j.secondaryType === "Paid");
       const freeInternships = filteredJobs.filter(j => j.primaryType === "Internship" && j.secondaryType === "Free");
-      const aktusJobs = filteredJobs.filter(j => j.primaryType === "Job");
+      // Filter AKTU jobs to show only service-based and product-based companies
+      const aktusJobs = filteredJobs.filter(j => {
+        if (j.primaryType !== "Job") return false;
+        const companyLower = (j.company || "").toLowerCase();
+        return BTECH_COMPANIES.some(c => companyLower.includes(c));
+      });
       const latestFiltered = internFilter === "Paid" ? paidInternships : freeInternships;
 
       const TABS = [
