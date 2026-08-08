@@ -12,7 +12,7 @@ const jobSchema = new mongoose.Schema({
   secondaryType: { type: String, enum: ['Paid', 'Free', 'Full-Time', 'Part-Time'], required: true },
   // New fields
   applyUrl: { type: String, default: "" },
-  source: { type: String, enum: ['manual', 'web'], default: 'manual' },
+  source: { type: String, enum: ['manual', 'web', 'remotive', 'arbeitnow'], default: 'manual' },
   deadline: { type: String, default: "" },
   isAktu: { type: Boolean, default: false },
   companyLogo: { type: String, default: "" },
