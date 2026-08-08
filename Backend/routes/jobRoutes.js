@@ -1,6 +1,15 @@
 const express = require('express');
 const Job = require('../models/Job');
-const { fetchLatestJobs, getRefreshStatus, AUTO_REFRESH_MS, isRefreshingCurrently } = require('../fetchJobs');
+const {
+  fetchLatestJobs,
+  AUTO_REFRESH_MS,
+  isRefreshing,
+  setRefreshing,
+  getLastRefreshTime,
+  setLastRefreshTime,
+  getLastRefreshError,
+  setLastRefreshError
+} = require('../fetchJobsRealIndiaOnly');
 
 const router = express.Router();
 
@@ -42,31 +51,79 @@ function startAutoRefresh() {
 async function performJobRefresh() {
   try {
     // Prevent simultaneous refreshes
-    if (isRefreshingCurrently()) {
+    if (isRefreshing()) {
       console.log('⚠️  Refresh already in progress, skipping...');
       return { status: 'skipped', reason: 'Refresh already in progress' };
     }
 
-    // Delete old API-fetched jobs (remotive, arbeitnow), keep manual jobs
-    const deleted = await Job.deleteMany({ source: { $in: ['remotive', 'arbeitnow', 'web'] } });
-    console.log(`🗑️  Deleted ${deleted.deletedCount} old API jobs`);
-
-    // Fetch new jobs from APIs
-    const jobs = await fetchLatestJobs();
-    console.log(`📥 Fetched ${jobs.length} new jobs from APIs`);
-
-    // Insert new jobs
-    if (jobs.length > 0) {
-      await Job.insertMany(jobs);
-      console.log(`✅ Inserted ${jobs.length} jobs into database`);
+    setRefreshing(true);
+    console.log('\n🚀 Starting Real India-Only Job Refresh...');
+    
+    // Fetch REAL India-only jobs from external APIs
+    const freshJobs = await fetchLatestJobs();
+    
+    if (!freshJobs || freshJobs.length === 0) {
+      console.log('⚠️  No fresh jobs fetched');
+      setRefreshing(false);
+      return { status: 'error', message: 'No jobs fetched from APIs' };
     }
-
+    
+    console.log(`📥 Fetched ${freshJobs.length} real India jobs from APIs`);
+    
+    // Get existing API jobs for deduplication
+    const existingJobs = await Job.find({
+      source: { $in: ['remotive', 'arbeitnow'] }
+    });
+    
+    const existingKeys = new Set(
+      existingJobs.map(j => j.deduplicationKey || j.sourceId || `${j.title}|${j.company}|${j.applyUrl}`)
+    );
+    
+    // Filter out duplicates
+    const newJobs = freshJobs.filter(job => {
+      const key = job.deduplicationKey || job.sourceId || `${job.title}|${job.company}|${job.applyUrl}`;
+      return !existingKeys.has(key);
+    });
+    
+    console.log(`✨ New unique jobs: ${newJobs.length}`);
+    
+    // Insert new jobs
+    if (newJobs.length > 0) {
+      try {
+        await Job.insertMany(newJobs, { ordered: false });
+        console.log(`✅ Inserted ${newJobs.length} new jobs`);
+      } catch (error) {
+        console.warn(`⚠️  Some jobs had issues inserting: ${error.message}`);
+      }
+    }
+    
+    // Get stats
     const totalCount = await Job.countDocuments();
-    console.log(`📊 Total jobs in database: ${totalCount}`);
-
-    return { status: 'success', jobsAdded: jobs.length, totalInDB: totalCount };
+    const internships = await Job.countDocuments({ primaryType: 'Internship' });
+    const jobs = await Job.countDocuments({ primaryType: 'Job' });
+    
+    console.log(`\n📊 Database Status:`);
+    console.log(`   Total: ${totalCount}`);
+    console.log(`   Internships: ${internships}`);
+    console.log(`   Jobs: ${jobs}\n`);
+    
+    setLastRefreshTime(new Date());
+    setLastRefreshError(null);
+    setRefreshing(false);
+    
+    return {
+      status: 'success',
+      jobsAdded: newJobs.length,
+      totalInDB: totalCount,
+      internships,
+      jobs,
+      message: `✅ Added ${newJobs.length} new real India opportunities`
+    };
+    
   } catch (error) {
-    console.error('❌ Refresh error:', error);
+    console.error('❌ Refresh error:', error.message);
+    setLastRefreshError(error.message);
+    setRefreshing(false);
     throw error;
   }
 }
@@ -96,6 +153,21 @@ router.get('/', async (req, res) => {
       filter.primaryType = req.query.type.charAt(0).toUpperCase() + req.query.type.slice(1).toLowerCase();
     }
     
+    // Branch filter: CSE, IT, ECE, Mechanical, Civil, etc.
+    if (req.query.branch) {
+      filter.branch = req.query.branch;
+    }
+    
+    // Company type filter: product, service, unknown
+    if (req.query.companyType) {
+      filter.companyType = req.query.companyType;
+    }
+    
+    // Job category filter: internship, fresher-job, engineering-job
+    if (req.query.jobCategory) {
+      filter.jobCategory = req.query.jobCategory;
+    }
+    
     // Secondary type filter
     if (req.query.secondaryType) filter.secondaryType = req.query.secondaryType;
     
@@ -104,6 +176,9 @@ router.get('/', async (req, res) => {
 
     // Source filter
     if (req.query.source) filter.source = req.query.source;
+    
+    // India location filter
+    if (req.query.indiaOnly === 'true') filter.isIndiaLocation = true;
 
     // Search filter (title, company, tags, location)
     if (req.query.search) {
@@ -112,6 +187,7 @@ router.get('/', async (req, res) => {
         { title: searchRegex },
         { company: searchRegex },
         { location: searchRegex },
+        { desc: searchRegex },
         { tags: searchRegex }
       ];
     }
@@ -170,14 +246,15 @@ router.get('/status', async (req, res) => {
 // ── POST /api/jobs/refresh — manually trigger refresh ────────────────────────
 router.post('/refresh', async (req, res) => {
   try {
-    if (isRefreshingCurrently()) {
+    if (isRefreshing()) {
       return res.status(429).json({ 
+        success: false,
         error: 'Refresh already in progress',
         message: 'Please wait for the current refresh to complete before triggering another.'
       });
     }
 
-    console.log('🔄 Manual refresh triggered');
+    console.log('🔄 Manual refresh triggered via /refresh');
     const result = await performJobRefresh();
     
     const stats = {
@@ -187,14 +264,15 @@ router.post('/refresh', async (req, res) => {
     };
 
     res.json({
-      success: true,
-      message: 'Manual refresh completed',
+      success: result.status === 'success',
+      message: result.message || 'Refresh completed',
       result,
       stats
     });
   } catch (error) {
     console.error('POST /api/jobs/refresh error:', error);
     res.status(500).json({ 
+      success: false,
       error: 'Refresh failed',
       details: error.message
     });
@@ -204,8 +282,9 @@ router.post('/refresh', async (req, res) => {
 // ── POST /api/jobs/fetch-latest — legacy endpoint (compatibility) ────────────
 router.post('/fetch-latest', async (req, res) => {
   try {
-    if (isRefreshingCurrently()) {
+    if (isRefreshing()) {
       return res.status(429).json({ 
+        success: false,
         error: 'Refresh already in progress'
       });
     }
@@ -215,7 +294,7 @@ router.post('/fetch-latest', async (req, res) => {
     
     const totalInDB = await Job.countDocuments();
     res.json({
-      success: true,
+      success: result.status === 'success',
       message: 'Jobs synced successfully',
       totalInDB,
       result
@@ -223,6 +302,7 @@ router.post('/fetch-latest', async (req, res) => {
   } catch (error) {
     console.error('POST /api/jobs/fetch-latest error:', error);
     res.status(500).json({ 
+      success: false,
       error: 'Failed to fetch latest jobs',
       details: error.message
     });
