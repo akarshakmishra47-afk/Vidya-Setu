@@ -5226,7 +5226,7 @@
         if (!silent) setLoading(true);
         fetch(`${API_BASE_URL}/api/jobs`)
           .then(res => res.json())
-          .then(data => { setAllJobs(Array.isArray(data) ? data : []); setLastUpdated(new Date()); })
+          .then(data => { setAllJobs((data.jobs && Array.isArray(data.jobs)) ? data.jobs : []); setLastUpdated(new Date()); })
           .catch(err => { console.error(err); if (!silent) addToast("Offline Mode", "Showing cached data", "📦", T.warn); })
           .finally(() => { if (!silent) setLoading(false); });
       };
