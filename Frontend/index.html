@@ -5689,7 +5689,9 @@
                 title={`No ${currentTab?.label || ''} listings found`}
                 subtitle={searchLower
                   ? `No results for "${search}". Try different search terms or clear filters.`
-                  : 'Click Refresh Live Feed to fetch the latest listings from all sources.'}
+                  : (activeTab === 'internships' && internCompFilter === 'Free')
+                    ? 'Free internships: 0 — no qualifying real public listings currently available.'
+                    : 'Click Refresh Live Feed to fetch the latest listings from all sources.'}
                 onRefresh={handleRefresh}
               />
             ) : currentTabJobs.length > 0 ? (
