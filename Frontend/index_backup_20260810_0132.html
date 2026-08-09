@@ -1607,7 +1607,7 @@
       background: rgba(255, 199, 0, 0.04);
       pointer-events: none;
     }
-
+    
 
     /* ── IMPROVED SEARCH ── */
     .header-search-wrap {
@@ -2503,20 +2503,20 @@
                   {/* Personal */}
                   <SectionHead title="Personal Information" icon="person" />
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
-                    <Row label="Full Name" value={val(D.name, U.name)} />
-                    <Row label="Roll Number" value={val(D.rollNo, U.rollNo)} />
-                    <Row label="Branch" value={val(D.branch, U.branch)} />
-                    <Row label="Year" value={val(D.year, U.year)} />
-                    <Row label="Aadhaar Number" value={val(D.aadhaarNumber, U.aadhaarNumber)} />
-                    <Row label="Date of Birth" value={val(D.dob, U.dob)} />
-                    <Row label="Mobile Number" value={val(D.mobileNumber, U.mobileNumber)} />
-                    <Row label="Email" value={val(D.email, U.email)} />
+                    <Row label="Full Name"       value={val(D.name, U.name)} />
+                    <Row label="Roll Number"     value={val(D.rollNo, U.rollNo)} />
+                    <Row label="Branch"          value={val(D.branch, U.branch)} />
+                    <Row label="Year"            value={val(D.year, U.year)} />
+                    <Row label="Aadhaar Number"  value={val(D.aadhaarNumber, U.aadhaarNumber)} />
+                    <Row label="Date of Birth"   value={val(D.dob, U.dob)} />
+                    <Row label="Mobile Number"   value={val(D.mobileNumber, U.mobileNumber)} />
+                    <Row label="Email"           value={val(D.email, U.email)} />
                   </div>
 
                   {/* Financial */}
                   <SectionHead title="Financial Details" icon="account_balance" />
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
-                    <Row label="Family Income" value={(val(D.familyIncome, U.familyIncome) && Number(val(D.familyIncome, U.familyIncome)) > 0) ? `₹${Number(val(D.familyIncome, U.familyIncome)).toLocaleString('en-IN')}` : null} />
+                    <Row label="Family Income"   value={(val(D.familyIncome,U.familyIncome) && Number(val(D.familyIncome,U.familyIncome)) > 0) ? `₹${Number(val(D.familyIncome,U.familyIncome)).toLocaleString('en-IN')}` : null} />
                   </div>
                 </div>
               );
@@ -2524,265 +2524,265 @@
 
             {/* ── EDIT FORM (only when unlocked) ── */}
             {!isLocked && (
-              <div>
-                {/* ── BASIC DETAILS ── */}
+            <div>
+            {/* ── BASIC DETAILS ── */}
 
-                <div style={{ padding: "14px", background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 12, marginBottom: 16 }}>
-                  <div className="grid-2">
-                    <div>
-                      <label style={lbl}>Aadhaar Number</label>
-                      <input style={fieldStyle} value={draft.aadhaarNumber || ""} disabled={isLocked} onChange={e => setDraft(p => ({ ...p, aadhaarNumber: e.target.value }))} placeholder="12-digit Aadhaar" />
-                    </div>
-                    <div>
-                      <label style={lbl}>Date of Birth</label>
-                      <input type="date" style={fieldStyle} value={draft.dob || ""} disabled={isLocked} onChange={e => setDraft(p => ({ ...p, dob: e.target.value }))} />
-                    </div>
-                    <div style={{ gridColumn: "span 2" }}>
-                      <label style={lbl}>Mobile Number (Aadhaar Linked)</label>
-                      <input style={fieldStyle} value={draft.mobileNumber || ""} disabled={isLocked} onChange={e => setDraft(p => ({ ...p, mobileNumber: e.target.value }))} placeholder="Mobile Number" />
-                    </div>
-                  </div>
-                </div>
-                {/* ── FORM FIELDS ── */}
+            <div style={{ padding: "14px", background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 12, marginBottom: 16 }}>
+              <div className="grid-2">
                 <div>
-                  <label style={lbl}>Full Name</label>
-                  <input style={fieldStyle} value={draft.name || ""} disabled={isLocked} onChange={e => setDraft(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Dev Kumar" />
+                  <label style={lbl}>Aadhaar Number</label>
+                  <input style={fieldStyle} value={draft.aadhaarNumber || ""} disabled={isLocked} onChange={e => setDraft(p => ({ ...p, aadhaarNumber: e.target.value }))} placeholder="12-digit Aadhaar" />
                 </div>
-
                 <div>
-                  <label style={lbl}>Roll Number</label>
-                  <input style={fieldStyle} value={draft.rollNo || ""} disabled={isLocked} onChange={e => setDraft(p => ({ ...p, rollNo: e.target.value }))} placeholder="e.g. 210027010001" />
+                  <label style={lbl}>Date of Birth</label>
+                  <input type="date" style={fieldStyle} value={draft.dob || ""} disabled={isLocked} onChange={e => setDraft(p => ({ ...p, dob: e.target.value }))} />
                 </div>
-
-                <div className="grid-2">
-                  <div>
-                    <label style={lbl}>Branch</label>
-                    <div style={{ position: "relative", marginTop: 6 }}>
-                      <select style={{ ...fieldStyle, marginTop: 0, paddingRight: 32 }} disabled={isLocked} value={draft.branch || ""} onChange={e => setDraft(p => ({ ...p, branch: e.target.value }))}>
-                        {["CSE", "IT", "ECE", "ME", "CE", "EE", "BT", "CH"].map(b => (
-                          <option key={b} value={b}>{b}</option>
-                        ))}
-                      </select>
-                      <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: T.muted, pointerEvents: "none", fontSize: 12 }}>▾</span>
-                    </div>
-                  </div>
-                  <div>
-                    <label style={lbl}>Year</label>
-                    <div style={{ position: "relative", marginTop: 6 }}>
-                      <select style={{ ...fieldStyle, marginTop: 0, paddingRight: 32 }} disabled={isLocked} value={draft.year || ""} onChange={e => setDraft(p => ({ ...p, year: e.target.value }))}>
-                        {["1st Year", "2nd Year", "3rd Year", "4th Year"].map(y => (
-                          <option key={y} value={y}>{y}</option>
-                        ))}
-                      </select>
-                      <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: T.muted, pointerEvents: "none", fontSize: 12 }}>▾</span>
-                    </div>
-                  </div>
+                <div style={{ gridColumn: "span 2" }}>
+                  <label style={lbl}>Mobile Number (Aadhaar Linked)</label>
+                  <input style={fieldStyle} value={draft.mobileNumber || ""} disabled={isLocked} onChange={e => setDraft(p => ({ ...p, mobileNumber: e.target.value }))} placeholder="Mobile Number" />
                 </div>
-
-
-                {/* ── TFW ELIGIBILITY SECTION (Expandable Accordion) ── */}
-                {!isLocked && (
-                  <div style={{
-                    borderRadius: 14, overflow: "hidden",
-                    border: `1.5px solid ${showTfwPanel ? 'rgba(255,79,31,0.25)' : T.border}`,
-                    background: "#fff",
-                    transition: "all .3s ease"
-                  }}>
-                    {/* ▸ Clickable Header Bar */}
-                    <div
-                      onClick={() => setShowTfwPanel(p => !p)}
-                      style={{
-                        padding: "14px 18px",
-                        background: showTfwPanel
-                          ? "linear-gradient(135deg, rgba(255,79,31,0.08), rgba(255,152,0,0.05))"
-                          : "#FAFAFA",
-                        cursor: "pointer",
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
-                        transition: "background .2s"
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span className="material-symbols-outlined" style={{ color: T.orange, fontSize: 20 }}>verified_user</span>
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: 13, color: T.text }}>Tuition Fee Waiver (TFW)</div>
-                          <div style={{ fontSize: 10, color: T.muted, marginTop: 1 }}>AKTU/UPTAC — 5% supernumerary seats</div>
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        {draft.isFeeWaiver && <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: T.orange, padding: "3px 8px", borderRadius: 6 }}>ACTIVE</span>}
-                        <span className="material-symbols-outlined" style={{
-                          color: T.muted, fontSize: 18,
-                          transform: showTfwPanel ? 'rotate(180deg)' : 'rotate(0)',
-                          transition: 'transform .3s ease'
-                        }}>expand_more</span>
-                      </div>
-                    </div>
-
-                    {/* ▼ Expanded Panel */}
-                    {showTfwPanel && (
-                      <div style={{ borderTop: "1px solid rgba(255,79,31,0.10)", animation: "fadeIn 0.25s ease" }}>
-
-                        {/* Criteria Checklist */}
-                        <div style={{ padding: "14px 18px", background: "#FFFBF5" }}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 10 }}>Eligibility Criteria</div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                            {tfwResults.map(c => (
-                              <div key={c.id} style={{
-                                display: "flex", alignItems: "center", gap: 10,
-                                padding: "8px 12px", borderRadius: 10,
-                                background: c.passed ? "rgba(34,197,94,0.06)" : "rgba(239,68,68,0.04)",
-                                border: `1px solid ${c.passed ? 'rgba(34,197,94,0.18)' : 'rgba(239,68,68,0.12)'}`,
-                                transition: "all .3s ease"
-                              }}>
-                                <div style={{
-                                  width: 26, height: 26, borderRadius: 7,
-                                  background: c.passed ? T.success : "rgba(239,68,68,0.12)",
-                                  color: c.passed ? "#fff" : T.rose,
-                                  display: "flex", alignItems: "center", justifyContent: "center",
-                                  transition: "all .3s ease", flexShrink: 0
-                                }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>{c.passed ? 'check' : 'close'}</span>
-                                </div>
-                                <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: 15, color: T.muted }}>{c.icon}</span>
-                                  <span style={{ fontSize: 12, fontWeight: 600, color: c.passed ? T.success : T.text }}>{c.label}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Detail Fields */}
-                        <div style={{ padding: "14px 18px", display: "flex", flexDirection: "column", gap: 12, borderTop: "1px solid #F0F0F0" }}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.5, textTransform: "uppercase" }}>Fill Your Details</div>
-                          <div className="grid-2">
-                            <div style={{ gridColumn: "span 2" }}>
-                              <label style={lbl}>Family Income (Annual)</label>
-                              <div style={{ position: "relative", marginTop: 6 }}>
-                                <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: T.muted, fontSize: 13 }}>₹</span>
-                                <input type="number" style={{ ...inp, marginTop: 0, paddingLeft: 24 }} value={draft.familyIncome === 0 || draft.familyIncome === '0' ? '' : (draft.familyIncome || '')} onChange={e => { const v = e.target.value; setDraft(p => ({ ...p, familyIncome: v === '' ? 0 : Number(v) })); }} placeholder="e.g. 150000" />
-                              </div>
-                            </div>
-                            <div>
-                              <label style={lbl}>Domicile State</label>
-                              <div style={{ position: "relative", marginTop: 6 }}>
-                                <select style={{ ...inp, marginTop: 0, paddingRight: 32 }} value={draft.domicileState || ""} onChange={e => setDraft(p => ({ ...p, domicileState: e.target.value }))}>
-                                  <option value="">Select…</option>
-                                  <option value="Uttar Pradesh">Uttar Pradesh</option>
-                                  <option value="Other">Other State</option>
-                                </select>
-                                <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: T.muted, pointerEvents: "none", fontSize: 12 }}>▾</span>
-                              </div>
-                            </div>
-                            <div>
-                              <label style={lbl}>Admitted Course</label>
-                              <div style={{ position: "relative", marginTop: 6 }}>
-                                <select style={{ ...inp, marginTop: 0, paddingRight: 32 }} value={draft.course || "B.Tech"} onChange={e => setDraft(p => ({ ...p, course: e.target.value }))}>
-                                  {["B.Tech", "B.Pharm", "BHMCT", "BFAD", "BFA", "B.Des", "MCA", "MBA", "B.Arch"].map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
-                                <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: T.muted, pointerEvents: "none", fontSize: 12 }}>▾</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Income Certificate Toggle */}
-                          <div onClick={() => setDraft(p => ({ ...p, hasIncomeCertificate: !p.hasIncomeCertificate }))} style={{
-                            display: "flex", alignItems: "center", justifyContent: "space-between",
-                            padding: "10px 14px", borderRadius: 10,
-                            border: `1px solid ${draft.hasIncomeCertificate ? "rgba(34,197,94,0.22)" : T.border}`,
-                            background: draft.hasIncomeCertificate ? "rgba(34,197,94,0.06)" : "#F9F9F9",
-                            cursor: "pointer", transition: "all .2s"
-                          }}>
-                            <div>
-                              <div style={{ fontWeight: 600, fontSize: 12, color: draft.hasIncomeCertificate ? T.success : T.text }}>Valid Income Certificate</div>
-                              <div style={{ fontSize: 10, color: T.muted, marginTop: 1 }}>Issued by Tehsildar/SDM (current year)</div>
-                            </div>
-                            <div style={{ width: 40, height: 22, borderRadius: 11, background: draft.hasIncomeCertificate ? T.success : "#E0E0E0", position: "relative", transition: "all .3s" }}>
-                              <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: draft.hasIncomeCertificate ? 21 : 3, transition: "all .3s cubic-bezier(0.18, 0.89, 0.32, 1.28)", boxShadow: "0 1px 3px rgba(0,0,0,0.15)" }} />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Final Verdict + TFW Toggle */}
-                        <div style={{ padding: "14px 18px", background: tfwEligible ? "rgba(34,197,94,0.04)" : "rgba(239,68,68,0.03)", borderTop: "1px solid #F0F0F0" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <div style={{
-                              width: 38, height: 38, borderRadius: 10,
-                              background: tfwEligible ? "linear-gradient(135deg, #22C55E, #16A34A)" : "linear-gradient(135deg, #EF4444, #DC2626)",
-                              color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
-                              boxShadow: `0 4px 12px ${tfwEligible ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.25)'}`,
-                              flexShrink: 0
-                            }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: 20 }}>{tfwEligible ? 'check_circle' : 'cancel'}</span>
-                            </div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight: 800, fontSize: 14, color: tfwEligible ? T.success : T.rose }}>
-                                {tfwEligible ? '✅ You are Eligible!' : '❌ Not Eligible'}
-                              </div>
-                              <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>
-                                {tfwEligible ? 'All AKTU/UPTAC criteria met. Toggle TFW below.' : `${tfwResults.filter(c => !c.passed).length} criteria not met — check above`}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* TFW TOGGLE — only appears when eligible */}
-                          {tfwEligible && (
-                            <div
-                              onClick={() => setDraft(p => ({ ...p, isFeeWaiver: !p.isFeeWaiver }))}
-                              style={{
-                                marginTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between",
-                                padding: "12px 16px", borderRadius: 12,
-                                background: draft.isFeeWaiver ? "linear-gradient(135deg, rgba(255,79,31,0.08), rgba(255,152,0,0.04))" : "#F5F5F5",
-                                border: `1.5px solid ${draft.isFeeWaiver ? T.orange : '#E0E0E0'}`,
-                                cursor: "pointer", transition: "all .3s ease"
-                              }}
-                            >
-                              <div>
-                                <div style={{ fontWeight: 700, fontSize: 13, color: draft.isFeeWaiver ? T.orange : T.text }}>Enable TFW Status</div>
-                                <div style={{ fontSize: 10, color: T.muted, marginTop: 1 }}>Tuition fee will be waived (other fees still apply)</div>
-                              </div>
-                              <div style={{ width: 46, height: 26, borderRadius: 13, background: draft.isFeeWaiver ? T.orange : "#D0D0D0", position: "relative", transition: "all .3s" }}>
-                                <div style={{
-                                  width: 20, height: 20, borderRadius: "50%", background: "#fff",
-                                  position: "absolute", top: 3, left: draft.isFeeWaiver ? 23 : 3,
-                                  transition: "all .3s cubic-bezier(0.18, 0.89, 0.32, 1.28)",
-                                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
-                                }} />
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Save button is already disabled when TFW is on but ineligible */}
-                        </div>
-
-                        {/* AKTU Info Note */}
-                        <div style={{ padding: "10px 18px 14px", background: "#FFFAF5" }}>
-                          <div style={{ padding: "8px 12px", borderRadius: 8, background: "#FFFBEB", border: "1px dashed rgba(245,158,11,0.3)", fontSize: 10, color: "#92400E", lineHeight: 1.5 }}>
-                            💡 <b>AKTU TFW:</b> 5% supernumerary seats for students with family income &lt; ₹6,00,000/year. UP domicile required. Not for B.Arch. Income certificate verified during UPTAC counselling.
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* ── LOCKED TFW STATUS (shown when locked and FW was set) ── */}
-                {isLocked && user.isFeeWaiver && (
-                  <div style={{ padding: "14px 18px", borderRadius: 12, background: "rgba(34,197,94,0.06)", border: "1.5px solid rgba(34,197,94,0.20)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span className="material-symbols-outlined" style={{ color: T.success, fontSize: 22 }}>verified</span>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: 14, color: T.success }}>TFW Status: Verified ✓</div>
-                        <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>
-                          Course: {user.course || "B.Tech"} | Domicile: {user.domicileState || "—"} | Income Cert: {user.hasIncomeCertificate ? "Yes" : "No"}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-
               </div>
+            </div>
+            {/* ── FORM FIELDS ── */}
+            <div>
+              <label style={lbl}>Full Name</label>
+              <input style={fieldStyle} value={draft.name || ""} disabled={isLocked} onChange={e => setDraft(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Dev Kumar" />
+            </div>
+
+            <div>
+              <label style={lbl}>Roll Number</label>
+              <input style={fieldStyle} value={draft.rollNo || ""} disabled={isLocked} onChange={e => setDraft(p => ({ ...p, rollNo: e.target.value }))} placeholder="e.g. 210027010001" />
+            </div>
+
+            <div className="grid-2">
+              <div>
+                <label style={lbl}>Branch</label>
+                <div style={{ position: "relative", marginTop: 6 }}>
+                  <select style={{ ...fieldStyle, marginTop: 0, paddingRight: 32 }} disabled={isLocked} value={draft.branch || ""} onChange={e => setDraft(p => ({ ...p, branch: e.target.value }))}>
+                    {["CSE", "IT", "ECE", "ME", "CE", "EE", "BT", "CH"].map(b => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                  <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: T.muted, pointerEvents: "none", fontSize: 12 }}>▾</span>
+                </div>
+              </div>
+              <div>
+                <label style={lbl}>Year</label>
+                <div style={{ position: "relative", marginTop: 6 }}>
+                  <select style={{ ...fieldStyle, marginTop: 0, paddingRight: 32 }} disabled={isLocked} value={draft.year || ""} onChange={e => setDraft(p => ({ ...p, year: e.target.value }))}>
+                    {["1st Year", "2nd Year", "3rd Year", "4th Year"].map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                  <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: T.muted, pointerEvents: "none", fontSize: 12 }}>▾</span>
+                </div>
+              </div>
+            </div>
+
+
+            {/* ── TFW ELIGIBILITY SECTION (Expandable Accordion) ── */}
+            {!isLocked && (
+              <div style={{
+                borderRadius: 14, overflow: "hidden",
+                border: `1.5px solid ${showTfwPanel ? 'rgba(255,79,31,0.25)' : T.border}`,
+                background: "#fff",
+                transition: "all .3s ease"
+              }}>
+                {/* ▸ Clickable Header Bar */}
+                <div
+                  onClick={() => setShowTfwPanel(p => !p)}
+                  style={{
+                    padding: "14px 18px",
+                    background: showTfwPanel
+                      ? "linear-gradient(135deg, rgba(255,79,31,0.08), rgba(255,152,0,0.05))"
+                      : "#FAFAFA",
+                    cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    transition: "background .2s"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span className="material-symbols-outlined" style={{ color: T.orange, fontSize: 20 }}>verified_user</span>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 13, color: T.text }}>Tuition Fee Waiver (TFW)</div>
+                      <div style={{ fontSize: 10, color: T.muted, marginTop: 1 }}>AKTU/UPTAC — 5% supernumerary seats</div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {draft.isFeeWaiver && <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: T.orange, padding: "3px 8px", borderRadius: 6 }}>ACTIVE</span>}
+                    <span className="material-symbols-outlined" style={{
+                      color: T.muted, fontSize: 18,
+                      transform: showTfwPanel ? 'rotate(180deg)' : 'rotate(0)',
+                      transition: 'transform .3s ease'
+                    }}>expand_more</span>
+                  </div>
+                </div>
+
+                {/* ▼ Expanded Panel */}
+                {showTfwPanel && (
+                  <div style={{ borderTop: "1px solid rgba(255,79,31,0.10)", animation: "fadeIn 0.25s ease" }}>
+
+                    {/* Criteria Checklist */}
+                    <div style={{ padding: "14px 18px", background: "#FFFBF5" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 10 }}>Eligibility Criteria</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {tfwResults.map(c => (
+                          <div key={c.id} style={{
+                            display: "flex", alignItems: "center", gap: 10,
+                            padding: "8px 12px", borderRadius: 10,
+                            background: c.passed ? "rgba(34,197,94,0.06)" : "rgba(239,68,68,0.04)",
+                            border: `1px solid ${c.passed ? 'rgba(34,197,94,0.18)' : 'rgba(239,68,68,0.12)'}`,
+                            transition: "all .3s ease"
+                          }}>
+                            <div style={{
+                              width: 26, height: 26, borderRadius: 7,
+                              background: c.passed ? T.success : "rgba(239,68,68,0.12)",
+                              color: c.passed ? "#fff" : T.rose,
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              transition: "all .3s ease", flexShrink: 0
+                            }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>{c.passed ? 'check' : 'close'}</span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: 15, color: T.muted }}>{c.icon}</span>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: c.passed ? T.success : T.text }}>{c.label}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Detail Fields */}
+                    <div style={{ padding: "14px 18px", display: "flex", flexDirection: "column", gap: 12, borderTop: "1px solid #F0F0F0" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.5, textTransform: "uppercase" }}>Fill Your Details</div>
+                      <div className="grid-2">
+                        <div style={{ gridColumn: "span 2" }}>
+                          <label style={lbl}>Family Income (Annual)</label>
+                          <div style={{ position: "relative", marginTop: 6 }}>
+                            <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: T.muted, fontSize: 13 }}>₹</span>
+                            <input type="number" style={{ ...inp, marginTop: 0, paddingLeft: 24 }} value={draft.familyIncome === 0 || draft.familyIncome === '0' ? '' : (draft.familyIncome || '')} onChange={e => { const v = e.target.value; setDraft(p => ({ ...p, familyIncome: v === '' ? 0 : Number(v) })); }} placeholder="e.g. 150000" />
+                          </div>
+                        </div>
+                        <div>
+                          <label style={lbl}>Domicile State</label>
+                          <div style={{ position: "relative", marginTop: 6 }}>
+                            <select style={{ ...inp, marginTop: 0, paddingRight: 32 }} value={draft.domicileState || ""} onChange={e => setDraft(p => ({ ...p, domicileState: e.target.value }))}>
+                              <option value="">Select…</option>
+                              <option value="Uttar Pradesh">Uttar Pradesh</option>
+                              <option value="Other">Other State</option>
+                            </select>
+                            <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: T.muted, pointerEvents: "none", fontSize: 12 }}>▾</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label style={lbl}>Admitted Course</label>
+                          <div style={{ position: "relative", marginTop: 6 }}>
+                            <select style={{ ...inp, marginTop: 0, paddingRight: 32 }} value={draft.course || "B.Tech"} onChange={e => setDraft(p => ({ ...p, course: e.target.value }))}>
+                              {["B.Tech", "B.Pharm", "BHMCT", "BFAD", "BFA", "B.Des", "MCA", "MBA", "B.Arch"].map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                            <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: T.muted, pointerEvents: "none", fontSize: 12 }}>▾</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Income Certificate Toggle */}
+                      <div onClick={() => setDraft(p => ({ ...p, hasIncomeCertificate: !p.hasIncomeCertificate }))} style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "10px 14px", borderRadius: 10,
+                        border: `1px solid ${draft.hasIncomeCertificate ? "rgba(34,197,94,0.22)" : T.border}`,
+                        background: draft.hasIncomeCertificate ? "rgba(34,197,94,0.06)" : "#F9F9F9",
+                        cursor: "pointer", transition: "all .2s"
+                      }}>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 12, color: draft.hasIncomeCertificate ? T.success : T.text }}>Valid Income Certificate</div>
+                          <div style={{ fontSize: 10, color: T.muted, marginTop: 1 }}>Issued by Tehsildar/SDM (current year)</div>
+                        </div>
+                        <div style={{ width: 40, height: 22, borderRadius: 11, background: draft.hasIncomeCertificate ? T.success : "#E0E0E0", position: "relative", transition: "all .3s" }}>
+                          <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: draft.hasIncomeCertificate ? 21 : 3, transition: "all .3s cubic-bezier(0.18, 0.89, 0.32, 1.28)", boxShadow: "0 1px 3px rgba(0,0,0,0.15)" }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Final Verdict + TFW Toggle */}
+                    <div style={{ padding: "14px 18px", background: tfwEligible ? "rgba(34,197,94,0.04)" : "rgba(239,68,68,0.03)", borderTop: "1px solid #F0F0F0" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{
+                          width: 38, height: 38, borderRadius: 10,
+                          background: tfwEligible ? "linear-gradient(135deg, #22C55E, #16A34A)" : "linear-gradient(135deg, #EF4444, #DC2626)",
+                          color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+                          boxShadow: `0 4px 12px ${tfwEligible ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.25)'}`,
+                          flexShrink: 0
+                        }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 20 }}>{tfwEligible ? 'check_circle' : 'cancel'}</span>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 800, fontSize: 14, color: tfwEligible ? T.success : T.rose }}>
+                            {tfwEligible ? '✅ You are Eligible!' : '❌ Not Eligible'}
+                          </div>
+                          <div style={{ fontSize: 10, color: T.muted, marginTop: 2 }}>
+                            {tfwEligible ? 'All AKTU/UPTAC criteria met. Toggle TFW below.' : `${tfwResults.filter(c => !c.passed).length} criteria not met — check above`}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* TFW TOGGLE — only appears when eligible */}
+                      {tfwEligible && (
+                        <div
+                          onClick={() => setDraft(p => ({ ...p, isFeeWaiver: !p.isFeeWaiver }))}
+                          style={{
+                            marginTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between",
+                            padding: "12px 16px", borderRadius: 12,
+                            background: draft.isFeeWaiver ? "linear-gradient(135deg, rgba(255,79,31,0.08), rgba(255,152,0,0.04))" : "#F5F5F5",
+                            border: `1.5px solid ${draft.isFeeWaiver ? T.orange : '#E0E0E0'}`,
+                            cursor: "pointer", transition: "all .3s ease"
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: draft.isFeeWaiver ? T.orange : T.text }}>Enable TFW Status</div>
+                            <div style={{ fontSize: 10, color: T.muted, marginTop: 1 }}>Tuition fee will be waived (other fees still apply)</div>
+                          </div>
+                          <div style={{ width: 46, height: 26, borderRadius: 13, background: draft.isFeeWaiver ? T.orange : "#D0D0D0", position: "relative", transition: "all .3s" }}>
+                            <div style={{
+                              width: 20, height: 20, borderRadius: "50%", background: "#fff",
+                              position: "absolute", top: 3, left: draft.isFeeWaiver ? 23 : 3,
+                              transition: "all .3s cubic-bezier(0.18, 0.89, 0.32, 1.28)",
+                              boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+                            }} />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Save button is already disabled when TFW is on but ineligible */}
+                    </div>
+
+                    {/* AKTU Info Note */}
+                    <div style={{ padding: "10px 18px 14px", background: "#FFFAF5" }}>
+                      <div style={{ padding: "8px 12px", borderRadius: 8, background: "#FFFBEB", border: "1px dashed rgba(245,158,11,0.3)", fontSize: 10, color: "#92400E", lineHeight: 1.5 }}>
+                        💡 <b>AKTU TFW:</b> 5% supernumerary seats for students with family income &lt; ₹6,00,000/year. UP domicile required. Not for B.Arch. Income certificate verified during UPTAC counselling.
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── LOCKED TFW STATUS (shown when locked and FW was set) ── */}
+            {isLocked && user.isFeeWaiver && (
+              <div style={{ padding: "14px 18px", borderRadius: 12, background: "rgba(34,197,94,0.06)", border: "1.5px solid rgba(34,197,94,0.20)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span className="material-symbols-outlined" style={{ color: T.success, fontSize: 22 }}>verified</span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: T.success }}>TFW Status: Verified ✓</div>
+                    <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>
+                      Course: {user.course || "B.Tech"} | Domicile: {user.domicileState || "—"} | Income Cert: {user.hasIncomeCertificate ? "Yes" : "No"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+
+            </div>
             )} {/* end !isLocked edit form */}
 
             {/* ── PASSWORD VERIFICATION FIELD ── */}
@@ -3272,16 +3272,16 @@
           });
           const data = await res.json();
           if (data.success) {
-            addToast("Perk Unlocked!", p.title, <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>redeem</span>, p.color || T.success);
-            if (user) {
-              setUser({ ...user, claimedPerks: [...(user.claimedPerks || []), p._id] });
-            }
-            window.open(data.officialUrl, "_blank");
+             addToast("Perk Unlocked!", p.title, <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>redeem</span>, p.color || T.success);
+             if (user) {
+               setUser({ ...user, claimedPerks: [...(user.claimedPerks || []), p._id] });
+             }
+             window.open(data.officialUrl, "_blank");
           } else {
-            window.open(p.officialUrl, "_blank");
+             window.open(p.officialUrl, "_blank");
           }
-        } catch (e) {
-          window.open(p.officialUrl, "_blank");
+        } catch(e) {
+           window.open(p.officialUrl, "_blank");
         }
       };
 
@@ -3334,10 +3334,10 @@
                 <SH icon={<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>schedule</span>} title="Previously Claimed" subtitle="History of discounts on your ID card" />
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {perksList.flatMap(c => c.items).filter(p => user?.claimedPerks?.includes(p._id)).length === 0 ? (
-                    <div style={{ padding: 20, color: T.muted, fontSize: 12, textAlign: "center" }}>You haven't claimed any perks yet.</div>
+                     <div style={{ padding: 20, color: T.muted, fontSize: 12, textAlign: "center" }}>You haven't claimed any perks yet.</div>
                   ) : (
                     perksList.flatMap(c => c.items).filter(p => user?.claimedPerks?.includes(p._id)).map(p => (
-                      <Card key={'claimed-' + p._id}>
+                      <Card key={'claimed-'+p._id}>
                         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                           <div style={{ width: 46, height: 46, borderRadius: 13, flexShrink: 0, background: (p.color || "#F5F5F5") + "14", border: `1px solid ${(p.color || "#EBEBEB")}28`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{p.iconNode}</div>
                           <div style={{ flex: 1 }}>
@@ -4534,8 +4534,8 @@
         setTimeout(() => {
           let response = "I'm still learning! For this issue, I recommend checking the guides above or contacting your college nodal officer.";
           const lower = userMsg.toLowerCase();
-
-          if (lower.includes("dbt") || lower.includes("bank") || lower.includes("npci") || lower.includes("account")) {
+          
+          if(lower.includes("dbt") || lower.includes("bank") || lower.includes("npci") || lower.includes("account")) {
             response = "For DBT or Bank Linking issues, you must visit your home bank branch with your Aadhaar and passbook. Request them to perform 'Aadhaar Seeding for DBT'. It usually takes 48 hours to reflect on the NPCI mapper.";
           } else if (lower.includes("suspect") || lower.includes("mismatch") || lower.includes("marks") || lower.includes("enrollment")) {
             response = "If your status is 'Suspect' due to a data mismatch, check if your high school marks and AKTU enrollment number match exactly. You'll need to wait for the Correction Window to open, update the details, and submit a hardcopy to your college.";
@@ -4559,7 +4559,7 @@
         setSyncStep(0);
         setTimeout(() => setSyncStep(1), 1200);
         setTimeout(() => setSyncStep(2), 2500);
-
+        
         try {
           const res = await fetch(`${API_BASE_URL}/api/scholarships/fetch-latest`, { method: 'POST' });
           if (res.ok) {
@@ -4713,18 +4713,18 @@
       const isRecommended = (s) => {
         if (!s.eligibility) return false;
         const { familyIncome = 999999, casteCategory = 'General', defenceDependent = false, capfDependent = false } = user;
-
+        
         if (familyIncome > s.eligibility.maxIncome) return false;
         if (!s.eligibility.allowedCategories.includes(casteCategory)) return false;
         if (s.eligibility.isDefenceRequired && !defenceDependent) return false;
         if (s.eligibility.isCapfRequired && !capfDependent) return false;
-
+        
         return true;
       };
 
-      const visibleScholarships = activeTab === "all" ? allScholarships
+      const visibleScholarships = activeTab === "all" ? allScholarships 
         : activeTab === "recommended" ? allScholarships.filter(isRecommended)
-          : allScholarships.filter(s => s.category.includes(activeTab) || (activeTab === 'Defence' && s.category === 'CAPF'));
+        : allScholarships.filter(s => s.category.includes(activeTab) || (activeTab === 'Defence' && s.category === 'CAPF'));
 
       const getCategoryIcon = (cat) => {
         if (cat === 'Government') return "account_balance";
@@ -5046,13 +5046,13 @@
                 )}
               </div>
               <div style={{ display: "flex", gap: 10, marginTop: 10, padding: "10px 0 0", borderTop: `1px solid ${T.border}` }}>
-                <input
-                  type="text"
-                  value={aiInput}
-                  onChange={e => setAiInput(e.target.value)}
+                <input 
+                  type="text" 
+                  value={aiInput} 
+                  onChange={e => setAiInput(e.target.value)} 
                   onKeyDown={e => e.key === "Enter" && handleAiSubmit()}
-                  placeholder="Type your scholarship problem here..."
-                  style={{ flex: 1, padding: "12px 16px", background: "#F9FAFB", color: T.text, border: `1px solid ${T.border}`, borderRadius: 24, fontSize: 13, outline: "none" }}
+                  placeholder="Type your scholarship problem here..." 
+                  style={{ flex: 1, padding: "12px 16px", background: "#F9FAFB", color: T.text, border: `1px solid ${T.border}`, borderRadius: 24, fontSize: 13, outline: "none" }} 
                 />
                 <button onClick={handleAiSubmit} style={{ width: 42, height: 42, borderRadius: "50%", background: T.indigo, color: "#fff", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 20 }}>send</span>
@@ -5066,14 +5066,14 @@
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: T.muted, marginBottom: 4, display: "block" }}>Problem Title</label>
-                <input type="text" value={newProblem.title} onChange={e => setNewProblem({ ...newProblem, title: e.target.value })} placeholder="e.g. Blank Screen on Step 2" style={{ width: "100%", padding: "12px 14px", background: "#F9FAFB", color: T.text, border: `1px solid ${T.border}`, borderRadius: 10, fontSize: 14 }} />
+                <input type="text" value={newProblem.title} onChange={e => setNewProblem({...newProblem, title: e.target.value})} placeholder="e.g. Blank Screen on Step 2" style={{ width: "100%", padding: "12px 14px", background: "#F9FAFB", color: T.text, border: `1px solid ${T.border}`, borderRadius: 10, fontSize: 14 }} />
               </div>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: T.muted, marginBottom: 4, display: "block" }}>Description</label>
-                <textarea value={newProblem.desc} onChange={e => setNewProblem({ ...newProblem, desc: e.target.value })} placeholder="Explain what went wrong..." rows="3" style={{ width: "100%", padding: "12px 14px", background: "#F9FAFB", color: T.text, border: `1px solid ${T.border}`, borderRadius: 10, fontSize: 14, resize: "vertical" }} />
+                <textarea value={newProblem.desc} onChange={e => setNewProblem({...newProblem, desc: e.target.value})} placeholder="Explain what went wrong..." rows="3" style={{ width: "100%", padding: "12px 14px", background: "#F9FAFB", color: T.text, border: `1px solid ${T.border}`, borderRadius: 10, fontSize: 14, resize: "vertical" }} />
               </div>
               <button onClick={() => {
-                if (!newProblem.title) return addToast("Error", "Please enter a title", <span className="material-symbols-outlined" style={{ fontSize: 18 }}>warning</span>, T.rose);
+                if(!newProblem.title) return addToast("Error", "Please enter a title", <span className="material-symbols-outlined" style={{ fontSize: 18 }}>warning</span>, T.rose);
                 setCustomProblems([...customProblems, {
                   id: Date.now().toString(),
                   title: newProblem.title,
@@ -5086,7 +5086,7 @@
                   ]
                 }]);
                 setShowReportForm(false);
-                setNewProblem({ title: "", desc: "" });
+                setNewProblem({title: "", desc: ""});
                 addToast("Problem Reported!", "We will add a guide for this soon.", <span className="material-symbols-outlined" style={{ fontSize: 18 }}>check_circle</span>, T.success);
               }} style={{ background: `linear-gradient(135deg,${T.indigo},#6366F1)`, color: "#fff", border: "none", borderRadius: 12, padding: "12px", fontSize: 13, fontWeight: 800, cursor: "pointer", marginTop: 8, transition: "all .2s ease" }}>
                 Submit Problem
@@ -5367,7 +5367,7 @@
             fetch(`${API_BASE_URL}/api/jobs?limit=300`),
             fetch(`${API_BASE_URL}/api/jobs/stats`)
           ]);
-          const jobsData = await jobsRes.json();
+          const jobsData  = await jobsRes.json();
           const statsData = await statsRes.json();
 
           if (jobsData.jobs && Array.isArray(jobsData.jobs)) {
@@ -5402,7 +5402,7 @@
         setRefreshing(true);
         addToast('Fetching Latest…', 'Syncing from all sources', '🌐', T.teal);
         try {
-          const res = await fetch(`${API_BASE_URL}/api/jobs/fetch-latest`, { method: 'POST' });
+          const res  = await fetch(`${API_BASE_URL}/api/jobs/fetch-latest`, { method: 'POST' });
           const data = await res.json();
           setLastRefreshResult(data);
           if (data.success || data.jobsAdded >= 0) {
@@ -5424,7 +5424,7 @@
       const filtered = allJobs.filter(j => {
         // Global search
         if (searchLower) {
-          const hay = `${j.title} ${j.company} ${j.location} ${j.desc} ${j.branch} ${(j.tags || []).join(' ')}`.toLowerCase();
+          const hay = `${j.title} ${j.company} ${j.location} ${j.desc} ${j.branch} ${(j.tags||[]).join(' ')}`.toLowerCase();
           if (!hay.includes(searchLower)) return false;
         }
         // Branch filter
@@ -5443,11 +5443,11 @@
 
       // Tab-specific filtered views
       const tabJobs = {
-        all: filtered,
-        govt: filtered.filter(j => j.category === 'Government' || j.companyType === 'government'),
-        private: filtered.filter(j => j.primaryType === 'Job' && j.category !== 'Government' && j.companyType !== 'government'),
-        it: filtered.filter(j => j.category === 'IT' || ['CSE', 'IT', 'AI/ML', 'Data Science'].includes(j.branch)),
-        engineering: filtered.filter(j => j.primaryType === 'Job' && !['CSE', 'IT', 'AI/ML', 'Data Science'].includes(j.branch) && j.category !== 'Government'),
+        all:         filtered,
+        govt:        filtered.filter(j => j.category === 'Government' || j.companyType === 'government'),
+        private:     filtered.filter(j => j.primaryType === 'Job' && j.category !== 'Government' && j.companyType !== 'government'),
+        it:          filtered.filter(j => j.category === 'IT' || ['CSE','IT','AI/ML','Data Science'].includes(j.branch)),
+        engineering: filtered.filter(j => j.primaryType === 'Job' && !['CSE','IT','AI/ML','Data Science'].includes(j.branch) && j.category !== 'Government'),
         internships: filtered.filter(j => {
           if (j.primaryType !== 'Internship') return false;
           if (internCompFilter === 'All') return true;
@@ -5456,39 +5456,39 @@
           if (internCompFilter === 'Unknown') return j.secondaryType === 'Unknown';
           return true;
         }),
-        hackathons: filtered.filter(j => j.primaryType === 'Hackathon'),
-        fresher: filtered.filter(j => ['Fresher', 'Entry-Level'].includes(j.experienceLevel))
+        hackathons:  filtered.filter(j => j.primaryType === 'Hackathon'),
+        fresher:     filtered.filter(j => ['Fresher','Entry-Level'].includes(j.experienceLevel))
       };
 
       // Stat counters — from DB when available, fallback to filtered
-      const dbTotal = stats ? stats.total : allJobs.length;
-      const dbGovt = stats ? stats.govtJobs : tabJobs.govt.length;
-      const dbInternships = stats ? stats.internships : tabJobs.internships.length;
-      const dbPaid = stats ? stats.paidInternships : filtered.filter(j => j.primaryType === 'Internship' && j.secondaryType === 'Paid').length;
-      const dbFree = stats ? stats.freeInternships : filtered.filter(j => j.primaryType === 'Internship' && j.secondaryType === 'Free').length;
-      const dbUnknownIntern = stats ? stats.unknownInternships : filtered.filter(j => j.primaryType === 'Internship' && j.secondaryType === 'Unknown').length;
-      const dbHackathons = stats ? stats.hackathons : tabJobs.hackathons.length;
-      const dbFresher = stats ? stats.fresherJobs : tabJobs.fresher.length;
+      const dbTotal      = stats ? stats.total        : allJobs.length;
+      const dbGovt       = stats ? stats.govtJobs     : tabJobs.govt.length;
+      const dbInternships = stats ? stats.internships  : tabJobs.internships.length;
+      const dbPaid       = stats ? stats.paidInternships   : filtered.filter(j => j.primaryType==='Internship'&&j.secondaryType==='Paid').length;
+      const dbFree       = stats ? stats.freeInternships   : filtered.filter(j => j.primaryType==='Internship'&&j.secondaryType==='Free').length;
+      const dbUnknownIntern = stats ? stats.unknownInternships : filtered.filter(j => j.primaryType==='Internship'&&j.secondaryType==='Unknown').length;
+      const dbHackathons = stats ? stats.hackathons   : tabJobs.hackathons.length;
+      const dbFresher    = stats ? stats.fresherJobs  : tabJobs.fresher.length;
 
       // Tab definitions
       const TABS = [
-        { id: 'all', icon: 'list_alt', label: 'All', count: dbTotal, color: T.indigo },
-        { id: 'govt', icon: 'account_balance', label: 'Government', count: dbGovt, color: '#4F46E5' },
-        { id: 'private', icon: 'business', label: 'Private', count: stats ? stats.privateJobs : tabJobs.private.length, color: T.orange },
-        { id: 'it', icon: 'code', label: 'IT / Software', count: stats ? stats.itJobs : tabJobs.it.length, color: T.teal },
-        { id: 'engineering', icon: 'engineering', label: 'Engineering', count: stats ? stats.engineeringJobs : tabJobs.engineering.length, color: '#F59E0B' },
-        { id: 'internships', icon: 'school', label: 'Internships', count: dbInternships, color: T.success },
-        { id: 'hackathons', icon: 'emoji_events', label: 'Hackathons', count: dbHackathons, color: T.rose },
-        { id: 'fresher', icon: 'star', label: 'Fresher', count: dbFresher, color: '#8B5CF6' },
+        { id: 'all',         icon: 'list_alt',         label: 'All',         count: dbTotal,        color: T.indigo },
+        { id: 'govt',        icon: 'account_balance',  label: 'Government',  count: dbGovt,         color: '#4F46E5' },
+        { id: 'private',     icon: 'business',         label: 'Private',     count: stats ? stats.privateJobs : tabJobs.private.length, color: T.orange },
+        { id: 'it',          icon: 'code',             label: 'IT / Software', count: stats ? stats.itJobs : tabJobs.it.length, color: T.teal },
+        { id: 'engineering', icon: 'engineering',      label: 'Engineering', count: stats ? stats.engineeringJobs : tabJobs.engineering.length, color: '#F59E0B' },
+        { id: 'internships', icon: 'school',           label: 'Internships', count: dbInternships,  color: T.success },
+        { id: 'hackathons',  icon: 'emoji_events',     label: 'Hackathons',  count: dbHackathons,   color: T.rose },
+        { id: 'fresher',     icon: 'star',             label: 'Fresher',     count: dbFresher,      color: '#8B5CF6' },
       ];
 
       const currentTabJobs = tabJobs[activeTab] || [];
-      const currentTab = TABS.find(t => t.id === activeTab);
+      const currentTab     = TABS.find(t => t.id === activeTab);
 
-      const BRANCHES = ['All', 'CSE', 'IT', 'AI/ML', 'Data Science', 'ECE', 'EEE', 'EE', 'Mechanical', 'Civil', 'Chemical', 'Automobile', 'Aerospace', 'Biotechnology', 'Biomedical', 'Mechatronics', 'Robotics', 'Instrumentation', 'Environmental', 'Production', 'Metallurgy', 'General Engineering'];
-      const LOCATIONS = ['All India', 'Remote', 'Bangalore', 'Hyderabad', 'Pune', 'Mumbai', 'Delhi', 'Noida', 'Gurugram', 'Chennai', 'Kolkata', 'Ahmedabad', 'Jaipur', 'Lucknow', 'Indore', 'Kochi', 'Chandigarh'];
-      const COMPANY_TYPES = ['All', 'product', 'service', 'government', 'unknown'];
-      const EXP_LEVELS = ['All', 'Fresher', 'Entry-Level', 'Junior', 'Experienced'];
+      const BRANCHES = ['All','CSE','IT','AI/ML','Data Science','ECE','EEE','EE','Mechanical','Civil','Chemical','Automobile','Aerospace','Biotechnology','Biomedical','Mechatronics','Robotics','Instrumentation','Environmental','Production','Metallurgy','General Engineering'];
+      const LOCATIONS = ['All India','Remote','Bangalore','Hyderabad','Pune','Mumbai','Delhi','Noida','Gurugram','Chennai','Kolkata','Ahmedabad','Jaipur','Lucknow','Indore','Kochi','Chandigarh'];
+      const COMPANY_TYPES = ['All','product','service','government','unknown'];
+      const EXP_LEVELS = ['All','Fresher','Entry-Level','Junior','Experienced'];
 
       return (
         <div>
@@ -5553,9 +5553,9 @@
                 <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: T.text }}>📊 Last Refresh Statistics</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(100px,1fr))', gap: 8, marginBottom: 12 }}>
                   {[
-                    { label: 'Added', val: lastRefreshResult.jobsAdded, c: T.success },
-                    { label: 'Duplicates', val: lastRefreshResult.duplicates, c: T.orange },
-                    { label: 'Rejected', val: lastRefreshResult.rejected, c: T.rose },
+                    { label: 'Added',     val: lastRefreshResult.jobsAdded,    c: T.success },
+                    { label: 'Duplicates', val: lastRefreshResult.duplicates,   c: T.orange },
+                    { label: 'Rejected',  val: lastRefreshResult.rejected,     c: T.rose },
                     { label: 'Stale Removed', val: lastRefreshResult.staleRemoved, c: T.muted }
                   ].map(s => (
                     <div key={s.label} style={{ textAlign: 'center', background: '#fff', borderRadius: 10, padding: '8px', border: `1px solid ${T.border}` }}>
@@ -5694,7 +5694,7 @@
 
             {/* ── JOBS GRID ── */}
             {loading ? (
-              <div className="grid-2">{[1, 2, 3, 4, 5, 6].map(i => <SkeletonCard key={i} />)}</div>
+              <div className="grid-2">{[1,2,3,4,5,6].map(i => <SkeletonCard key={i} />)}</div>
             ) : currentTabJobs.length === 0 && activeTab !== 'hackathons' ? (
               <EmptyState
                 icon={activeTab === 'govt' ? 'account_balance' : activeTab === 'internships' ? 'school' : 'search_off'}
@@ -5789,7 +5789,7 @@
                   <div style={{ color: T.muted, fontSize: 10, letterSpacing: .5 }}>Student Web Portal • AKTU Ecosystem</div>
                 </div>
               </div>
-              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 36, fontWeight: 900, lineHeight: 1.2, marginBottom: 4, color: T.text, letterSpacing: "-0.5px" }}>Hello, {user.name ? user.name.split(" ")[0] : "Dev"} </h1>
+              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 36, fontWeight: 900, lineHeight: 1.2, marginBottom: 4, color: T.text, letterSpacing: "-0.5px" }}>नमस्ते, {user.name ? user.name.split(" ")[0] : "Dev"} 🙏</h1>
 
               <p style={{ color: T.muted, fontSize: 15 }}>{user.branch || "CSE"} • {user.year || "1st Year"} • AKTU Lucknow</p>
               <div className="home-stats">
