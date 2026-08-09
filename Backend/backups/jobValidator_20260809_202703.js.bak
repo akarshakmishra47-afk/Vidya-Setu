@@ -86,10 +86,10 @@ function classifyFresher(title, experience = '') {
   const t = title.toLowerCase();
   const e = experience.toLowerCase();
   
-  const seniorRegex = /\b(senior|lead|manager|principal|head|director|sr|vp|architect|staff)\b|\b[3-9]\+?\s*years\b|\b\d{2,}\+?\s*years\b/;
-  if (seniorRegex.test(t) || seniorRegex.test(e)) return false;
+  const seniorRegex = /\b(senior|lead|manager|principal|head|director|sr|vp|architect|staff)\b/;
+  if (seniorRegex.test(t)) return false;
 
-  const fresherRegex = /\b(fresher|freshers|graduate|new graduate|campus|graduate engineer trainee|get|trainee|entry level|entry-level|junior|jr|associate|0-1 years|0-2 years|no experience)\b/;
+  const fresherRegex = /\b(fresher|freshers|graduate|graduate engineer trainee|get|trainee|entry level|entry-level|junior|jr|associate|0-1 years|0-2 years|no experience)\b/;
   return fresherRegex.test(t) || fresherRegex.test(e);
 }
 

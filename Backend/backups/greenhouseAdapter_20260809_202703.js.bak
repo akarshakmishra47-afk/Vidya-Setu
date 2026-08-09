@@ -6,7 +6,7 @@ const { classifyInternshipCompensation, classifyFresher, classifyJobCategory } =
 const COMPANIES = [
   'postman', 'groww', 'airbnb', 'pinterest', 'coinbase', 
   'stripe', 'robinhood', 'instacart', 'discord', 'reddit', 
-  'figma', 'gitlab', 'twitch', 'dropbox', 'phonepe', 'databricks'
+  'figma', 'gitlab', 'twitch', 'dropbox'
 ];
 
 /**

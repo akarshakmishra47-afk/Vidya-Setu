@@ -164,7 +164,7 @@ async function getLiveCounts() {
     Job.countDocuments({ category: 'Private' }),
     Job.countDocuments({ category: 'IT' }),
     Job.countDocuments({ category: 'Engineering' }),
-    Job.countDocuments({ category: 'Fresher' }),
+    Job.countDocuments({ experienceLevel: 'Fresher' }),
     Job.countDocuments({ companyType: 'product' }),
     Job.countDocuments({ companyType: 'service' }),
     Job.countDocuments({ source: 'remotive' }),
