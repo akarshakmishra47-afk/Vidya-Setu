@@ -5359,7 +5359,14 @@
           const statsData = await statsRes.json();
 
           if (jobsData.jobs && Array.isArray(jobsData.jobs)) {
-            setAllJobs(jobsData.jobs);
+            const uniqueJobsMap = new Map();
+            jobsData.jobs.forEach(job => {
+              const key = job.deduplicationKey || (job.source + '_' + job.sourceId) || job.applyUrl || job._id;
+              if (!uniqueJobsMap.has(key)) {
+                uniqueJobsMap.set(key, job);
+              }
+            });
+            setAllJobs(Array.from(uniqueJobsMap.values()));
           }
           if (statsData.total !== undefined) {
             setStats(statsData);

@@ -107,7 +107,7 @@ const jobSchema = new mongoose.Schema({
   hackathonTechDomain:  { type: String, default: '' },
 
   // ── Deduplication ─────────────────────────────────────────────────────────
-  deduplicationKey: { type: String, index: true, default: '' },
+  deduplicationKey: { type: String, index: true, unique: true, sparse: true, default: '' },
 
   // ── Scoring & Housekeeping ────────────────────────────────────────────────
   relevanceScore: { type: Number, default: 0 },
