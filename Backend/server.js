@@ -16,8 +16,23 @@ const communityRoutes = require('./routes/communityRoutes');
 
 const app = express();
 
+const ALLOWED_ORIGINS = [
+  'https://mini-project-eight-lime.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://127.0.0.1:5500',
+  'http://127.0.0.1:3000',
+  null // file:// protocol (local file open)
+];
+
 app.use(cors({
-  origin: 'https://mini-project-eight-lime.vercel.app',
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all for development — restrict in production via env
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true
 }));

@@ -1,0 +1,11 @@
+node_modules/
+.env
+*.log
+*.tmp
+.cache
+.DS_Store
+Thumbs.db
+backup_before_cleanup_*/
+VidyaSetuBackup/
+backup_before_real_india_jobs_system/
+backup_before_job_api_update/

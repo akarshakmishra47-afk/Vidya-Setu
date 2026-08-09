@@ -5142,454 +5142,572 @@
     }
 
     /* ══════════════════════════════════════
-      MODULE: JOBS & INTERNSHIPS
+      MODULE: JOBS, INTERNSHIPS & HACKATHONS
     ══════════════════════════════════════ */
 
+    /* ── BADGE COLORS BY TYPE ── */
+    function getJobAccent(job) {
+      if (job.category === 'Government') return T.indigo;
+      if (job.primaryType === 'Internship') return job.secondaryType === 'Paid' ? T.success : job.secondaryType === 'Free' ? T.teal : T.orange;
+      if (job.primaryType === 'Hackathon') return T.rose;
+      if (job.companyType === 'product') return T.indigo;
+      if (job.companyType === 'service') return T.teal;
+      return T.orange;
+    }
+
+    /* ── EXPERIENCE LEVEL BADGE ── */
+    function ExpBadge({ level }) {
+      const colors = { Fresher: T.success, 'Entry-Level': T.teal, Junior: T.indigo, Experienced: T.orange, Unknown: T.muted };
+      const c = colors[level] || T.muted;
+      if (!level || level === 'Unknown') return null;
+      return <span style={{ background: c + '15', color: c, border: `1px solid ${c}30`, borderRadius: 8, padding: '2px 7px', fontSize: 10, fontWeight: 700 }}>{level}</span>;
+    }
+
+    /* ── SOURCE CHIP ── */
+    function SourceChip({ source }) {
+      const labels = { remotive: 'Remotive', arbeitnow: 'Arbeitnow', himalayas: 'Himalayas', govtRss: 'Govt Portal', hackathon: 'Hackathon', manual: 'Manual', web: 'Web' };
+      return <span style={{ fontSize: 10, color: T.muted, background: '#F3F4F6', borderRadius: 6, padding: '1px 6px' }}>{labels[source] || source}</span>;
+    }
+
     /* ── JOB CARD COMPONENT ── */
-    function JobCard({ j, onApply, onHowToApply }) {
-      const badgeColor = j.secondaryType === "Paid" ? T.success : j.secondaryType === "Free" ? T.teal : T.orange;
-      const sourceIcon = j.source === "web" ? <span className="material-symbols-outlined" style={{ fontSize: 14 }}>public</span> : <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit_document</span>;
+    function JobCard({ j }) {
+      const accent = getJobAccent(j);
+      const isGovt = j.category === 'Government' || j.companyType === 'government';
+      const isIntern = j.primaryType === 'Internship';
+      const isHackathon = j.primaryType === 'Hackathon';
+
+      const typeLabel = isHackathon ? '🏆 Hackathon' : isIntern ? '🎓 Internship' : '💼 Job';
+      const compLabel = j.companyType === 'product' ? '🚀 Product' : j.companyType === 'service' ? '⚙️ Service' : j.companyType === 'government' ? '🏛️ Govt' : null;
+      const compColor = j.companyType === 'product' ? T.indigo : j.companyType === 'service' ? T.teal : j.companyType === 'government' ? '#4F46E5' : T.muted;
+
+      const internTag = isIntern
+        ? j.secondaryType === 'Paid' ? '💰 Paid' : j.secondaryType === 'Free' ? '🆓 Free' : '❓ Compensation Unknown'
+        : null;
+
+      const postedText = j.postedAt
+        ? (() => { const d = new Date(j.postedAt); const diff = Math.floor((Date.now() - d) / 86400000); return diff === 0 ? 'Today' : diff === 1 ? '1d ago' : diff < 30 ? `${diff}d ago` : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }); })()
+        : j.createdAt
+          ? (() => { const d = new Date(j.createdAt); const diff = Math.floor((Date.now() - d) / 86400000); return diff === 0 ? 'Today' : `${diff}d ago`; })()
+          : null;
+
+      const hasValidUrl = j.applyUrl && (j.applyUrl.startsWith('http://') || j.applyUrl.startsWith('https://'));
+
       return (
-        <div style={{ background: "#fff", borderRadius: 18, border: `1px solid ${T.border}`, boxShadow: "0 2px 16px rgba(0,0,0,0.05)", padding: "20px 20px 16px", display: "flex", flexDirection: "column", gap: 0, transition: "all .2s ease", position: "relative", overflow: "hidden" }}
-          onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 8px 30px rgba(0,0,0,0.10)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-          onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 2px 16px rgba(0,0,0,0.05)"; e.currentTarget.style.transform = "translateY(0)"; }}>
-          {/* Top accent bar */}
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg,${badgeColor},${badgeColor}88)`, borderRadius: "18px 18px 0 0" }} />
-          {/* Header row */}
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
+        <div style={{ background: '#fff', borderRadius: 16, border: `1px solid ${T.border}`, boxShadow: '0 2px 12px rgba(0,0,0,0.05)', padding: '18px 18px 14px', display: 'flex', flexDirection: 'column', gap: 0, transition: 'all .2s ease', position: 'relative', overflow: 'hidden' }}
+          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,0,0,0.10)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+          onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.05)'; e.currentTarget.style.transform = 'translateY(0)'; }}>
+          {/* Accent bar */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg,${accent},${accent}88)`, borderRadius: '16px 16px 0 0' }} />
+
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
             {j.companyLogo ? (
-              <img src={j.companyLogo} alt={j.company} onError={e => { e.target.style.display = 'none'; }}
-                style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 10, border: `1px solid ${T.border}`, background: "#F8F8F8", padding: 4, flexShrink: 0 }} />
+              <img src={j.companyLogo} alt={j.company} onError={e => e.target.style.display = 'none'}
+                style={{ width: 38, height: 38, objectFit: 'contain', borderRadius: 8, border: `1px solid ${T.border}`, background: '#F8F8F8', padding: 3, flexShrink: 0 }} />
             ) : (
-              <div style={{ width: 42, height: 42, borderRadius: 10, background: badgeColor + "18", border: `1px solid ${badgeColor}33`, display: "flex", alignItems: "center", justifyContent: "center", color: badgeColor, flexShrink: 0 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 24 }}>{j.primaryType === "Internship" ? "eco" : "account_balance"}</span>
+              <div style={{ width: 38, height: 38, borderRadius: 8, background: accent + '15', border: `1px solid ${accent}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 20, color: accent }}>
+                  {isGovt ? 'account_balance' : isIntern ? 'school' : isHackathon ? 'emoji_events' : 'work'}
+                </span>
               </div>
             )}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 14, color: T.text, fontFamily: "'Nunito',sans-serif", lineHeight: 1.2 }}>{j.title}</div>
-              <div style={{ color: T.muted, fontSize: 12, marginTop: 3 }}>{j.company} <span style={{ color: T.border }}>•</span> {j.location}</div>
+              <div style={{ fontWeight: 800, fontSize: 13.5, color: T.text, lineHeight: 1.25, fontFamily: "'Nunito',sans-serif" }}>{j.title}</div>
+              <div style={{ color: T.muted, fontSize: 11.5, marginTop: 3, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                <span>{j.company}</span>
+                <span style={{ color: T.border }}>•</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 11 }}>location_on</span>
+                <span>{j.location}</span>
+              </div>
             </div>
-            <span style={{ background: badgeColor + "15", color: badgeColor, border: `1px solid ${badgeColor}35`, borderRadius: 12, padding: "3px 9px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>{j.badge}</span>
           </div>
+
+          {/* Badge Row */}
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 9 }}>
+            <span style={{ background: accent + '15', color: accent, border: `1px solid ${accent}30`, borderRadius: 8, padding: '2px 8px', fontSize: 10.5, fontWeight: 700 }}>{typeLabel}</span>
+            {isGovt && <span style={{ background: '#4F46E510', color: '#4F46E5', border: '1px solid #4F46E530', borderRadius: 8, padding: '2px 8px', fontSize: 10.5, fontWeight: 700 }}>🏛️ {j.govtCategory !== 'Unknown' ? j.govtCategory : 'Govt'}</span>}
+            {compLabel && !isGovt && <span style={{ background: compColor + '10', color: compColor, border: `1px solid ${compColor}30`, borderRadius: 8, padding: '2px 8px', fontSize: 10.5, fontWeight: 700 }}>{compLabel}</span>}
+            {internTag && <span style={{ background: '#F3F4F6', color: T.muted, border: `1px solid ${T.border}`, borderRadius: 8, padding: '2px 8px', fontSize: 10.5, fontWeight: 600 }}>{internTag}</span>}
+            <span style={{ background: '#F3F4F6', color: T.muted, border: `1px solid ${T.border}`, borderRadius: 8, padding: '2px 8px', fontSize: 10.5, fontWeight: 600 }}>{j.branch}</span>
+            <ExpBadge level={j.experienceLevel} />
+          </div>
+
           {/* Description */}
-          <p style={{ color: T.muted, fontSize: 12.5, lineHeight: 1.55, margin: "0 0 12px", flexGrow: 1 }}>{(j.desc || "").substring(0, 180)}{j.desc && j.desc.length > 180 ? "..." : ""}</p>
+          {j.desc && <p style={{ color: T.muted, fontSize: 12, lineHeight: 1.5, margin: '0 0 10px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{j.desc}</p>}
+
           {/* Tags */}
-          <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 12 }}>
-            {(j.tags || []).map(tag => (
-              <span key={tag} style={{ background: T.indigo + "12", color: T.indigo, border: `1px solid ${T.indigo}25`, borderRadius: 10, padding: "3px 8px", fontSize: 10.5, fontWeight: 600 }}>{tag}</span>
-            ))}
-          </div>
-          {/* Meta row */}
-          <div style={{ display: "flex", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
-            {j.deadline && <span style={{ fontSize: 11, color: T.muted, display: "inline-flex", alignItems: "center", gap: 3 }}><span className="material-symbols-outlined" style={{ fontSize: 14 }}>schedule</span> <b style={{ color: T.text }}>{j.deadline}</b></span>}
-            {j.experience && <span style={{ fontSize: 11, color: T.muted, display: "inline-flex", alignItems: "center", gap: 3 }}><span className="material-symbols-outlined" style={{ fontSize: 14 }}>track_changes</span> <b style={{ color: T.text }}>{j.experience}</b></span>}
-            <span style={{ fontSize: 11, color: T.muted, display: "inline-flex", alignItems: "center", gap: 3 }}>{sourceIcon} {j.source === "web" ? "Live Feed" : "Manual"}</span>
-          </div>
-          {/* Footer */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${T.border}`, paddingTop: 12 }}>
-            <div style={{ fontWeight: 800, color: T.success, fontSize: 14, fontFamily: "'JetBrains Mono',monospace" }}>{j.salary}</div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              {/* How to Apply button */}
-              <button onClick={() => onHowToApply(j)}
-                style={{ background: "rgba(99,102,241,0.08)", color: T.indigo, border: `1px solid ${T.indigo}30`, borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, transition: "all .18s ease" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 15 }}>help_outline</span> How to Apply
-              </button>
-              {j.applyUrl && j.applyUrl !== "#" && (
-                <a href={j.applyUrl} target="_blank" rel="noopener noreferrer"
-                  style={{ background: `linear-gradient(135deg,${T.orange},#FF6B3D)`, color: "#fff", border: "none", borderRadius: 10, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 4px 12px rgba(255,79,31,0.25)", transition: "all .18s ease" }}>
-                  Apply Now ↗
-                </a>
-              )}
-              {(!j.applyUrl || j.applyUrl === "#") && (
-                <button onClick={() => onApply(j)}
-                  style={{ background: `linear-gradient(135deg,${T.teal},#10B981)`, color: "#fff", border: "none", borderRadius: 10, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(20,184,166,0.25)", transition: "all .18s ease" }}>
-                  Express Interest
-                </button>
-              )}
+          {j.tags && j.tags.length > 0 && (
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
+              {j.tags.slice(0, 5).map((tag, i) => (
+                <span key={i} style={{ background: T.indigo + '10', color: T.indigo, border: `1px solid ${T.indigo}20`, borderRadius: 8, padding: '2px 7px', fontSize: 10, fontWeight: 600 }}>{tag}</span>
+              ))}
             </div>
+          )}
+
+          {/* Meta row */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            {postedText && <span style={{ fontSize: 11, color: T.muted, display: 'inline-flex', alignItems: 'center', gap: 3 }}><span className="material-symbols-outlined" style={{ fontSize: 12 }}>schedule</span>{postedText}</span>}
+            {j.deadline && j.deadline !== 'Not specified' && j.deadline !== 'Rolling' && (
+              <span style={{ fontSize: 11, color: T.rose, display: 'inline-flex', alignItems: 'center', gap: 3 }}><span className="material-symbols-outlined" style={{ fontSize: 12 }}>event</span>{j.deadline}</span>
+            )}
+            <SourceChip source={j.source} />
+          </div>
+
+          {/* Footer */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${T.border}`, paddingTop: 10 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: j.salary && j.salary !== 'Not specified' ? T.success : T.muted, fontFamily: "'JetBrains Mono',monospace" }}>
+              {j.salary || 'Salary N/A'}
+            </div>
+            {hasValidUrl ? (
+              <a href={j.applyUrl} target="_blank" rel="noopener noreferrer"
+                style={{ background: `linear-gradient(135deg,${accent},${accent}CC)`, color: '#fff', border: 'none', borderRadius: 10, padding: '7px 14px', fontSize: 12, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5, boxShadow: `0 3px 10px ${accent}30`, transition: 'all .18s ease' }}>
+                {isHackathon ? 'Register ↗' : 'Apply Now ↗'}
+              </a>
+            ) : (
+              <span style={{ fontSize: 11, color: T.muted, fontStyle: 'italic' }}>No direct apply link</span>
+            )}
           </div>
         </div>
       );
     }
 
-    function InternshipJobs({ search = "" }) {
+    /* ── HACKATHON CARD COMPONENT ── */
+    function HackathonCard({ h }) {
+      const hasUrl = h.applyUrl && (h.applyUrl.startsWith('http://') || h.applyUrl.startsWith('https://'));
+      return (
+        <div style={{ background: 'linear-gradient(135deg,rgba(244,63,94,0.04),rgba(239,68,68,0.02))', borderRadius: 16, border: `1px solid ${T.rose}25`, padding: '18px', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg,${T.rose},#FB923C)` }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 10, background: T.rose + '15', border: `1px solid ${T.rose}30`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 24, color: T.rose }}>emoji_events</span>
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 14, color: T.text }}>{h.title}</div>
+              <div style={{ color: T.muted, fontSize: 12, marginTop: 2 }}>{h.hackathonOrganizer || h.company}</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
+            {h.hackathonMode && <span style={{ fontSize: 12, color: T.text, display: 'flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 14, color: T.rose }}>laptop</span>{h.hackathonMode}</span>}
+            {h.location && <span style={{ fontSize: 12, color: T.text, display: 'flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 14, color: T.rose }}>location_on</span>{h.location}</span>}
+          </div>
+          {h.hackathonEligibility && <div style={{ fontSize: 12, color: T.muted, marginBottom: 10 }}>👥 {h.hackathonEligibility}</div>}
+          {h.desc && <p style={{ fontSize: 12, color: T.muted, lineHeight: 1.5, marginBottom: 12 }}>{h.desc.substring(0, 150)}</p>}
+          {hasUrl && (
+            <a href={h.applyUrl} target="_blank" rel="noopener noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: `linear-gradient(135deg,${T.rose},#FB923C)`, color: '#fff', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 700, textDecoration: 'none', boxShadow: `0 3px 10px ${T.rose}30` }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>emoji_events</span> Register Now ↗
+            </a>
+          )}
+        </div>
+      );
+    }
+
+    /* ── EMPTY STATE COMPONENT ── */
+    function EmptyState({ icon, title, subtitle, onRefresh }) {
+      return (
+        <div style={{ textAlign: 'center', padding: '48px 24px', color: T.muted }}>
+          <div style={{ marginBottom: 14 }}><span className="material-symbols-outlined" style={{ fontSize: 52, color: T.border }}>{icon}</span></div>
+          <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 6, color: T.text }}>{title}</div>
+          <div style={{ fontSize: 13, marginBottom: 20, lineHeight: 1.5 }}>{subtitle}</div>
+          {onRefresh && (
+            <button onClick={onRefresh} style={{ background: `linear-gradient(135deg,${T.teal},#0EA5E9)`, color: '#fff', border: 'none', borderRadius: 12, padding: '10px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              🔄 Refresh Live Feed
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    /* ── SKELETON CARD ── */
+    function SkeletonCard() {
+      return (
+        <div style={{ background: '#fff', borderRadius: 16, border: `1px solid ${T.border}`, padding: 18, height: 220 }}>
+          {[75, 55, 90, 40, 65].map((w, i) => (
+            <div key={i} style={{ height: 11, borderRadius: 6, background: 'linear-gradient(90deg,#F0F0F0 25%,#E8E8E8 50%,#F0F0F0 75%)', backgroundSize: '200% 100%', width: `${w}%`, marginBottom: 13, animation: 'shimmer 1.5s infinite' }} />
+          ))}
+        </div>
+      );
+    }
+
+    /* ── MAIN COMPONENT ── */
+    function InternshipJobs({ search = '' }) {
       const addToast = useToast();
       const [allJobs, setAllJobs] = useState([]);
+      const [stats, setStats] = useState(null);
       const [loading, setLoading] = useState(true);
       const [refreshing, setRefreshing] = useState(false);
-      const [activeTab, setActiveTab] = useState("latest");
-      const [internFilter, setInternFilter] = useState("Paid");
-      const [howToApplyJob, setHowToApplyJob] = useState(null);
       const [lastUpdated, setLastUpdated] = useState(null);
+      const [activeTab, setActiveTab] = useState('all');
+      const [lastRefreshResult, setLastRefreshResult] = useState(null);
+      const [showRefreshDetails, setShowRefreshDetails] = useState(false);
 
-      const loadJobs = (silent) => {
+      // Filters
+      const [branchFilter, setBranchFilter] = useState('All');
+      const [locationFilter, setLocationFilter] = useState('All India');
+      const [companyTypeFilter, setCompanyTypeFilter] = useState('All');
+      const [expLevelFilter, setExpLevelFilter] = useState('All');
+      const [internCompFilter, setInternCompFilter] = useState('All');
+
+      const loadJobs = async (silent = false) => {
         if (!silent) setLoading(true);
-        fetch(`${API_BASE_URL}/api/jobs`)
-          .then(res => res.json())
-          .then(data => { setAllJobs((data.jobs && Array.isArray(data.jobs)) ? data.jobs : []); setLastUpdated(new Date()); })
-          .catch(err => { console.error(err); if (!silent) addToast("Offline Mode", "Showing cached data", "📦", T.warn); })
-          .finally(() => { if (!silent) setLoading(false); });
+        try {
+          const [jobsRes, statsRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/api/jobs?limit=300`),
+            fetch(`${API_BASE_URL}/api/jobs/stats`)
+          ]);
+          const jobsData  = await jobsRes.json();
+          const statsData = await statsRes.json();
+
+          if (jobsData.jobs && Array.isArray(jobsData.jobs)) {
+            setAllJobs(jobsData.jobs);
+          }
+          if (statsData.total !== undefined) {
+            setStats(statsData);
+          }
+          setLastUpdated(new Date());
+        } catch (err) {
+          console.error('loadJobs error:', err);
+          if (!silent) addToast('Connection Error', 'Could not reach backend at ' + API_BASE_URL, '❌', T.rose);
+        } finally {
+          if (!silent) setLoading(false);
+        }
       };
 
       React.useEffect(() => { loadJobs(); }, []);
-
-      /* ── AUTO-REFRESH: poll every 60 seconds for real-time updates ── */
       React.useEffect(() => {
-        const interval = setInterval(() => { loadJobs(true); }, 60000);
+        const interval = setInterval(() => loadJobs(true), 90000);
         return () => clearInterval(interval);
       }, []);
 
       const handleRefresh = async () => {
         setRefreshing(true);
-        addToast("Fetching Latest…", "Syncing from web feeds", "🌐", T.teal);
+        addToast('Fetching Latest…', 'Syncing from all sources', '🌐', T.teal);
         try {
-          const res = await fetch(`${API_BASE_URL}/api/jobs/fetch-latest`, { method: "POST" });
+          const res  = await fetch(`${API_BASE_URL}/api/jobs/fetch-latest`, { method: 'POST' });
           const data = await res.json();
-          if (data.success) {
-            addToast("✅ Updated!", data.message, "🚀", T.success);
-            loadJobs();
-          } else { addToast("⚠️ Partial Update", data.error || "Some feeds unavailable", "⚠️", T.warn); }
-        } catch (e) { addToast("Network Error", "Could not reach backend", "❌", T.rose); }
-        finally { setRefreshing(false); }
-      };
-
-      const handleApply = (j) => {
-        addToast("Application Sent! 🎉", `Applied for ${j.title} at ${j.company}`, <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>move_to_inbox</span>, T.success);
-      };
-
-      /* ── Generate "How to Apply" steps for any job ── */
-      const getHowToApplySteps = (job) => {
-        const steps = [];
-        if (job.applyUrl && job.applyUrl !== "#") {
-          steps.push(`Visit the official application portal: ${job.company}`);
-          steps.push("Create an account or sign in with your credentials");
-        } else {
-          steps.push("Prepare your updated resume (PDF format)");
-        }
-        steps.push("Keep your AKTU Roll Number and college details ready");
-        if (job.primaryType === "Internship") {
-          steps.push("Prepare a brief cover letter mentioning your relevant coursework");
-          if (job.secondaryType === "Free") {
-            steps.push("Highlight any previous projects, research, or certifications");
+          setLastRefreshResult(data);
+          if (data.success || data.jobsAdded >= 0) {
+            addToast('✅ Refreshed!', `Added ${data.jobsAdded || 0} new listings`, '🚀', T.success);
+            await loadJobs();
           } else {
-            steps.push("Mention your expected availability for the internship duration");
+            addToast('⚠️ Partial Update', data.error || 'Some sources unavailable', '⚠️', T.warn);
           }
-        } else {
-          steps.push("Upload your resume/CV along with academic transcripts");
-          steps.push("Prepare for aptitude test + technical interview rounds");
+        } catch (e) {
+          addToast('Network Error', 'Could not reach backend', '❌', T.rose);
+        } finally {
+          setRefreshing(false);
         }
-        if ((job.tags || []).length > 0) {
-          steps.push(`Brush up on required skills: ${job.tags.join(", ")}`);
-        }
-        if (job.applyUrl && job.applyUrl !== "#") {
-          steps.push("Fill out the application form completely and submit before deadline");
-          steps.push("Check your email regularly for interview/assessment invitations");
-        } else {
-          steps.push("Contact your college Training & Placement Cell for further details");
-        }
-        return steps;
       };
 
-      // List of service-based and product-based companies
-      const BTECH_COMPANIES = [
-        'tcs', 'infosys', 'wipro', 'hcl', 'tech mahindra', 'accenture', 'ibm', 'cognizant',
-        'capgemini', 'mindtree', 'ltimindtree', 'tata', 'dell', 'microsoft', 'google', 'amazon',
-        'flipkart', 'uber', 'paypal', 'atlassian', 'salesforce', 'github', 'jetbrains',
-        'adobe', 'oracle', 'deloitte', 'pwc', 'ey', 'kpmg', 'goldman sachs', 'morgan stanley',
-        'barclays', 'jpmorgan', 'qualtrics', 'databricks', 'stripe', 'datadog', 'cohesity',
-        'zendesk', 'okta', 'hashicorp', 'cloudflare', 'splunk', 'elastic',
-        'gitlab', 'nextjs', 'vercel', 'fly.io', 'heroku', 'aws', 'azure', 'gcp', 'cloud',
-        'techcorp', 'startup', 'software', 'engineering', 'services', 'tech', 'it solutions'
-      ];
-
-      // Tech keywords for B.Tech relevance
-      const BTECH_KEYWORDS = ['developer', 'engineer', 'python', 'java', 'react', 'node', 'backend', 'frontend', 'full stack', 'qa', 'devops'];
-
-      // Apply Global Search Filter
+      // ── Apply all filters ──────────────────────────────────────────────────
       const searchLower = search.toLowerCase().trim();
-      const filteredJobs = allJobs.filter(j => {
-        if (!searchLower) return true;
-        return (
-          (j.title && j.title.toLowerCase().includes(searchLower)) ||
-          (j.company && j.company.toLowerCase().includes(searchLower)) ||
-          (j.desc && j.desc.toLowerCase().includes(searchLower))
-        );
+
+      const filtered = allJobs.filter(j => {
+        // Global search
+        if (searchLower) {
+          const hay = `${j.title} ${j.company} ${j.location} ${j.desc} ${j.branch} ${(j.tags||[]).join(' ')}`.toLowerCase();
+          if (!hay.includes(searchLower)) return false;
+        }
+        // Branch filter
+        if (branchFilter !== 'All' && j.branch !== branchFilter) return false;
+        // Company type filter
+        if (companyTypeFilter !== 'All' && j.companyType !== companyTypeFilter) return false;
+        // Experience level filter
+        if (expLevelFilter !== 'All' && j.experienceLevel !== expLevelFilter) return false;
+        // Location filter
+        if (locationFilter !== 'All India') {
+          if (locationFilter === 'Remote') { if (!j.location.toLowerCase().includes('remote')) return false; }
+          else { if (!j.location.toLowerCase().includes(locationFilter.toLowerCase())) return false; }
+        }
+        return true;
       });
 
-      // Filtered views
-      const paidInternships = filteredJobs.filter(j => j.primaryType === "Internship" && j.secondaryType === "Paid");
-      const freeInternships = filteredJobs.filter(j => j.primaryType === "Internship" && j.secondaryType === "Free");
-      // Filter AKTU jobs to show only service-based and product-based companies
-      const aktusJobs = filteredJobs.filter(j => {
-        if (j.primaryType !== "Job") return false;
-        const companyLower = (j.company || "").toLowerCase();
-        const titleLower = (j.title || "").toLowerCase();
-        // Match if company is in list OR job title has B.Tech keywords
-        return BTECH_COMPANIES.some(c => companyLower.includes(c)) || 
-               BTECH_KEYWORDS.some(k => titleLower.includes(k));
-      });
-      const latestFiltered = internFilter === "Paid" ? paidInternships : freeInternships;
+      // Tab-specific filtered views
+      const tabJobs = {
+        all:         filtered,
+        govt:        filtered.filter(j => j.category === 'Government' || j.companyType === 'government'),
+        private:     filtered.filter(j => j.primaryType === 'Job' && j.category !== 'Government' && j.companyType !== 'government'),
+        it:          filtered.filter(j => j.category === 'IT' || ['CSE','IT','AI/ML','Data Science'].includes(j.branch)),
+        engineering: filtered.filter(j => j.primaryType === 'Job' && !['CSE','IT','AI/ML','Data Science'].includes(j.branch) && j.category !== 'Government'),
+        internships: filtered.filter(j => {
+          if (j.primaryType !== 'Internship') return false;
+          if (internCompFilter === 'All') return true;
+          if (internCompFilter === 'Paid') return j.secondaryType === 'Paid';
+          if (internCompFilter === 'Free') return j.secondaryType === 'Free';
+          if (internCompFilter === 'Unknown') return j.secondaryType === 'Unknown';
+          return true;
+        }),
+        hackathons:  filtered.filter(j => j.primaryType === 'Hackathon'),
+        fresher:     filtered.filter(j => ['Fresher','Entry-Level'].includes(j.experienceLevel))
+      };
 
+      // Stat counters — from DB when available, fallback to filtered
+      const dbTotal      = stats ? stats.total        : allJobs.length;
+      const dbGovt       = stats ? stats.govtJobs     : tabJobs.govt.length;
+      const dbInternships = stats ? stats.internships  : tabJobs.internships.length;
+      const dbPaid       = stats ? stats.paidInternships   : filtered.filter(j => j.primaryType==='Internship'&&j.secondaryType==='Paid').length;
+      const dbFree       = stats ? stats.freeInternships   : filtered.filter(j => j.primaryType==='Internship'&&j.secondaryType==='Free').length;
+      const dbUnknownIntern = stats ? stats.unknownInternships : filtered.filter(j => j.primaryType==='Internship'&&j.secondaryType==='Unknown').length;
+      const dbHackathons = stats ? stats.hackathons   : tabJobs.hackathons.length;
+      const dbFresher    = stats ? stats.fresherJobs  : tabJobs.fresher.length;
+
+      // Tab definitions
       const TABS = [
-        { id: "latest", label: <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>public</span> Latest Internships</>, count: paidInternships.length + freeInternships.length, color: T.indigo },
-        { id: "aktu", label: <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>engineering</span> AKTU Engineering Jobs</>, count: aktusJobs.length, color: T.orange },
-        { id: "all", label: <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>list_alt</span> All Listings</>, count: allJobs.length, color: T.teal },
+        { id: 'all',         icon: 'list_alt',         label: 'All',         count: dbTotal,        color: T.indigo },
+        { id: 'govt',        icon: 'account_balance',  label: 'Government',  count: dbGovt,         color: '#4F46E5' },
+        { id: 'private',     icon: 'business',         label: 'Private',     count: stats ? stats.privateJobs : tabJobs.private.length, color: T.orange },
+        { id: 'it',          icon: 'code',             label: 'IT / Software', count: stats ? stats.itJobs : tabJobs.it.length, color: T.teal },
+        { id: 'engineering', icon: 'engineering',      label: 'Engineering', count: stats ? stats.engineeringJobs : tabJobs.engineering.length, color: '#F59E0B' },
+        { id: 'internships', icon: 'school',           label: 'Internships', count: dbInternships,  color: T.success },
+        { id: 'hackathons',  icon: 'emoji_events',     label: 'Hackathons',  count: dbHackathons,   color: T.rose },
+        { id: 'fresher',     icon: 'star',             label: 'Fresher',     count: dbFresher,      color: '#8B5CF6' },
       ];
 
-      const skeletonCard = (
-        <div style={{ background: "#fff", borderRadius: 18, border: `1px solid ${T.border}`, padding: "20px", height: 220 }}>
-          {[80, 60, 100, 40, 60].map((w, i) => (
-            <div key={i} style={{ height: 12, borderRadius: 6, background: "linear-gradient(90deg,#F0F0F0 25%,#E0E0E0 50%,#F0F0F0 75%)", backgroundSize: "200% 100%", width: `${w}%`, marginBottom: 12, animation: "shimmer 1.5s infinite" }} />
-          ))}
-        </div>
-      );
+      const currentTabJobs = tabJobs[activeTab] || [];
+      const currentTab     = TABS.find(t => t.id === activeTab);
+
+      const BRANCHES = ['All','CSE','IT','AI/ML','Data Science','ECE','EEE','EE','Mechanical','Civil','Chemical','Automobile','Aerospace','Biotechnology','Biomedical','Mechatronics','Robotics','Instrumentation','Environmental','Production','Metallurgy','General Engineering'];
+      const LOCATIONS = ['All India','Remote','Bangalore','Hyderabad','Pune','Mumbai','Delhi','Noida','Gurugram','Chennai','Kolkata','Ahmedabad','Jaipur','Lucknow','Indore','Kochi','Chandigarh'];
+      const COMPANY_TYPES = ['All','product','service','government','unknown'];
+      const EXP_LEVELS = ['All','Fresher','Entry-Level','Junior','Experienced'];
 
       return (
         <div>
           {/* ── HERO ── */}
           <div className="screen-hero">
             <div className="screen-hero-inner">
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <Badge color={T.success}><span className="material-symbols-outlined" style={{ fontSize: 13, verticalAlign: "text-bottom", marginRight: 4 }}>work</span> Campus Opportunities</Badge>
-                <span style={{ background: "rgba(20,184,166,0.1)", color: T.teal, border: `1px solid ${T.teal}30`, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 14 }}>public</span> Live Feed</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ background: T.indigo + '12', color: T.indigo, border: `1px solid ${T.indigo}25`, borderRadius: 20, padding: '3px 12px', fontSize: 11, fontWeight: 700 }}>🇮🇳 India Focus</span>
+                <span style={{ background: T.success + '12', color: T.success, border: `1px solid ${T.success}25`, borderRadius: 20, padding: '3px 12px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 13 }}>circle</span> Live Feed
+                </span>
+                <span style={{ background: T.rose + '12', color: T.rose, border: `1px solid ${T.rose}25`, borderRadius: 20, padding: '3px 12px', fontSize: 11, fontWeight: 700 }}>All B.Tech Branches</span>
               </div>
-              <h1 style={{ fontFamily: "'Nunito',sans-serif", fontSize: 32, fontWeight: 900, marginTop: 12, lineHeight: 1.15, color: T.text, letterSpacing: '-0.4px' }}>Jobs & Internships</h1>
-              <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Real-time opportunities • Paid & Free Internships • AKTU Engineering Jobs</p>
+              <h1 style={{ fontFamily: "'Nunito',sans-serif", fontSize: 30, fontWeight: 900, marginTop: 12, lineHeight: 1.15, color: T.text, letterSpacing: '-0.4px' }}>Jobs, Internships &amp; Hackathons</h1>
+              <p style={{ color: T.muted, fontSize: 13.5, marginTop: 8 }}>Real-time India-focused opportunities • Government, Private, IT, Engineering • All B.Tech Branches</p>
             </div>
           </div>
 
           <div className="screen-body">
-            {/* ── TOP ACTION BAR ── */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
-              {/* Stats strip */}
-              <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-                {[
-                  { label: <><span className="material-symbols-outlined" style={{ fontSize: 14, verticalAlign: "middle" }}>payments</span> Paid Internships</>, val: paidInternships.length, c: T.success },
-                  { label: <><span className="material-symbols-outlined" style={{ fontSize: 14, verticalAlign: "middle" }}>volunteer_activism</span> Free Internships</>, val: freeInternships.length, c: T.teal },
-                  { label: <><span className="material-symbols-outlined" style={{ fontSize: 14, verticalAlign: "middle" }}>engineering</span> AKTU Jobs</>, val: aktusJobs.filter(j => j.isAktu).length, c: T.orange },
-                ].map(s => (
-                  <div key={s.label} style={{ background: s.c + "10", border: `1px solid ${s.c}25`, borderRadius: 12, padding: "6px 14px", display: "flex", gap: 8, alignItems: "center" }}>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: s.c, fontSize: 15 }}>{loading ? "…" : s.val}</span>
-                    <span style={{ fontSize: 11, color: T.muted }}>{s.label}</span>
-                  </div>
-                ))}
-              </div>
-              {/* Refresh button */}
-              <button onClick={handleRefresh} disabled={refreshing || loading}
-                style={{ display: "flex", alignItems: "center", gap: 7, background: refreshing ? T.teal + "18" : `linear-gradient(135deg,${T.teal},#0EA5E9)`, color: refreshing ? T.teal : "#fff", border: refreshing ? `1px solid ${T.teal}40` : "none", borderRadius: 12, padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: refreshing ? "wait" : "pointer", boxShadow: refreshing ? "none" : "0 4px 14px rgba(20,184,166,0.3)", transition: "all .2s ease" }}>
-                <span className="material-symbols-outlined" style={{ display: "inline-block", fontSize: 17, animation: refreshing ? "spin 1s linear infinite" : "none" }}>sync</span>
-                {refreshing ? "Fetching…" : "Refresh Live Feed"}
-              </button>
+
+            {/* ── LIVE COUNTER STRIP ── */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))', gap: 10, marginBottom: 18 }}>
+              {[
+                { label: 'Total', val: loading ? '…' : dbTotal, c: T.indigo, icon: 'work' },
+                { label: 'Government', val: loading ? '…' : dbGovt, c: '#4F46E5', icon: 'account_balance' },
+                { label: 'Internships', val: loading ? '…' : dbInternships, c: T.success, icon: 'school' },
+                { label: 'Paid Internships', val: loading ? '…' : dbPaid, c: T.success, icon: 'payments' },
+                { label: 'Free Internships', val: loading ? '…' : dbFree, c: T.teal, icon: 'volunteer_activism' },
+                { label: 'Hackathons', val: loading ? '…' : dbHackathons, c: T.rose, icon: 'emoji_events' },
+                { label: 'Fresher Jobs', val: loading ? '…' : dbFresher, c: '#8B5CF6', icon: 'star' },
+              ].map(s => (
+                <div key={s.label} style={{ background: s.c + '08', border: `1px solid ${s.c}20`, borderRadius: 12, padding: '10px 12px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, color: s.c, fontSize: 18, lineHeight: 1 }}>{s.val}</span>
+                  <span style={{ fontSize: 10.5, color: T.muted, fontWeight: 500 }}>{s.label}</span>
+                </div>
+              ))}
             </div>
 
-            {/* ── TAB SWITCHER ── */}
-            <div style={{ display: "flex", gap: 0, marginBottom: 24, background: "#F3F4F6", borderRadius: 14, padding: 5, overflowX: "auto" }}>
+            {/* ── ACTION BAR ── */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 18 }}>
+              <div style={{ fontSize: 12, color: T.muted }}>
+                {lastUpdated && <span>Last updated: {lastUpdated.toLocaleTimeString()} • Auto-refreshes every 90s</span>}
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {lastRefreshResult && (
+                  <button onClick={() => setShowRefreshDetails(!showRefreshDetails)}
+                    style={{ background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 10, padding: '6px 12px', fontSize: 11, color: T.muted, cursor: 'pointer' }}>
+                    Last sync: +{lastRefreshResult.jobsAdded} new
+                  </button>
+                )}
+                <button onClick={handleRefresh} disabled={refreshing || loading}
+                  style={{ display: 'flex', alignItems: 'center', gap: 7, background: refreshing ? T.teal + '18' : `linear-gradient(135deg,${T.teal},#0EA5E9)`, color: refreshing ? T.teal : '#fff', border: refreshing ? `1px solid ${T.teal}40` : 'none', borderRadius: 12, padding: '10px 18px', fontSize: 13, fontWeight: 700, cursor: refreshing ? 'wait' : 'pointer', boxShadow: refreshing ? 'none' : '0 4px 14px rgba(20,184,166,0.3)', transition: 'all .2s ease' }}>
+                  <span className="material-symbols-outlined" style={{ display: 'inline-block', fontSize: 17, animation: refreshing ? 'spin 1s linear infinite' : 'none' }}>sync</span>
+                  {refreshing ? 'Fetching…' : 'Refresh Live Feed'}
+                </button>
+              </div>
+            </div>
+
+            {/* ── REFRESH DETAILS PANEL ── */}
+            {showRefreshDetails && lastRefreshResult && (
+              <div style={{ background: '#F8FAFC', border: `1px solid ${T.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 18 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: T.text }}>📊 Last Refresh Statistics</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(100px,1fr))', gap: 8, marginBottom: 12 }}>
+                  {[
+                    { label: 'Added',     val: lastRefreshResult.jobsAdded,    c: T.success },
+                    { label: 'Duplicates', val: lastRefreshResult.duplicates,   c: T.orange },
+                    { label: 'Rejected',  val: lastRefreshResult.rejected,     c: T.rose },
+                    { label: 'Stale Removed', val: lastRefreshResult.staleRemoved, c: T.muted }
+                  ].map(s => (
+                    <div key={s.label} style={{ textAlign: 'center', background: '#fff', borderRadius: 10, padding: '8px', border: `1px solid ${T.border}` }}>
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, fontSize: 16, color: s.c }}>{s.val ?? '—'}</div>
+                      <div style={{ fontSize: 10, color: T.muted }}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+                {lastRefreshResult.sources && (
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Per-Source Statistics</div>
+                    {Object.entries(lastRefreshResult.sources).map(([name, s]) => (
+                      <div key={name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${T.border}`, fontSize: 12 }}>
+                        <span style={{ fontWeight: 600, color: T.text, textTransform: 'capitalize' }}>{name}</span>
+                        <div style={{ display: 'flex', gap: 8, color: T.muted }}>
+                          <span>fetched: <b style={{ color: T.text }}>{s.fetched}</b></span>
+                          <span>accepted: <b style={{ color: T.success }}>{s.accepted}</b></span>
+                          <span>rejected: <b style={{ color: T.rose }}>{s.rejected}</b></span>
+                          {s.error && <span style={{ color: T.rose, fontSize: 10 }}>⚠️ {s.error.substring(0, 60)}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── FILTER BAR ── */}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18, padding: '12px 14px', background: '#F8FAFC', borderRadius: 14, border: `1px solid ${T.border}` }}>
+              {/* Branch */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 120 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>Branch</label>
+                <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)}
+                  style={{ border: `1px solid ${T.border}`, borderRadius: 8, padding: '5px 8px', fontSize: 12, background: '#fff', color: T.text, cursor: 'pointer' }}>
+                  {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+              {/* Location */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 130 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>Location</label>
+                <select value={locationFilter} onChange={e => setLocationFilter(e.target.value)}
+                  style={{ border: `1px solid ${T.border}`, borderRadius: 8, padding: '5px 8px', fontSize: 12, background: '#fff', color: T.text, cursor: 'pointer' }}>
+                  {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+              </div>
+              {/* Company Type */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 120 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>Company Type</label>
+                <select value={companyTypeFilter} onChange={e => setCompanyTypeFilter(e.target.value)}
+                  style={{ border: `1px solid ${T.border}`, borderRadius: 8, padding: '5px 8px', fontSize: 12, background: '#fff', color: T.text, cursor: 'pointer' }}>
+                  {COMPANY_TYPES.map(ct => <option key={ct} value={ct}>{ct.charAt(0).toUpperCase() + ct.slice(1)}</option>)}
+                </select>
+              </div>
+              {/* Experience Level */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 130 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>Experience</label>
+                <select value={expLevelFilter} onChange={e => setExpLevelFilter(e.target.value)}
+                  style={{ border: `1px solid ${T.border}`, borderRadius: 8, padding: '5px 8px', fontSize: 12, background: '#fff', color: T.text, cursor: 'pointer' }}>
+                  {EXP_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+              </div>
+              {/* Reset */}
+              {(branchFilter !== 'All' || locationFilter !== 'All India' || companyTypeFilter !== 'All' || expLevelFilter !== 'All') && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, justifyContent: 'flex-end' }}>
+                  <label style={{ fontSize: 10, color: 'transparent' }}>_</label>
+                  <button onClick={() => { setBranchFilter('All'); setLocationFilter('All India'); setCompanyTypeFilter('All'); setExpLevelFilter('All'); }}
+                    style={{ border: `1px solid ${T.rose}40`, background: T.rose + '08', color: T.rose, borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                    ✕ Reset
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* ── TAB BAR ── */}
+            <div style={{ display: 'flex', gap: 0, marginBottom: 22, background: '#F3F4F6', borderRadius: 14, padding: 4, overflowX: 'auto' }}>
               {TABS.map(t => (
                 <button key={t.id} onClick={() => setActiveTab(t.id)}
-                  style={{ flex: 1, background: activeTab === t.id ? "#fff" : "transparent", color: activeTab === t.id ? T.text : T.muted, border: "none", boxShadow: activeTab === t.id ? "0 2px 12px rgba(0,0,0,0.09)" : "none", borderRadius: 11, padding: "11px 16px", fontSize: 13, fontWeight: activeTab === t.id ? 800 : 600, cursor: "pointer", transition: "all .2s ease", whiteSpace: "nowrap", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
-                  {t.label}
-                  <span style={{ background: activeTab === t.id ? t.color + "18" : "transparent", color: activeTab === t.id ? t.color : T.muted, borderRadius: 20, padding: "1px 7px", fontSize: 11, fontWeight: 700, minWidth: 22, display: "inline-block", textAlign: "center" }}>
-                    {loading ? "…" : t.count}
+                  style={{ flex: '0 0 auto', minWidth: 90, background: activeTab === t.id ? '#fff' : 'transparent', color: activeTab === t.id ? T.text : T.muted, border: 'none', boxShadow: activeTab === t.id ? '0 2px 10px rgba(0,0,0,0.09)' : 'none', borderRadius: 11, padding: '9px 12px', fontSize: 12, fontWeight: activeTab === t.id ? 800 : 600, cursor: 'pointer', transition: 'all .2s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16, color: activeTab === t.id ? t.color : T.muted }}>{t.icon}</span>
+                  <span style={{ whiteSpace: 'nowrap', fontSize: 11 }}>{t.label}</span>
+                  <span style={{ background: activeTab === t.id ? t.color + '18' : 'transparent', color: activeTab === t.id ? t.color : T.muted, borderRadius: 20, padding: '0 6px', fontSize: 10, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>
+                    {loading ? '…' : t.count}
                   </span>
                 </button>
               ))}
             </div>
 
-            {/* ══ TAB: LATEST INTERNSHIPS ══ */}
-            {activeTab === "latest" && (
-              <div>
-                {/* Paid / Free sub-filter */}
-                <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-                  {["Paid", "Free"].map(f => (
-                    <button key={f} onClick={() => setInternFilter(f)}
-                      style={{ background: internFilter === f ? (f === "Paid" ? T.success : T.teal) : "#fff", color: internFilter === f ? "#fff" : T.muted, border: `1px solid ${internFilter === f ? (f === "Paid" ? T.success : T.teal) : T.border}`, boxShadow: internFilter === f ? `0 3px 12px ${f === "Paid" ? T.success : T.teal}35` : "0 1px 4px rgba(0,0,0,0.06)", borderRadius: 22, padding: "8px 20px", fontSize: 13, fontWeight: internFilter === f ? 700 : 500, cursor: "pointer", transition: "all .18s ease", display: "flex", alignItems: "center", gap: 6 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{f === "Paid" ? "payments" : "volunteer_activism"}</span> {f} Internships
-                      <span style={{ background: internFilter === f ? "rgba(255,255,255,0.25)" : "#F0F0F0", borderRadius: 10, padding: "1px 6px", fontSize: 10, fontWeight: 700 }}>
-                        {f === "Paid" ? paidInternships.length : freeInternships.length}
-                      </span>
+            {/* ── INTERNSHIP COMPENSATION SUB-FILTER (only in Internships tab) ── */}
+            {activeTab === 'internships' && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                {[
+                  { key: 'All', label: 'All Internships', icon: 'list_alt', count: dbInternships },
+                  { key: 'Paid', label: 'Paid', icon: 'payments', count: dbPaid, c: T.success },
+                  { key: 'Free', label: 'Free', icon: 'volunteer_activism', count: dbFree, c: T.teal },
+                  { key: 'Unknown', label: 'Unspecified', icon: 'help_outline', count: dbUnknownIntern, c: T.muted }
+                ].map(f => {
+                  const isActive = internCompFilter === f.key;
+                  const c = f.c || T.indigo;
+                  return (
+                    <button key={f.key} onClick={() => setInternCompFilter(f.key)}
+                      style={{ background: isActive ? c : '#fff', color: isActive ? '#fff' : T.muted, border: `1px solid ${isActive ? c : T.border}`, borderRadius: 22, padding: '7px 16px', fontSize: 12, fontWeight: isActive ? 700 : 500, cursor: 'pointer', transition: 'all .18s ease', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{f.icon}</span>
+                      {f.label}
+                      <span style={{ background: isActive ? 'rgba(255,255,255,0.25)' : '#F0F0F0', borderRadius: 10, padding: '0 5px', fontSize: 10, fontWeight: 700 }}>{loading ? '…' : f.count}</span>
                     </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── HACKATHONS TAB SPECIAL CONTENT ── */}
+            {activeTab === 'hackathons' && !loading && currentTabJobs.length === 0 && (
+              <div style={{ background: 'linear-gradient(135deg,rgba(244,63,94,0.05),rgba(239,68,68,0.03))', border: `1px solid ${T.rose}25`, borderRadius: 18, padding: '28px 24px', marginBottom: 20, textAlign: 'center' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 48, color: T.rose, display: 'block', marginBottom: 14 }}>emoji_events</span>
+                <div style={{ fontWeight: 800, fontSize: 17, color: T.text, marginBottom: 8 }}>No Verified Hackathons Available Right Now</div>
+                <p style={{ color: T.muted, fontSize: 13, lineHeight: 1.6, maxWidth: 480, margin: '0 auto 20px' }}>
+                  No public hackathon API is available without authentication. We never show fabricated hackathon data.
+                  Visit these official platforms for live hackathon listings:
+                </p>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'Devfolio', url: 'https://devfolio.co/hackathons', color: '#3B49DF' },
+                    { label: 'Unstop', url: 'https://unstop.com/hackathons', color: '#FF6B35' },
+                    { label: 'HackWithIndia', url: 'https://hackwithindia.in', color: '#1DA462' },
+                    { label: 'MLH Events', url: 'https://mlh.io/seasons/', color: '#FF0E75' },
+                    { label: 'Devpost', url: 'https://devpost.com/hackathons', color: '#003E54' }
+                  ].map(p => (
+                    <a key={p.label} href={p.url} target="_blank" rel="noopener noreferrer"
+                      style={{ background: p.color + '12', color: p.color, border: `1px solid ${p.color}30`, borderRadius: 12, padding: '9px 16px', fontSize: 13, fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {p.label} ↗
+                    </a>
                   ))}
                 </div>
-
-                {/* Info banner */}
-                <div style={{ background: internFilter === "Paid" ? "linear-gradient(135deg,rgba(34,197,94,0.06),rgba(16,185,129,0.04))" : "linear-gradient(135deg,rgba(20,184,166,0.06),rgba(6,182,212,0.04))", border: `1px solid ${internFilter === "Paid" ? T.success : T.teal}25`, borderRadius: 14, padding: "12px 18px", marginBottom: 18, display: "flex", alignItems: "center", gap: 10 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 24, color: internFilter === "Paid" ? T.success : T.teal }}>{internFilter === "Paid" ? "payments" : "volunteer_activism"}</span>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: internFilter === "Paid" ? T.success : T.teal }}>
-                      {internFilter === "Paid" ? "Paid Internships — Earn While You Learn" : "Free Internships — Government & Open Source Programs"}
-                    </div>
-                    <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>
-                      {internFilter === "Paid" ? "Top-paying internship programs from leading tech companies. Click 'Apply Now' to visit the official application portal." : "Government, IIT, and NGO internship programs. Great for certificates, LoR, and research exposure. Mostly AKTU-eligible."}
-                    </div>
-                  </div>
-                </div>
-
-                {loading ? (
-                  <div className="grid-2">{[1, 2, 3, 4].map(i => <div key={i}>{skeletonCard}</div>)}</div>
-                ) : latestFiltered.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "48px 24px", color: T.muted }}>
-                    <div style={{ marginBottom: 12 }}><span className="material-symbols-outlined" style={{ fontSize: 44, color: T.border }}>search_off</span></div>
-                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>No {internFilter} internships found</div>
-                    <div style={{ fontSize: 13 }}>Click "Refresh Live Feed" to fetch the latest listings.</div>
-                  </div>
-                ) : (
-                  <div className="grid-2">
-                    {latestFiltered.map(j => <JobCard key={j._id} j={j} onApply={handleApply} onHowToApply={setHowToApplyJob} />)}
-                  </div>
-                )}
               </div>
             )}
 
-            {/* ══ TAB: AKTU ENGINEERING JOBS ══ */}
-            {activeTab === "aktu" && (
+            {/* ── JOBS GRID ── */}
+            {loading ? (
+              <div className="grid-2">{[1,2,3,4,5,6].map(i => <SkeletonCard key={i} />)}</div>
+            ) : currentTabJobs.length === 0 && activeTab !== 'hackathons' ? (
+              <EmptyState
+                icon={activeTab === 'govt' ? 'account_balance' : activeTab === 'internships' ? 'school' : 'search_off'}
+                title={`No ${currentTab?.label || ''} listings found`}
+                subtitle={searchLower
+                  ? `No results for "${search}". Try different search terms or clear filters.`
+                  : 'Click Refresh Live Feed to fetch the latest listings from all sources.'}
+                onRefresh={handleRefresh}
+              />
+            ) : currentTabJobs.length > 0 ? (
               <div>
-                <div style={{ background: "linear-gradient(135deg,rgba(255,79,31,0.06),rgba(255,199,0,0.04))", border: `1px solid ${T.orange}25`, borderRadius: 14, padding: "14px 18px", marginBottom: 18, display: "flex", alignItems: "center", gap: 12 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 28, color: T.orange }}>engineering</span>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: T.orange }}>Engineering & AKTU-Specific Jobs</div>
-                    <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>Full-time jobs from PSUs, IT companies, and government organisations specifically relevant to AKTU-affiliated engineering graduates — CSE, IT, ECE, ME, EE and more.</div>
-                  </div>
+                <div style={{ fontSize: 12, color: T.muted, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14, color: T.success }}>circle</span>
+                  Showing {currentTabJobs.length} real {currentTab?.label} opportunity{currentTabJobs.length !== 1 ? 'ies' : 'y'} • India only
+                  {searchLower && ` • Filtered by: "${search}"`}
                 </div>
-
-                {loading ? (
-                  <div className="grid-2">{[1, 2, 3, 4].map(i => <div key={i}>{skeletonCard}</div>)}</div>
-                ) : aktusJobs.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "48px 24px", color: T.muted }}>
-                    <div style={{ marginBottom: 12 }}><span className="material-symbols-outlined" style={{ fontSize: 44, color: T.border }}>domain_disabled</span></div>
-                    <div style={{ fontWeight: 700, fontSize: 15 }}>No engineering jobs yet</div>
-                    <div style={{ fontSize: 13 }}>Refresh the live feed to load AKTU jobs.</div>
-                  </div>
-                ) : (
-                  <>
-                    {/* AKTU badge jobs first */}
-                    {aktusJobs.filter(j => j.isAktu).length > 0 && (
-                      <>
-                        <div style={{ fontWeight: 700, fontSize: 11, color: T.orange, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ background: T.orange + "15", color: T.orange, border: `1px solid ${T.orange}30`, borderRadius: 8, padding: "2px 8px", fontSize: 10 }}>AKTU Priority</span>
-                          AKTU-Recommended Listings
-                        </div>
-                        <div className="grid-2" style={{ marginBottom: 24 }}>
-                          {aktusJobs.filter(j => j.isAktu).map(j => <JobCard key={j._id} j={j} onApply={handleApply} onHowToApply={setHowToApplyJob} />)}
-                        </div>
-                      </>
-                    )}
-                    {/* Other jobs */}
-                    {aktusJobs.filter(j => !j.isAktu).length > 0 && (
-                      <>
-                        <div style={{ fontWeight: 700, fontSize: 11, color: T.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 12 }}>Other Full-Time Opportunities</div>
-                        <div className="grid-2">
-                          {aktusJobs.filter(j => !j.isAktu).map(j => <JobCard key={j._id} j={j} onApply={handleApply} onHowToApply={setHowToApplyJob} />)}
-                        </div>
-                      </>
-                    )}
-                  </>
-                )}
+                <div className="grid-2">
+                  {currentTabJobs.map(j =>
+                    j.primaryType === 'Hackathon'
+                      ? <HackathonCard key={j._id} h={j} />
+                      : <JobCard key={j._id} j={j} />
+                  )}
+                </div>
               </div>
-            )}
+            ) : null}
 
-            {/* ══ TAB: ALL LISTINGS ══ */}
-            {activeTab === "all" && (
-              <div>
-                {loading ? (
-                  <div className="grid-2">{[1, 2, 3, 4, 5, 6].map(i => <div key={i}>{skeletonCard}</div>)}</div>
-                ) : allJobs.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "48px 24px", color: T.muted }}>
-                    <div style={{ marginBottom: 12 }}><span className="material-symbols-outlined" style={{ fontSize: 44, color: T.border }}>inbox</span></div>
-                    <div style={{ fontWeight: 700, fontSize: 15 }}>No listings in database</div>
-                    <div style={{ fontSize: 13, marginTop: 6 }}>Click "Refresh Live Feed" to populate the latest opportunities.</div>
-                  </div>
-                ) : (
-                  <div className="grid-2">
-                    {allJobs.map(j => <JobCard key={j._id} j={j} onApply={handleApply} onHowToApply={setHowToApplyJob} />)}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* ── LAST UPDATED INDICATOR ── */}
-          {lastUpdated && (
-            <div style={{ textAlign: "center", padding: "12px 0 0", fontSize: 11, color: T.muted, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 14, color: T.success }}>circle</span>
-              Live • Last updated: {lastUpdated.toLocaleTimeString()} • Auto-refreshes every 60s
+            {/* ── FOOTER NOTE ── */}
+            <div style={{ marginTop: 28, padding: '14px 18px', background: '#F8FAFC', borderRadius: 14, border: `1px solid ${T.border}`, fontSize: 12, color: T.muted, lineHeight: 1.6 }}>
+              <span style={{ fontWeight: 700, color: T.text }}>📌 About This Feed:</span> All listings are fetched from real public APIs (Remotive, Arbeitnow, Himalayas.app) and official Indian government RSS feeds. Every Apply Now link points to the actual source URL. No fake, fabricated, or demo data is used. Counters reflect live database values.
             </div>
-          )}
 
-          {/* ── HOW TO APPLY MODAL ── */}
-          <Modal open={!!howToApplyJob} onClose={() => setHowToApplyJob(null)} title={howToApplyJob ? "📋 How to Apply: " + howToApplyJob.title : ""} aboveNav={true}>
-            {howToApplyJob && (
-              <>
-                {/* Job info summary */}
-                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 18px", borderRadius: 14, background: "linear-gradient(135deg,rgba(255,79,31,0.06),rgba(255,199,0,0.04))", border: "1px solid rgba(255,79,31,0.18)", marginBottom: 20 }}>
-                  {howToApplyJob.companyLogo ? (
-                    <img src={howToApplyJob.companyLogo} alt={howToApplyJob.company} onError={e => { e.target.style.display = 'none'; }}
-                      style={{ width: 40, height: 40, objectFit: "contain", borderRadius: 10, border: `1px solid ${T.border}`, background: "#F8F8F8", padding: 3 }} />
-                  ) : (
-                    <div style={{ width: 40, height: 40, borderRadius: 10, background: T.orange + "18", border: `1px solid ${T.orange}33`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 22, color: T.orange }}>{howToApplyJob.primaryType === "Internship" ? "eco" : "engineering"}</span>
-                    </div>
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 800, fontSize: 14, color: T.text }}>{howToApplyJob.company}</div>
-                    <div style={{ color: T.muted, fontSize: 12, marginTop: 2 }}>{howToApplyJob.location} • {howToApplyJob.primaryType} • {howToApplyJob.secondaryType}</div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontWeight: 800, color: T.success, fontSize: 14, fontFamily: "'JetBrains Mono',monospace" }}>{howToApplyJob.salary}</div>
-                    {howToApplyJob.deadline && <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>Deadline: {howToApplyJob.deadline}</div>}
-                  </div>
-                </div>
-
-                {/* Step-by-step instructions */}
-                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14, color: T.text, display: "flex", alignItems: "center", gap: 8 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: T.indigo }}>checklist</span>
-                  Step-by-Step Application Guide
-                </div>
-                {getHowToApplySteps(howToApplyJob).map((step, i) => (
-                  <div key={i} style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, background: T.indigo + "12", border: `1px solid ${T.indigo}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.indigo }}>{i + 1}</div>
-                    <div style={{ color: T.text, fontSize: 13, paddingTop: 4, lineHeight: 1.4 }}>{step}</div>
-                  </div>
-                ))}
-
-                {/* Required skills */}
-                {(howToApplyJob.tags || []).length > 0 && (
-                  <div style={{ marginTop: 8, padding: "12px 16px", borderRadius: 12, background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)" }}>
-                    <div style={{ fontWeight: 700, fontSize: 12, color: T.indigo, marginBottom: 8 }}>📌 Required Skills</div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {howToApplyJob.tags.map(tag => (
-                        <span key={tag} style={{ background: T.indigo + "14", color: T.indigo, border: `1px solid ${T.indigo}28`, borderRadius: 10, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>{tag}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Pro tips */}
-                <div style={{ marginTop: 14, padding: "12px 16px", borderRadius: 12, background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.22)" }}>
-                  <div style={{ fontWeight: 700, fontSize: 12, color: T.warn, marginBottom: 6 }}>💡 Pro Tips</div>
-                  <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.6 }}>
-                    • Tailor your resume to highlight relevant skills for this role<br />
-                    • Apply early — positions fill fast, especially for AKTU students<br />
-                    • Follow up with the company on LinkedIn after applying
-                  </div>
-                </div>
-
-                {/* Action buttons */}
-                <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-                  <button onClick={() => setHowToApplyJob(null)}
-                    style={{ flex: 1, background: T.gray, color: T.text, border: `1px solid ${T.border}`, borderRadius: 12, padding: "12px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                    Close
-                  </button>
-                  {howToApplyJob.applyUrl && howToApplyJob.applyUrl !== "#" && (
-                    <a href={howToApplyJob.applyUrl} target="_blank" rel="noopener noreferrer"
-                      style={{ flex: 2, background: `linear-gradient(135deg,${T.orange},#FF6B3D)`, color: "#fff", border: "none", borderRadius: 12, padding: "12px", fontSize: 13, fontWeight: 700, cursor: "pointer", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 16px rgba(255,79,31,0.30)", textAlign: "center" }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>open_in_new</span>
-                      Apply Now on {howToApplyJob.company} ↗
-                    </a>
-                  )}
-                </div>
-              </>
-            )}
-          </Modal>
+          </div>
         </div>
       );
     }
