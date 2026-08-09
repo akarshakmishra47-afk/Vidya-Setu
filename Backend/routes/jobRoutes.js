@@ -217,7 +217,8 @@ function initializeJobRefresh() {
 // ── GET /api/jobs — List with filters, search, pagination ─────────────────────
 router.get('/', async (req, res) => {
   try {
-  
+    // Initialize filter with India-only default (exclude records where isIndiaLocation is false)
+    let filter = { isIndiaLocation: { $ne: false } };
 
     // Primary type filter
     if (req.query.type) {
@@ -274,8 +275,11 @@ router.get('/', async (req, res) => {
     }
 
     // Pagination
-    const limit  = Math.min(parseInt(req.query.limit)  || 100, 500);
-    const offset = parseInt(req.query.offset) || 0;
+    // Parse and clamp limit (max 300 as per requirement) and offset safely
+    const rawLimit = parseInt(req.query.limit);
+    const limit = Math.min(Math.max(isNaN(rawLimit) ? 100 : rawLimit, 1), 300);
+    const rawOffset = parseInt(req.query.offset);
+    const offset = isNaN(rawOffset) ? 0 : rawOffset;
 
     // Sort by postedAt DESC, then createdAt DESC
     const jobs = await Job.find(filter)
@@ -288,8 +292,8 @@ router.get('/', async (req, res) => {
 
     res.json({ success: true, count: jobs.length, total, jobs });
   } catch (err) {
-    console.error('[GET /api/jobs] Error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch jobs', details: err.message });
+    console.error('[GET /api/jobs] Error:', err);
+    res.status(500).json({ success: false, error: 'Unable to load jobs' });
   }
 });
 
