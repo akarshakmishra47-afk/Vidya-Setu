@@ -103,7 +103,7 @@ async function performJobRefresh() {
     let staleRemoved = 0;
     for (const s of respondedSources) {
       const ss = sourceStats[s];
-      if (ss && !ss.error && ss.accepted === 0) {
+      if (ss && !ss.error) {
         // Source responded but found 0 India jobs — remove records older than 7 days
         const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
         const res = await Job.deleteMany({
@@ -151,7 +151,7 @@ async function getLiveCounts() {
     paidInternships, freeInternships, unknownInternships,
     govtJobs, privateJobs, itJobs, engineeringJobs, fresherJobs,
     productJobs, serviceJobs,
-    remotiveCount, arbeitnowCount, himalayasCount, govtRssCount
+    remotiveCount, arbeitnowCount, himalayasCount, govtRssCount, greenhouseCount, leverCount
   ] = await Promise.all([
     Job.countDocuments(),
     Job.countDocuments({ primaryType: 'Internship' }),
@@ -170,7 +170,9 @@ async function getLiveCounts() {
     Job.countDocuments({ source: 'remotive' }),
     Job.countDocuments({ source: 'arbeitnow' }),
     Job.countDocuments({ source: 'himalayas' }),
-    Job.countDocuments({ source: 'govtRss' })
+    Job.countDocuments({ source: 'govtRss' }),
+    Job.countDocuments({ source: 'greenhouse' }),
+    Job.countDocuments({ source: 'lever' })
   ]);
 
   return {
@@ -178,7 +180,7 @@ async function getLiveCounts() {
     paidInternships, freeInternships, unknownInternships,
     govtJobs, privateJobs, itJobs, engineeringJobs, fresherJobs,
     productJobs, serviceJobs,
-    sources: { remotive: remotiveCount, arbeitnow: arbeitnowCount, himalayas: himalayasCount, govtRss: govtRssCount }
+    sources: { remotive: remotiveCount, arbeitnow: arbeitnowCount, himalayas: himalayasCount, govtRss: govtRssCount, greenhouse: greenhouseCount, lever: leverCount }
   };
 }
 

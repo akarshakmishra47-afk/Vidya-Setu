@@ -15,6 +15,8 @@ const { fetchArbeitnowJobs }  = require('./sources/private/arbeitnowAdapter');
 const { fetchHimalayasJobs }  = require('./sources/private/himalayasAdapter');
 const { fetchGovtJobsRss }    = require('./sources/government/govtJobsRss');
 const { fetchHackathons }     = require('./sources/hackathons/hackathonAdapter');
+const { fetchGreenhouseJobs } = require('./sources/private/greenhouseAdapter');
+const { fetchLeverJobs }      = require('./sources/private/leverAdapter');
 const { validateJob }         = require('./utils/jobValidator');
 const { deduplicateInMemory } = require('./utils/deduplicator');
 
@@ -56,13 +58,17 @@ async function fetchLatestJobs() {
     arbeitnowResult,
     himalayasResult,
     govtRssResult,
-    hackathonResult
+    hackathonResult,
+    greenhouseResult,
+    leverResult
   ] = await Promise.all([
     fetchRemotiveJobs().catch(err => ({ jobs: [], stats: { fetched: 0, accepted: 0, rejected: 0, duplicates: 0, error: err.message } })),
     fetchArbeitnowJobs().catch(err => ({ jobs: [], stats: { fetched: 0, accepted: 0, rejected: 0, duplicates: 0, error: err.message } })),
     fetchHimalayasJobs().catch(err => ({ jobs: [], stats: { fetched: 0, accepted: 0, rejected: 0, duplicates: 0, error: err.message } })),
     fetchGovtJobsRss().catch(err   => ({ jobs: [], stats: { fetched: 0, accepted: 0, rejected: 0, duplicates: 0, error: err.message } })),
-    fetchHackathons().catch(err    => ({ jobs: [], stats: { fetched: 0, accepted: 0, rejected: 0, duplicates: 0, error: err.message } }))
+    fetchHackathons().catch(err    => ({ jobs: [], stats: { fetched: 0, accepted: 0, rejected: 0, duplicates: 0, error: err.message } })),
+    fetchGreenhouseJobs().catch(err => ({ jobs: [], stats: { fetched: 0, accepted: 0, rejected: 0, duplicates: 0, error: err.message } })),
+    fetchLeverJobs().catch(err      => ({ jobs: [], stats: { fetched: 0, accepted: 0, rejected: 0, duplicates: 0, error: err.message } }))
   ]);
 
   const sourceStats = {
@@ -70,7 +76,9 @@ async function fetchLatestJobs() {
     arbeitnow:  arbeitnowResult.stats,
     himalayas:  himalayasResult.stats,
     govtRss:    govtRssResult.stats,
-    hackathons: hackathonResult.stats
+    hackathons: hackathonResult.stats,
+    greenhouse: greenhouseResult.stats,
+    lever:      leverResult.stats
   };
 
   // Log per-source summary
@@ -86,7 +94,9 @@ async function fetchLatestJobs() {
     ...arbeitnowResult.jobs,
     ...himalayasResult.jobs,
     ...govtRssResult.jobs,
-    ...hackathonResult.jobs
+    ...hackathonResult.jobs,
+    ...greenhouseResult.jobs,
+    ...leverResult.jobs
   ];
 
   console.log(`\n📦 [JobFetcher] Total raw jobs from all sources: ${allJobs.length}`);

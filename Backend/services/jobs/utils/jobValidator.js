@@ -76,4 +76,41 @@ function classifyInternshipCompensation(title = '', description = '', salary = '
   return 'Unknown';
 }
 
-module.exports = { validateJob, isValidUrl, classifyInternshipCompensation };
+/**
+ * Classifies if a job is entry-level/fresher based on title.
+ * @param {string} title
+ * @param {string} [experience='']
+ * @returns {boolean}
+ */
+function classifyFresher(title, experience = '') {
+  const t = title.toLowerCase();
+  const e = experience.toLowerCase();
+  
+  const seniorRegex = /\b(senior|lead|manager|principal|head|director|sr|vp|architect|staff)\b/;
+  if (seniorRegex.test(t)) return false;
+
+  const fresherRegex = /\b(fresher|freshers|graduate|graduate engineer trainee|get|trainee|entry level|entry-level|junior|jr|associate|0-1 years|0-2 years|no experience)\b/;
+  return fresherRegex.test(t) || fresherRegex.test(e);
+}
+
+/**
+ * Classifies the category of the job based on title and existing source.
+ * @param {string} title
+ * @param {string} source
+ * @returns {'Government'|'Private'|'IT'|'Engineering'|'Other'}
+ */
+function classifyJobCategory(title, source) {
+  if (source === 'govtRss') return 'Government';
+  
+  const t = title.toLowerCase();
+  
+  const itRegex = /\b(software|developer|frontend|backend|fullstack|data science|data scientist|machine learning|ai|qa|tester|devops|sre|product manager|ui\/ux|system administrator|cybersecurity)\b/;
+  if (itRegex.test(t)) return 'IT';
+
+  const engRegex = /\b(mechanical|civil|electrical|electronics|hardware|aerospace|chemical|metallurgy|structural|manufacturing|production|cad)\b/;
+  if (engRegex.test(t)) return 'Engineering';
+
+  return 'Private';
+}
+
+module.exports = { validateJob, isValidUrl, classifyInternshipCompensation, classifyFresher, classifyJobCategory };

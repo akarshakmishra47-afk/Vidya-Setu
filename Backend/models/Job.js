@@ -77,7 +77,7 @@ const jobSchema = new mongoose.Schema({
   applyUrl:   { type: String, default: '' },
   source:     {
     type: String,
-    enum: ['manual', 'web', 'remotive', 'arbeitnow', 'himalayas', 'govtRss', 'hackathon'],
+    enum: ['manual', 'web', 'remotive', 'arbeitnow', 'himalayas', 'govtRss', 'hackathon', 'greenhouse', 'lever'],
     default: 'manual'
   },
   sourceId:   { type: String, default: '' },
