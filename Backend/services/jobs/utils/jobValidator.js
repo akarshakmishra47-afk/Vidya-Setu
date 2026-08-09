@@ -65,13 +65,11 @@ function validateJob(job) {
 function classifyInternshipCompensation(title = '', description = '', salary = '') {
   const combined = (title + ' ' + description + ' ' + (salary || '')).toLowerCase();
 
-  const paidSignals = ['stipend', 'paid', 'salary', 'compensation', '₹', 'rs.', 'inr',
-    'per month', '/month', 'monthly', 'remuneration', 'lpa', 'ctc'];
-  const freeSignals = ['unpaid', 'no stipend', 'volunteer', 'pro bono', 'free internship',
-    'no compensation', 'non-paid'];
+  const paidRegex = /\b(stipend|paid|salary|compensation|₹|rs\.?|inr|per month|\/month|monthly|remuneration|lpa|ctc)\b/;
+  const freeRegex = /\b(unpaid|no stipend|volunteer|pro bono|free internship|no compensation|non-paid|without stipend)\b/;
 
-  const isPaid = paidSignals.some(s => combined.includes(s));
-  const isFree = freeSignals.some(s => combined.includes(s));
+  const isPaid = paidRegex.test(combined);
+  const isFree = freeRegex.test(combined);
 
   if (isPaid && !isFree) return 'Paid';
   if (isFree && !isPaid) return 'Free';

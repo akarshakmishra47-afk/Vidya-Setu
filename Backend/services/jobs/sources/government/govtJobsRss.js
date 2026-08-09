@@ -97,17 +97,23 @@ function normalizeGovtJob(item, feedName) {
     return null; // skip old entries
   }
 
+  const isIntern = /\b(intern|internship|trainee|student intern|summer intern|winter intern|graduate intern)\b/i.test(title);
+  const primaryType = isIntern ? 'Internship' : 'Job';
+  
+  const { classifyInternshipCompensation } = require('../../utils/jobValidator');
+  const secondaryType = isIntern ? classifyInternshipCompensation(title, desc, 'As per government norms') : 'Full-Time';
+
   return {
     title,
     company,
     location: 'India (Various)',
     salary: 'As per government norms',
-    badge: '🏛️ Government',
+    badge: isIntern ? '🎓 Govt Internship' : '🏛️ Government',
     tags: ['Government', govtCategory, 'India'],
     desc,
-    primaryType: 'Job',
-    secondaryType: 'Full-Time',
-    category: 'Government',
+    primaryType,
+    secondaryType,
+    category: isIntern ? 'Internship' : 'Government',
     govtCategory,
     branch,
     experienceLevel: expLevel,

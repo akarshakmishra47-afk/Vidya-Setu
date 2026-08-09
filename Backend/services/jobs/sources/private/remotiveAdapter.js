@@ -47,7 +47,7 @@ function normalizeJob(job) {
   const category     = classifyCategory(title, desc, 'Job', false);
   const indiaRegion  = getIndiaRegion(location);
 
-  const isIntern = /intern|internship|trainee|apprentice/i.test(title);
+  const isIntern = /\b(intern|internship|trainee|student intern|summer intern|winter intern|graduate intern)\b/i.test(title);
   const primaryType   = isIntern ? 'Internship' : 'Job';
   const secondaryType = isIntern
     ? classifyInternshipCompensation(title, desc, '')

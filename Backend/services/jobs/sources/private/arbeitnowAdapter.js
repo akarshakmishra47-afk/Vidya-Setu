@@ -23,7 +23,7 @@ function normalizeJob(job) {
   const applyUrl = job.url || '';
   const sourceId = `arbeitnow_${job.slug || job.id}`;
 
-  const isIntern = /intern|internship|trainee|apprentice/i.test(title);
+  const isIntern = /\b(intern|internship|trainee|student intern|summer intern|winter intern|graduate intern)\b/i.test(title);
   const branch       = classifyBranch(title, desc);
   const expLevel     = classifyExperienceLevel(title, desc);
   const companyType  = classifyCompanyType(company);

@@ -27,7 +27,7 @@ function normalizeJob(job) {
   const applyUrl = job.applicationLink || job.url || '';
   const sourceId = `himalayas_${job.id}`;
 
-  const isIntern = /intern|internship|trainee|apprentice/i.test(title);
+  const isIntern = /\b(intern|internship|trainee|student intern|summer intern|winter intern|graduate intern)\b/i.test(title);
   const branch      = classifyBranch(title, desc);
   const expLevel    = classifyExperienceLevel(title, desc);
   const compType    = classifyCompanyType(company);
