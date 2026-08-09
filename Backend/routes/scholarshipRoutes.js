@@ -1,22 +1,130 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const Scholarship = require('../models/Scholarship');
 const ScholarshipApplication = require('../models/ScholarshipApplication');
 const User = require('../models/User');
-
 const AktuStudentOtr = require('../models/AktuStudentOtr');
 const AktuScholarshipApplication = require('../models/AktuScholarshipApplication');
+const { fetchAllScholarships } = require('../services/scholarships/scholarshipFetcher');
 
 const router = express.Router();
+
+let lastRefresh = null;
+let refreshInProgress = false;
+let autoRefreshTimer = null;
+
+// Initialize & Migrate DB on startup
+async function initializeScholarships() {
+  try {
+    if (mongoose.connection.readyState !== 1) return; // Wait for connection
+    
+    // Migrate existing manually seeded scholarships to have deduplicationKey and source
+    const oldScholarships = await Scholarship.find({ source: { $exists: false } });
+    if (oldScholarships.length > 0) {
+      console.log(`[ScholarshipRoutes] Found ${oldScholarships.length} un-migrated scholarships. Migrating...`);
+      for (const old of oldScholarships) {
+        const deduplicationKey = `manual::${String(old.title).toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+        await Scholarship.findByIdAndUpdate(old._id, {
+          source: 'manual',
+          sourceId: old._id.toString(),
+          deduplicationKey,
+          status: 'active'
+        });
+      }
+      console.log('[ScholarshipRoutes] Migration complete.');
+    }
+  } catch (error) {
+    console.error('[ScholarshipRoutes] Migration error:', error);
+  }
+}
+setTimeout(initializeScholarships, 3000);
+
+// Fetch Latest Integration
+async function triggerScholarshipFetch() {
+  if (refreshInProgress) return;
+  refreshInProgress = true;
+  try {
+    const newScholarships = await fetchAllScholarships();
+    let inserted = 0;
+    
+    // Deactivate old external scholarships (so we don't keep dead ones active)
+    await Scholarship.updateMany({ source: { $ne: 'manual' } }, { status: 'stale' });
+
+    // Insert or activate new external scholarships
+    for (const s of newScholarships) {
+      try {
+        const existing = await Scholarship.findOne({ deduplicationKey: s.deduplicationKey });
+        if (!existing) {
+          await Scholarship.create(s);
+          inserted++;
+        } else {
+          // Re-activate if it was stale, and update timestamp
+          await Scholarship.findByIdAndUpdate(existing._id, { status: 'active', lastVerifiedAt: Date.now() });
+        }
+      } catch (e) {
+        if (e.code !== 11000) console.error('[ScholarshipRoutes] Insert error:', e);
+      }
+    }
+    
+    lastRefresh = new Date();
+    console.log(`[ScholarshipRoutes] Successfully processed fetch cycle. Inserted ${inserted} new external scholarships.`);
+  } catch (error) {
+    console.error('[ScholarshipRoutes] Fetch error:', error);
+  } finally {
+    refreshInProgress = false;
+  }
+}
+
+// Scheduled refresh (every 12 hours)
+autoRefreshTimer = setInterval(() => {
+  triggerScholarshipFetch();
+}, 12 * 60 * 60 * 1000);
 
 // GET all available scholarships
 router.get('/', async (req, res) => {
   try {
-    const scholarships = await Scholarship.find().sort({ createdAt: -1 });
+    const scholarships = await Scholarship.find({ status: 'active', isActive: true }).sort({ createdAt: -1 });
     res.json(scholarships);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch scholarships" });
   }
 });
+
+// GET scholarships pipeline status
+router.get('/status', async (req, res) => {
+  try {
+    const total = await Scholarship.countDocuments();
+    const active = await Scholarship.countDocuments({ status: 'active' });
+    const stale = await Scholarship.countDocuments({ status: 'stale' });
+    const sources = await Scholarship.distinct('source');
+    
+    res.json({
+      success: true,
+      total,
+      active,
+      stale,
+      sources,
+      lastRefresh,
+      refreshInProgress
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to fetch scholarship stats' });
+  }
+});
+
+// POST trigger manual fetch
+router.post('/fetch-latest', async (req, res) => {
+  if (refreshInProgress) {
+    return res.status(429).json({ error: 'Refresh already in progress' });
+  }
+  // Run asynchronously without blocking
+  triggerScholarshipFetch();
+  res.json({ message: 'Refresh triggered successfully' });
+});
+
+// -------------------------------------------------------------
+// BELOW ARE PRE-EXISTING ROUTES FOR APPLICATIONS AND AKTU PORTAL
+// -------------------------------------------------------------
 
 // GET applications for a specific user (by rollNo or ID)
 router.get('/my-applications/:identifier', async (req, res) => {
@@ -42,15 +150,12 @@ router.post('/apply', async (req, res) => {
     if (!user || !scholarship) return res.status(404).json({ error: "User or Scholarship not found" });
 
     // ELIGIBILITY ENGINE: 
-    // Check Income Limit
     if (user.familyIncome > scholarship.eligibility.maxIncome) {
-      return res.status(400).json({ error: `Not eligible: Family income exceeds max limit of ?${scholarship.eligibility.maxIncome}` });
+      return res.status(400).json({ error: `Not eligible: Family income exceeds max limit.` });
     }
-    // Check Caste
     if (!scholarship.eligibility.allowedCategories.includes(user.casteCategory)) {
       return res.status(400).json({ error: `Not eligible: Category ${user.casteCategory} not accepted for this scholarship.` });
     }
-    // Check Special Requirements
     if (scholarship.eligibility.isDefenceRequired && !user.defenceDependent) {
       return res.status(400).json({ error: "Not eligible: Must be a ward of Armed Forces personnel." });
     }
@@ -58,20 +163,17 @@ router.post('/apply', async (req, res) => {
       return res.status(400).json({ error: "Not eligible: Must be a ward of CAPF personnel." });
     }
 
-    // CONFLICT VALIDATION: 1 Government Scholarship Rule
     if (scholarship.category === 'Government') {
       const activeGovt = await ScholarshipApplication.findOne({
         studentId,
         categoryApplied: 'Government',
         status: { $in: ['Applied', 'Approved'] }
       });
-
       if (activeGovt) {
         return res.status(400).json({ error: "Conflict: You can only have one active Government Scholarship at a time." });
       }
     }
 
-    // CREATE APPLICATION
     const application = new ScholarshipApplication({
       studentId: user._id,
       scholarshipId,
@@ -137,7 +239,6 @@ router.post('/aktu-otr', async (req, res) => {
       await student.save();
     }
 
-    // ── SYNC TO USER PROFILE ──
     if (userId) {
       await User.findByIdAndUpdate(userId, {
         aadhaarNumber,

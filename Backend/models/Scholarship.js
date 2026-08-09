@@ -17,7 +17,14 @@ const scholarshipSchema = new mongoose.Schema({
   // Searchable tags
   tags: { type: [String], default: [] },
 
-  // Show/hide in listing
+  // Pipeline fields
+  deduplicationKey: { type: String, unique: true },
+  source: { type: String, required: true },
+  sourceId: { type: String },
+  status: { type: String, enum: ['active', 'stale'], default: 'active' },
+  lastVerifiedAt: { type: Date, default: Date.now },
+
+  // Show/hide in listing (manual override if needed)
   isActive: { type: Boolean, default: true },
   
   // Eligibility criteria embedded rules

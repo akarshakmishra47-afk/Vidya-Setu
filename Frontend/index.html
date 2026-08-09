@@ -4554,21 +4554,25 @@
         }, 1200);
       };
 
-      const handleSyncExternal = () => {
+      const handleSyncExternal = async () => {
         setIsSyncing(true);
         setSyncStep(0);
         setTimeout(() => setSyncStep(1), 1200);
         setTimeout(() => setSyncStep(2), 2500);
-        setTimeout(() => {
+        
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/scholarships/fetch-latest`, { method: 'POST' });
+          if (res.ok) {
+            await loadData();
+            addToast("Sync Complete", "Fetched latest scholarships from external portals.", <span className="material-symbols-outlined" style={{ fontSize: 18 }}>cloud_download</span>, T.success);
+          } else {
+            addToast("Sync Failed", "Could not fetch new data.", <span className="material-symbols-outlined" style={{ fontSize: 18 }}>error</span>, T.rose);
+          }
+        } catch (e) {
+          addToast("Network Error", "Could not reach scholarship service.", <span className="material-symbols-outlined" style={{ fontSize: 18 }}>error</span>, T.rose);
+        } finally {
           setIsSyncing(false);
-          const mockExternal = [
-            { _id: "ext1", title: "PM YASASVI Scheme", provider: "Ministry of Social Justice", category: "Government", amount: "₹2.5 Lakhs", deadline: "30 Nov 2026", description: "Scholarships for vibrant young achievers. Top class education for OBC, EBC, and DNT students.", officialUrl: "https://yet.nta.ac.in", howToApply: ["Register on NSP", "Fill PM YASASVI Form", "Upload verified income certificate"], documentsRequired: ["Income Certificate", "Aadhaar Card", "Marksheet"] },
-            { _id: "ext2", title: "AICTE Pragati Scholarship", provider: "AICTE", category: "Government", amount: "₹50,000/yr", deadline: "15 Dec 2026", description: "Empowering girls through technical education. Available for first-year degree/diploma students.", officialUrl: "https://aicte-india.org", howToApply: ["Register on NSP portal", "Select Pragati Scheme", "Verify through institute nodal officer"], documentsRequired: ["Aadhaar", "Previous Marksheet", "Admission Receipt"] },
-            { _id: "ext3", title: "ONGC Merit Scholarship", provider: "ONGC Foundation", category: "Private/NGO", amount: "₹48,000/yr", deadline: "10 Jan 2027", description: "Financial support for meritorious SC/ST, OBC, and General category students pursuing professional courses.", officialUrl: "https://ongcscholar.org", howToApply: ["Visit ONGC Scholar portal", "Fill online application", "Submit physical documents to regional office"], documentsRequired: ["Caste Certificate", "Income Certificate", "PAN Card"] }
-          ];
-          setAllScholarships(prev => [...mockExternal, ...prev]);
-          addToast("Sync Complete", "Fetched 3 new schemes from external portals.", <span className="material-symbols-outlined" style={{ fontSize: 18 }}>cloud_download</span>, T.success);
-        }, 4000);
+        }
       };
 
       const TROUBLESHOOTING_GUIDES = [
@@ -4697,6 +4701,7 @@
       };
 
       const TABS = [
+        { id: "recommended", label: <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>star</span> Recommended</>, c: T.orange },
         { id: "all", label: <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>list_alt</span> All Scholarships</>, c: T.indigo },
         { id: "Government", label: <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>account_balance</span> Government</>, c: T.success },
         { id: "Defence", label: <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>shield</span> Defence / CAPF</>, c: T.rose },
@@ -4705,7 +4710,21 @@
         { id: "troubleshooting", label: <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>help_center</span> Troubleshooting</>, c: T.orange },
       ];
 
-      const visibleScholarships = activeTab === "all" ? allScholarships : allScholarships.filter(s => s.category.includes(activeTab) || (activeTab === 'Defence' && s.category === 'CAPF'));
+      const isRecommended = (s) => {
+        if (!s.eligibility) return false;
+        const { familyIncome = 999999, casteCategory = 'General', defenceDependent = false, capfDependent = false } = user;
+        
+        if (familyIncome > s.eligibility.maxIncome) return false;
+        if (!s.eligibility.allowedCategories.includes(casteCategory)) return false;
+        if (s.eligibility.isDefenceRequired && !defenceDependent) return false;
+        if (s.eligibility.isCapfRequired && !capfDependent) return false;
+        
+        return true;
+      };
+
+      const visibleScholarships = activeTab === "all" ? allScholarships 
+        : activeTab === "recommended" ? allScholarships.filter(isRecommended)
+        : allScholarships.filter(s => s.category.includes(activeTab) || (activeTab === 'Defence' && s.category === 'CAPF'));
 
       const getCategoryIcon = (cat) => {
         if (cat === 'Government') return "account_balance";
