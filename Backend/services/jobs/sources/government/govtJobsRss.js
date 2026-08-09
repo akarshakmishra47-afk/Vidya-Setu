@@ -88,7 +88,7 @@ function normalizeGovtJob(item, feedName) {
   const branch       = classifyBranch(title, desc);
   const expLevel     = classifyExperienceLevel(title, desc);
   const govtCategory = classifyGovtCategory(title, company, desc);
-  const sourceId     = `govtRss_${feedName}_${Buffer.from(applyUrl).toString('base64').substring(0, 32)}`;
+  const sourceId     = `govtRss_${feedName}_${Buffer.from(applyUrl).toString('base64')}`;
 
   const postedAt = item.pubDate ? new Date(item.pubDate) : null;
 

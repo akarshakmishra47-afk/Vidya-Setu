@@ -217,7 +217,7 @@ function initializeJobRefresh() {
 // ── GET /api/jobs — List with filters, search, pagination ─────────────────────
 router.get('/', async (req, res) => {
   try {
-    const filter = { isIndiaLocation: { $ne: false } };
+  
 
     // Primary type filter
     if (req.query.type) {
