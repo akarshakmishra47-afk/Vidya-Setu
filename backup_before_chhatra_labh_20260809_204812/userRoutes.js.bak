@@ -117,41 +117,6 @@ router.get('/search/:rollNo', async (req, res) => {
   }
 });
 
-// GET Student Profile by ID
-router.get('/profile/:id', async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id).select('-password');
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// GET verify digital ID via QR code
-router.get('/verify/:rollNo', async (req, res) => {
-  try {
-    const user = await User.findOne({ rollNo: req.params.rollNo }).select('name rollNo branch year course scholarshipStage');
-    if (!user) return res.status(404).json({ success: false, error: 'Student not found' });
-    
-    res.json({
-      success: true,
-      data: {
-        studentId: user.rollNo,
-        name: user.name,
-        college: 'AKTU Affiliated College',
-        branch: user.branch,
-        year: user.year,
-        course: user.course || 'B.Tech',
-        status: user.scholarshipStage > 1 ? 'Verified' : 'Pending Verification',
-        validity: 'Valid till 2028'
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Server error' });
-  }
-});
-
 // PUT route /update-profile to edit profile (ONE-TIME only)
 router.put('/update-profile', async (req, res) => {
   try {

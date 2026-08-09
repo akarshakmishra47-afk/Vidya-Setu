@@ -3235,8 +3235,41 @@
     /* ══════════════════════════════════════
       MODULE: CHHATRA-LABH
     ══════════════════════════════════════ */
+    const PERKS = [
+      {
+        cat: "🎵 Entertainment & Lifestyle", color: "#1DB954", items: [
+          { id: 1, name: "Spotify Student Premium", val: "₹99/month (vs ₹119)", icon: <img src="https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt="Spotify" />, url: "https://www.spotify.com/in-en/student/", steps: ["Go to spotify.com/in/student", "Sign up or log in", "Verify via SheerID", "Get student discount instantly", "Renew every 12 months"] },
+          { id: 2, name: "Amazon Prime Youth Offer", val: "₹749/year (vs ₹1499)", icon: <img src="https://www.tuttotech.net/wp-content/uploads/2020/10/amazon-prime-student.jpg" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt="Amazon" />, url: "https://www.amazon.in/amazonprime", steps: ["Visit amazon.in/prime/student", "Sign in with Amazon account", "Verify student status", "Pay ₹1499 upfront & get ₹750 cashback", "Includes Prime Video + fast delivery"] },
+          { id: 3, name: "Apple Music Student", val: "₹59/month + Apple TV+", icon: <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt="Apple" />, url: "https://www.apple.com/in/apple-music/", steps: ["Open Apple Music App", "Select 'Student' subscription", "Verify enrollment via UNiDAYS", "Enjoy Music + Free Apple TV+"] },
+          { id: 4, name: "YouTube Premium Student", val: "₹79/month", icon: <img src="https://upload.wikimedia.org/wikipedia/commons/0/09/YouTube_full-color_icon_%282017%29.svg" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt="YouTube" />, url: "https://www.youtube.com/premium/student", steps: ["Visit youtube.com/premium/student", "Verify using SheerID", "Enjoy ad-free YouTube & YT Music"] }
+        ]
+      },
+      {
+        cat: "💻 Tech & Software", color: "#6366F1", items: [
+          { id: 5, name: "GitHub Student Developer Pack", val: "$200k+ tools FREE", icon: <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt="GitHub" />, url: "https://education.github.com/pack", steps: ["Go to education.github.com/pack", "Sign in with GitHub account", "Verify with college email", "Submit and wait 24–48 hrs", "Access 100+ developer tools"] },
+          { id: 6, name: "JetBrains All Products Pack", val: "All IDEs Free", icon: <img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.svg" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt="JetBrains" />, url: "https://www.jetbrains.com/community/education/#students", steps: ["Visit jetbrains.com/student", "Apply with .edu email", "Download JetBrains Toolbox", "Activate via student license", "Renew annually"] },
+          { id: 7, name: "Notion for Education", val: "Free Plus Plan", icon: <img src="https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt="Notion" />, url: "https://www.notion.so/product/notion-for-education", steps: ["Sign up with your .edu / .ac.in email", "Go to Settings & Members > Upgrade", "Select 'Get Free Education Plan'"] },
+          { id: 8, name: "Autodesk Education", val: "AutoCAD & Maya Free", icon: <img src="https://companieslogo.com/img/orig/ADSK-a7a56d77.png?t=1720244490" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt="Autodesk" />, url: "https://www.autodesk.com/education/edu-software/overview", steps: ["Go to autodesk.com/education", "Create account & verify eligibility", "Get 1-year free access to all products"] }
+        ]
+      },
+      {
+        cat: "✈️ Travel & Hardware", color: "#14B8A6", items: [
+          { id: 9, name: "Indigo Student Concession", val: "6% Off + 10KG Extra Baggage", icon: <img src="https://upload.wikimedia.org/wikipedia/commons/6/69/IndiGo_Airlines_logo.svg" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt="Indigo" />, url: "https://www.goindigo.in/student-discount.html", steps: ["Book ticket on goindigo.in", "Select 'Student Fare'", "Carry valid college ID at airport"] },
+          { id: 10, name: "Samsung Student Advantage", val: "Up to 10% Off", icon: <img src="https://upload.wikimedia.org/wikipedia/commons/9/9c/Samsung_logo_wordmark.svg" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt="Samsung" />, url: "https://www.samsung.com/in/multistore/studentadvantage/", steps: ["Register on Samsung Student Store", "Use institutional email ID", "Get exclusive access to discounts"] },
+          { id: 11, name: "UPSRTC Student Bus Pass", val: "50% fare concession", icon: <img src="https://paytm-travel-mum-akamai.paytm.com/Bus/operatorlogo/upsrtc.png" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt="UPSRTC" />, url: "https://upsrtc.up.gov.in/", steps: ["Visit nearest UPSRTC depot", "Carry college ID + 2 passport photos", "Fill Form ST-1 at depot", "Pay ₹50 application fee", "Collect pass within 3 working days"] },
+          { id: 12, name: "Indian Railways Student Concession", val: "25–50% on train tickets", icon: <img src="https://upload.wikimedia.org/wikipedia/hi/7/7b/Indian_Railways_logo.png" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt="Railways" />, url: "https://indianrailways.gov.in/", steps: ["Collect certificate from college admin", "Get it signed by Principal", "Present at railway booking counter", "Applicable for home town journey"] }
+        ]
+      }
+    ];
+
+    const PREV_PERKS = [
+      { id: 101, name: "Dominos Pizza", val: "20% Student Discount", date: "12 Mar 2026", icon: <img src="https://upload.wikimedia.org/wikipedia/commons/7/74/Dominos_pizza_logo.svg" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} />, color: "#E31837" },
+      { id: 102, name: "PVR Cinemas", val: "Buy 1 Get 1 Free", date: "05 Mar 2026", icon: <img src="https://logowik.com/content/uploads/images/pvr-cinemas6676.jpg" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} />, color: T.yellow },
+      { id: 103, name: "Apple Store", val: "₹10,000 Off on Mac", date: "22 Feb 2026", icon: <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} />, color: T.muted },
+    ];
+
     function ChhatraLabh() {
-      const { user, setUser } = useUser();
+      const { user } = useUser();
       const addToast = useToast();
       const [perk, setPerk] = useState(null);
       const [perksList, setPerksList] = useState([]);
@@ -3247,46 +3280,25 @@
           .then(res => res.json())
           .then(data => {
             if (Array.isArray(data) && data.length > 0) {
-              const grouped = data.reduce((acc, curr) => {
-                const catName = curr.category || 'Other';
-                if (!acc[catName]) acc[catName] = { cat: catName, color: curr.color || T.indigo, items: [] };
-                curr.iconNode = <img src={curr.icon || 'https://vidyasetu.com/favicon.png'} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt={curr.title} />;
-                acc[catName].items.push(curr);
-                return acc;
-              }, {});
-              setPerksList(Object.values(grouped));
+              // Convert string icon URLs to React img components to match UI
+              const processed = data.map(category => ({
+                ...category,
+                items: category.items.map(p => ({
+                  ...p,
+                  icon: <img src={p.icon} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt={p.name} />
+                }))
+              }));
+              setPerksList(processed);
             } else {
-              setPerksList([]);
+              setPerksList(PERKS); // Fallback to hardcoded if DB is empty
             }
           })
-          .catch(() => setPerksList([]))
+          .catch(() => setPerksList(PERKS))
           .finally(() => setLoading(false));
       }, []);
 
-      const claimPerk = async (p) => {
-        try {
-          const token = localStorage.getItem('token');
-          const res = await fetch(`${API_BASE_URL}/api/perks/claim/${p._id}`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          const data = await res.json();
-          if (data.success) {
-             addToast("Perk Unlocked!", p.title, <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>redeem</span>, p.color || T.success);
-             if (user) {
-               setUser({ ...user, claimedPerks: [...(user.claimedPerks || []), p._id] });
-             }
-             window.open(data.officialUrl, "_blank");
-          } else {
-             window.open(p.officialUrl, "_blank");
-          }
-        } catch(e) {
-           window.open(p.officialUrl, "_blank");
-        }
-      };
-
-      const stu = { name: user?.name || "Student Name", roll: user?.rollNo || "RollNo", year: user?.year || "Year", college: "AKTU Affiliated College", valid: "May 2028" };
-      const branchShort = user?.branch || "Branch";
+      const stu = { name: user.name || "Dev Kumar", roll: user.rollNo || "2200123456", year: user.year || "1st Year", college: "AKTU — Lucknow", valid: "May 2026" };
+      const branchShort = user.branch || "CSE";
 
       return (
         <div>
@@ -3304,25 +3316,23 @@
               <div>
                 {loading ? (
                   <div style={{ textAlign: 'center', padding: 40, color: T.muted }}>Loading Real-Time Perks...</div>
-                ) : perksList.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: 40, color: T.muted }}>No verified student perks are currently available.</div>
                 ) : (
                   perksList.map(({ cat, color, items }) => (
                     <div key={cat} style={{ marginBottom: 28 }}>
                       <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 12, color: T.muted, letterSpacing: 1, textTransform: "uppercase" }}>{cat}</div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         {items.map(p => (
-                          <Card key={p._id}>
+                          <Card key={p.id}>
                             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                              <div style={{ width: 46, height: 46, borderRadius: 13, flexShrink: 0, background: color + "12", border: `1px solid ${color}28`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: `0 2px 8px ${color}18` }}>{p.iconNode}</div>
+                              <div style={{ width: 46, height: 46, borderRadius: 13, flexShrink: 0, background: color + "12", border: `1px solid ${color}28`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: `0 2px 8px ${color}18` }}>{p.icon}</div>
                               <div style={{ flex: 1 }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                                  <div style={{ fontWeight: 700, fontSize: 14, color: T.text }}>{p.title}</div>
+                                  <div style={{ fontWeight: 700, fontSize: 14, color: T.text }}>{p.name}</div>
                                   <Badge color={T.success}>✓ Active Offer</Badge>
                                 </div>
-                                <div style={{ color, fontSize: 12, fontWeight: 600, marginTop: 4 }}>{p.discount}</div>
+                                <div style={{ color, fontSize: 12, fontWeight: 600, marginTop: 4 }}>{p.val}</div>
                               </div>
-                              <Btn onClick={() => claimPerk(p)} variant="primary" style={{ padding: "8px 14px", fontSize: 12, flexShrink: 0 }}>Get Deal →</Btn>
+                              <Btn onClick={() => { setPerk({ ...p, color }); addToast("Perk Unlocked!", p.name, <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>redeem</span>, color); }} variant="primary" style={{ padding: "8px 14px", fontSize: 12, flexShrink: 0 }}>Get Deal →</Btn>
                             </div>
                           </Card>
                         ))}
@@ -3333,24 +3343,21 @@
 
                 <SH icon={<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>schedule</span>} title="Previously Claimed" subtitle="History of discounts on your ID card" />
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {perksList.flatMap(c => c.items).filter(p => user?.claimedPerks?.includes(p._id)).length === 0 ? (
-                     <div style={{ padding: 20, color: T.muted, fontSize: 12, textAlign: "center" }}>You haven't claimed any perks yet.</div>
-                  ) : (
-                    perksList.flatMap(c => c.items).filter(p => user?.claimedPerks?.includes(p._id)).map(p => (
-                      <Card key={'claimed-'+p._id}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                          <div style={{ width: 46, height: 46, borderRadius: 13, flexShrink: 0, background: (p.color || "#F5F5F5") + "14", border: `1px solid ${(p.color || "#EBEBEB")}28`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{p.iconNode}</div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 700, fontSize: 14, color: T.text }}>{p.title}</div>
-                            <div style={{ color: p.color || T.muted, fontSize: 12, fontWeight: 600, marginTop: 2 }}>{p.discount}</div>
-                          </div>
-                          <div style={{ textAlign: "right" }}>
-                            <Badge color={T.muted}>Claimed</Badge>
-                          </div>
+                  {PREV_PERKS.map(p => (
+                    <Card key={p.id}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ width: 46, height: 46, borderRadius: 13, flexShrink: 0, background: (p.color || "#F5F5F5") + "14", border: `1px solid ${(p.color || "#EBEBEB")}28`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{p.icon}</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: T.text }}>{p.name}</div>
+                          <div style={{ color: p.color || T.muted, fontSize: 12, fontWeight: 600, marginTop: 2 }}>{p.val}</div>
                         </div>
-                      </Card>
-                    ))
-                  )}
+                        <div style={{ textAlign: "right" }}>
+                          <Badge color={T.muted}>Claimed</Badge>
+                          <div style={{ color: T.muted, fontSize: 10, marginTop: 6 }}>{p.date}</div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
               </div>
 
@@ -3381,7 +3388,7 @@
                         <div style={{ color: "#fff", fontSize: 12, fontWeight: 600, marginTop: 2 }}>{stu.valid}</div>
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <QR data={`${window.location.origin}/api/users/verify/${stu.roll}`} size={76} />
+                        <QR data={stu.roll + stu.name} size={76} />
                         <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 9, marginTop: 4 }}>Scan to verify</div>
                         <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 9, marginTop: 2, fontWeight: 700 }}>Valid for events</div>
                       </div>

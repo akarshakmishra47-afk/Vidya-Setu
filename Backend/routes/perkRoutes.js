@@ -1,66 +1,161 @@
 const express = require('express');
 const router = express.Router();
 const Perk = require('../models/Perk');
+const User = require('../models/User');
+const { fetchAllPerks } = require('../services/perks/perkFetcher');
+
+let lastRefresh = null;
+let refreshInProgress = false;
+let autoRefreshTimer = null;
+
+// Initialize & Migrate DB on startup
+async function initializePerks() {
+  try {
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 1) return; // Wait for connection
+
+    const db = mongoose.connection.db;
+    const oldPerks = await db.collection('perks').find({ items: { $exists: true } }).toArray();
+    
+    if (oldPerks.length > 0) {
+      console.log(`[PerkRoutes] Found ${oldPerks.length} old nested perk categories. Migrating to flat schema...`);
+      for (const old of oldPerks) {
+        for (const item of old.items) {
+          const deduplicationKey = `manual::${String(item.name).toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+          await Perk.updateOne(
+            { deduplicationKey },
+            {
+              $setOnInsert: {
+                title: item.name,
+                description: item.val,
+                provider: item.name,
+                category: old.cat,
+                discount: item.val,
+                instructions: item.steps || [],
+                officialUrl: item.url || 'https://vidyasetu.com',
+                icon: item.icon,
+                color: old.color,
+                source: 'manual',
+                sourceId: String(item.id),
+                status: 'active'
+              }
+            },
+            { upsert: true }
+          );
+        }
+        await db.collection('perks').deleteOne({ _id: old._id });
+      }
+      console.log('[PerkRoutes] Migration to flat schema complete.');
+    }
+  } catch (error) {
+    console.error('[PerkRoutes] Migration error:', error);
+  }
+}
+setTimeout(initializePerks, 3000); // Wait for db to connect
+
+// Fetch Latest Integration
+async function triggerPerkFetch() {
+  if (refreshInProgress) return;
+  refreshInProgress = true;
+  try {
+    const newPerks = await fetchAllPerks();
+    let inserted = 0;
+    
+    // Insert new external perks
+    for (const perk of newPerks) {
+      try {
+        const existing = await Perk.findOne({ deduplicationKey: perk.deduplicationKey });
+        if (!existing) {
+          await Perk.create(perk);
+          inserted++;
+        }
+      } catch (e) {
+        if (e.code !== 11000) console.error('[PerkRoutes] Insert error:', e);
+      }
+    }
+    
+    lastRefresh = new Date();
+    console.log(`[PerkRoutes] Successfully processed fetch cycle. Inserted ${inserted} new external perks.`);
+  } catch (error) {
+    console.error('[PerkRoutes] Fetch error:', error);
+  } finally {
+    refreshInProgress = false;
+  }
+}
+
+// Scheduled refresh (e.g. every 12 hours)
+autoRefreshTimer = setInterval(() => {
+  triggerPerkFetch();
+}, 12 * 60 * 60 * 1000);
 
 // GET all perks
 router.get('/', async (req, res) => {
   try {
-    const perks = await Perk.find();
+    const perks = await Perk.find({ status: 'active' }).sort({ createdAt: -1 });
     res.json(perks);
-  } catch (error) {
+  } catch (err) {
+    console.error('[PerkRoutes] GET error:', err);
     res.status(500).json({ error: 'Failed to fetch perks' });
   }
 });
 
-// Seed Initial Real-Life Student Perks if DB is empty
-router.post('/seed', async (req, res) => {
+// GET perks status
+router.get('/status', async (req, res) => {
   try {
-    const count = await Perk.countDocuments();
-    if (count === 0) {
-      const initialPerks = [
-        {
-          cat: "🎵 Entertainment & Lifestyle", color: "#1DB954", items: [
-            { id: 1, name: "Spotify Student Premium", val: "₹99/month (vs ₹119)", icon: "https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg", steps: ["Go to spotify.com/in/student", "Sign up or log in", "Verify via SheerID", "Get student discount instantly", "Renew every 12 months"] },
-            { id: 2, name: "Amazon Prime Student Youth Offer", val: "₹749/year (vs ₹1499)", icon: "https://www.tuttotech.net/wp-content/uploads/2020/10/amazon-prime-student.jpg", steps: ["Visit amazon.in/prime/student", "Sign in with Amazon account", "Verify student status", "Pay ₹1499 upfront & get ₹750 cashback", "Includes Prime Video + fast delivery"] },
-            { id: 3, name: "Apple Music Student", val: "₹59/month + Free Apple TV+", icon: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg", steps: ["Open Apple Music App", "Select 'Student' subscription", "Verify enrollment via UNiDAYS", "Enjoy Music + Free Apple TV+"] },
-            { id: 4, name: "YouTube Premium Student", val: "₹79/month", icon: "https://upload.wikimedia.org/wikipedia/commons/0/09/YouTube_full-color_icon_%282017%29.svg", steps: ["Visit youtube.com/premium/student", "Verify using SheerID", "Enjoy ad-free YouTube & YT Music"] }
-          ]
-        },
-        {
-          cat: "💻 Tech & Software", color: "#6366F1", items: [
-            { id: 5, name: "GitHub Student Developer Pack", val: "$200k+ tools FREE", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg", steps: ["Go to education.github.com/pack", "Sign in with GitHub account", "Verify with college email", "Submit and wait 24–48 hrs", "Access 100+ developer tools"] },
-            { id: 6, name: "JetBrains All Products Pack", val: "All IDEs Free", icon: "https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.svg", steps: ["Visit jetbrains.com/student", "Apply with .edu email", "Download JetBrains Toolbox", "Activate via student license", "Renew annually"] },
-            { id: 7, name: "Notion for Education", val: "Free Plus Plan", icon: "https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png", steps: ["Sign up with your .edu / .ac.in email", "Go to Settings & Members > Upgrade", "Select 'Get Free Education Plan'"] },
-            { id: 8, name: "Autodesk Education", val: "AutoCAD & Maya Free", icon: "https://upload.wikimedia.org/wikipedia/commons/b/b3/Autodesk_Logo_%282021%29.svg", steps: ["Go to autodesk.com/education", "Create account & verify eligibility", "Get 1-year free access to all products"] }
-          ]
-        },
-        {
-          cat: "✈️ Travel & Hardware", color: "#14B8A6", items: [
-            { id: 9, name: "Indigo Student Concession", val: "6% Off + 10KG Extra Baggage", icon: "https://upload.wikimedia.org/wikipedia/commons/6/69/IndiGo_Airlines_logo.svg", steps: ["Book ticket on goindigo.in", "Select 'Student Fare'", "Carry valid college ID at airport"] },
-            { id: 10, name: "Samsung Student Advantage", val: "Up to 10% Off", icon: "https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg", steps: ["Register on Samsung Student Store", "Use institutional email ID", "Get exclusive access to discounts"] },
-            { id: 11, name: "UPSRTC Student Bus Pass", val: "50% fare concession", icon: "https://paytm-travel-mum-akamai.paytm.com/Bus/operatorlogo/upsrtc.png", steps: ["Visit nearest UPSRTC depot", "Carry college ID + 2 passport photos", "Fill Form ST-1 at depot", "Pay ₹50 application fee", "Collect pass within 3 working days"] },
-            { id: 12, name: "Indian Railways Student Concession", val: "25–50% on train tickets", icon: "https://upload.wikimedia.org/wikipedia/hi/7/7b/Indian_Railways_logo.png", steps: ["Collect certificate from college admin", "Get it signed by Principal", "Present at railway booking counter", "Applicable for home town journey"] }
-          ]
-        }
-      ];
-      await Perk.insertMany(initialPerks);
-      res.json({ message: "Seed successful", perks: initialPerks });
-    } else {
-      res.json({ message: "Already seeded" });
-    }
+    const total = await Perk.countDocuments();
+    const active = await Perk.countDocuments({ status: 'active' });
+    const categories = await Perk.distinct('category');
+    
+    res.json({
+      success: true,
+      total,
+      active,
+      categories: categories.length,
+      lastRefresh,
+      refreshInProgress
+    });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to seed perks' });
+    res.status(500).json({ success: false, error: 'Failed to fetch perk stats' });
   }
 });
 
-// Optional: POST new perk specifically for admin
-router.post('/', async (req, res) => {
+// POST trigger manual fetch
+router.post('/fetch-latest', async (req, res) => {
+  if (refreshInProgress) {
+    return res.status(429).json({ error: 'Refresh already in progress' });
+  }
+  triggerPerkFetch();
+  res.json({ message: 'Refresh triggered successfully' });
+});
+
+// POST claim a perk
+router.post('/claim/:id', async (req, res) => {
   try {
-    const newPerk = new Perk(req.body);
-    await newPerk.save();
-    res.status(201).json(newPerk);
+    // Note: Expecting auth middleware, but we fallback to extracting from body/headers if missing.
+    // In a real app with JWT, user id is in req.user
+    // The frontend sends token in Authorization header. We will decode it here or rely on middleware.
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const token = authHeader.split(' ')[1];
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const user = await User.findById(decoded.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    const perk = await Perk.findById(req.params.id);
+    if (!perk) return res.status(404).json({ error: 'Perk not found' });
+    
+    if (!user.claimedPerks.includes(perk._id.toString())) {
+      user.claimedPerks.push(perk._id.toString());
+      await user.save();
+    }
+    
+    res.json({ success: true, message: 'Perk claimed successfully', officialUrl: perk.officialUrl });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('[PerkRoutes] Claim error:', error);
+    res.status(500).json({ error: 'Failed to claim perk' });
   }
 });
 
