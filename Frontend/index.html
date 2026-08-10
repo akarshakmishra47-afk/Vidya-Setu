@@ -3431,7 +3431,7 @@
       "Computer Networks": [{ t: "OSI vs TCP/IP", p: 94, y: [2019, 2020, 2021, 2022, 2023] }, { t: "IP Addressing & Subnetting", p: 87, y: [2019, 2021, 2022, 2023] }, { t: "Routing Algorithms", p: 80, y: [2020, 2021, 2022] }, { t: "TCP vs UDP", p: 75, y: [2019, 2020, 2022, 2023] }, { t: "DNS & DHCP", p: 65, y: [2021, 2022] }, { t: "HTTP & Application Layer", p: 58, y: [2022, 2023] }],
     };
 
-    function PrashnaKosh() {
+    function ExamAnalytics() {
       const [sub, setSub] = useState("");
       const [anim, setAnim] = useState(false);
       useEffect(() => { if (sub) { setAnim(false); setTimeout(() => setAnim(true), 50); } }, [sub]);
@@ -4740,7 +4740,7 @@
           <div className="screen-hero">
             <div className="screen-hero-inner">
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-                <Badge color={T.success}><span className="material-symbols-outlined" style={{ fontSize: 13, verticalAlign: "text-bottom", marginRight: 4 }}>school</span> Central Scholarship Portal</Badge>
+                <Badge color={T.success}><span className="material-symbols-outlined" style={{ fontSize: 13, verticalAlign: "text-bottom", marginRight: 4 }}>school</span> 🎓 Scholarship Center</Badge>
                 <span style={{ background: "rgba(20,184,166,0.1)", color: T.teal, border: `1px solid ${T.teal}30`, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 14 }}>account_balance</span> Govt Integration Live</span>
                 <button onClick={handleSyncExternal} style={{ marginLeft: "auto", background: T.indigo + "15", color: T.indigo, border: `1px solid ${T.indigo}30`, borderRadius: 10, padding: "4px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, transition: "all .2s ease" }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 14 }}>sync</span> Sync Live Data
@@ -5323,7 +5323,7 @@
           <div style={{ fontSize: 13, marginBottom: 20, lineHeight: 1.5 }}>{subtitle}</div>
           {onRefresh && (
             <button onClick={onRefresh} style={{ background: `linear-gradient(135deg,${T.teal},#0EA5E9)`, color: '#fff', border: 'none', borderRadius: 12, padding: '10px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-              🔄 Refresh Live Feed
+
             </button>
           )}
         </div>
@@ -5496,14 +5496,14 @@
           <div className="screen-hero">
             <div className="screen-hero-inner">
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <span style={{ background: T.indigo + '12', color: T.indigo, border: `1px solid ${T.indigo}25`, borderRadius: 20, padding: '3px 12px', fontSize: 11, fontWeight: 700 }}>🇮🇳 India Focus</span>
+
                 <span style={{ background: T.success + '12', color: T.success, border: `1px solid ${T.success}25`, borderRadius: 20, padding: '3px 12px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 13 }}>circle</span> Live Feed
+
                 </span>
-                <span style={{ background: T.rose + '12', color: T.rose, border: `1px solid ${T.rose}25`, borderRadius: 20, padding: '3px 12px', fontSize: 11, fontWeight: 700 }}>All B.Tech Branches</span>
+
               </div>
               <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 30, fontWeight: 900, marginTop: 12, lineHeight: 1.15, color: T.text, letterSpacing: '-0.4px' }}>Jobs, Internships &amp; Hackathons</h1>
-              <p style={{ color: T.muted, fontSize: 13.5, marginTop: 8 }}>Real-time India-focused opportunities • Government, Private, IT, Engineering • All B.Tech Branches</p>
+
             </div>
           </div>
 
@@ -5701,9 +5701,9 @@
                 title={`No ${currentTab?.label || ''} listings found`}
                 subtitle={searchLower
                   ? `No results for "${search}". Try different search terms or clear filters.`
-                  : (activeTab === 'internships' && internCompFilter === 'Free')
+                  : activeTab === 'internships' && internCompFilter === 'Free'
                     ? 'Free internships: 0 — no qualifying real public listings currently available.'
-                    : 'Click Refresh Live Feed to fetch the latest listings from all sources.'}
+                    : undefined}
                 onRefresh={handleRefresh}
               />
             ) : currentTabJobs.length > 0 ? (
@@ -5742,7 +5742,7 @@
 
       const mods = [
         { id: "chhatra", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>badge</span>, title: "Chhatra-Labh", sub: "Digital ID & Perks", c: T.indigo },
-        { id: "prashna", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>fact_check</span>, title: "Prashna-Kosh", sub: "Exam Topic Analytics", c: T.rose },
+        { id: "prashna", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>fact_check</span>, title: "📊 Exam Analytics", sub: "Exam Topic Analytics", c: T.rose },
         { id: "bazaar", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>storefront</span>, title: "Campus Store", sub: "Buy & Sell on Campus", c: T.teal },
         { id: "karya", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>engineering</span>, title: "Karya-Disha", sub: "Placement Skill Matcher", c: T.yellow },
         { id: "hub", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>account_balance</span>, title: "Scholarship Hub", sub: "Apply & Track Status", c: T.success },
@@ -5900,7 +5900,7 @@
         hub: <ScholarshipHub />,
         vidya: <VidyaSetu />,
         chhatra: <ChhatraLabh />,
-        prashna: <PrashnaKosh />,
+        prashna: <ExamAnalytics />,
         bazaar: <TechBazaar search={search} />,
         community: <CommunityForum search={search} />,
         karya: <KaryaDisha />,
@@ -6037,7 +6037,7 @@
 
               <div className="header-actions">
 
-                <Badge color={T.success}>Online ✨</Badge>
+
               </div>
             </header>
 
@@ -6847,8 +6847,8 @@
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 }}>
               {[
                 { icon: "💼", label: "Total Listings", value: jobStats.total, color: T.orange },
-                { icon: "💰", label: "Paid Internships", value: jobStats.paid, color: T.success },
-                { icon: "🆓", label: "Free Internships", value: jobStats.free, color: T.teal },
+
+
               ].map(s => (
                 <Card key={s.label} style={{ textAlign: "center", padding: "20px 16px" }}>
                   <div style={{ fontSize: 26, marginBottom: 6 }}>{s.icon}</div>
