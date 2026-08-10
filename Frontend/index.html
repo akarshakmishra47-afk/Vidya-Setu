@@ -5749,13 +5749,28 @@
       ];
 
       const [dashCounts, setDashCounts] = React.useState({ scholarships: null, perks: null, items: null, jobs: null });
+      const [upDeadline, setUpDeadline] = React.useState(null);
+      const [loadedDeadline, setLoadedDeadline] = React.useState(false);
 
       React.useEffect(() => {
         // Fetch Scholarships
         fetch(`${API_BASE_URL}/api/scholarships`)
           .then(r => r.ok ? r.json() : [])
-          .then(d => setDashCounts(prev => ({ ...prev, scholarships: Array.isArray(d) ? d.length : 0 })))
-          .catch(() => setDashCounts(prev => ({ ...prev, scholarships: 0 })));
+          .then(d => {
+            setDashCounts(prev => ({ ...prev, scholarships: Array.isArray(d) ? d.length : 0 }));
+            if (Array.isArray(d)) {
+              // Find the UP Post-Matric scholarship or any matching "UP Post-Matric"
+              const upSch = d.find(s => s.title && s.title.includes("UP Post-Matric"));
+              if (upSch && upSch.deadline) {
+                setUpDeadline(upSch.deadline);
+              }
+            }
+            setLoadedDeadline(true);
+          })
+          .catch(() => {
+            setDashCounts(prev => ({ ...prev, scholarships: 0 }));
+            setLoadedDeadline(true);
+          });
 
         // Fetch Perks
         fetch(`${API_BASE_URL}/api/perks`)
@@ -5783,10 +5798,32 @@
         [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>work</span>, dashCounts.jobs === null ? '…' : dashCounts.jobs, "Active Jobs"],
       ];
 
-      const SCHOLARSHIP_DEADLINE = new Date('2026-10-31');
-      const _today = new Date();
-      _today.setHours(0, 0, 0, 0);
-      const daysLeft = Math.max(0, Math.ceil((SCHOLARSHIP_DEADLINE - _today) / (1000 * 60 * 60 * 24)));
+      // Calculate remaining days from the current date to that deadline dynamically
+      let deadlineText = "Loading deadline details…";
+      if (loadedDeadline) {
+        if (!upDeadline) {
+          deadlineText = "Check the Scholarship Hub for the latest AKTU Scholarship deadline.";
+        } else {
+          const deadlineDate = new Date(upDeadline);
+          if (isNaN(deadlineDate.getTime())) {
+            deadlineText = "Check the Scholarship Hub for the latest AKTU Scholarship deadline.";
+          } else {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            deadlineDate.setHours(0, 0, 0, 0);
+            const diffTime = deadlineDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays > 0) {
+              deadlineText = <>AKTU Scholarship closes in <strong>{diffDays} days</strong>. Apply on Scholarship Hub now.</>;
+            } else if (diffDays === 0) {
+              deadlineText = "AKTU Scholarship closes today. Apply on Scholarship Hub now.";
+            } else {
+              deadlineText = "AKTU Scholarship deadline has passed.";
+            }
+          }
+        }
+      }
 
       return (
         <div>
@@ -5841,7 +5878,7 @@
               <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.28)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>⚠️</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 800, fontSize: 14, color: "#92400E", fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', letterSpacing: "-0.1px" }}>Scholarship Deadline Approaching</div>
-                <div style={{ color: "#78350F", fontSize: 12, marginTop: 3, opacity: 0.82 }}>UP Scholarship closes in <strong>{daysLeft} days</strong>. Apply on Scholarship Hub now.</div>
+                <div style={{ color: "#78350F", fontSize: 12, marginTop: 3, opacity: 0.82 }}>{deadlineText}</div>
               </div>
               <button onClick={() => go("hub")} style={{ background: T.orange, color: "#fff", border: "none", borderRadius: 10, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0, boxShadow: "0 4px 14px rgba(255,79,31,0.30)", transition: "all .18s ease" }}>Check Now →</button>
             </div>
