@@ -5747,11 +5747,40 @@
         { id: "hub", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>account_balance</span>, title: "Scholarship Hub", sub: "Apply & Track Status", c: T.success },
         { id: "jobs", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>work</span>, title: "Jobs, Internships & Hackathons", sub: "Find Jobs, Internships & Hackathons", c: T.orange },
       ];
+
+      const [dashCounts, setDashCounts] = React.useState({ scholarships: null, perks: null, items: null, jobs: null });
+
+      React.useEffect(() => {
+        // Fetch Scholarships
+        fetch(`${API_BASE_URL}/api/scholarships`)
+          .then(r => r.ok ? r.json() : [])
+          .then(d => setDashCounts(prev => ({ ...prev, scholarships: Array.isArray(d) ? d.length : 0 })))
+          .catch(() => setDashCounts(prev => ({ ...prev, scholarships: 0 })));
+
+        // Fetch Perks
+        fetch(`${API_BASE_URL}/api/perks`)
+          .then(r => r.ok ? r.json() : [])
+          .then(d => setDashCounts(prev => ({ ...prev, perks: Array.isArray(d) ? d.length : 0 })))
+          .catch(() => setDashCounts(prev => ({ ...prev, perks: 0 })));
+
+        // Fetch Campus Store Marketplace Items
+        fetch(`${API_BASE_URL}/api/marketplace`)
+          .then(r => r.ok ? r.json() : [])
+          .then(d => setDashCounts(prev => ({ ...prev, items: (Array.isArray(d) ? d.length : 0) + 6 })))
+          .catch(() => setDashCounts(prev => ({ ...prev, items: 6 })));
+
+        // Fetch Jobs
+        fetch(`${API_BASE_URL}/api/jobs/stats`)
+          .then(r => r.ok ? r.json() : {})
+          .then(d => setDashCounts(prev => ({ ...prev, jobs: d.total ?? 0 })))
+          .catch(() => setDashCounts(prev => ({ ...prev, jobs: 0 })));
+      }, []);
+
       const stats = [
-        [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>school</span>, "5K+", "Scholars"],
-        [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>diamond</span>, "₹2k+", "Perks Unlocked"],
-        [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>shopping_cart</span>, "340+", "Campus Items"],
-        [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>work</span>, "120+", "Active Jobs"],
+        [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>school</span>, dashCounts.scholarships === null ? '…' : dashCounts.scholarships, "Scholarships"],
+        [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>diamond</span>, dashCounts.perks === null ? '…' : dashCounts.perks, "Perks"],
+        [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>shopping_cart</span>, dashCounts.items === null ? '…' : dashCounts.items, "Campus Items"],
+        [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>work</span>, dashCounts.jobs === null ? '…' : dashCounts.jobs, "Active Jobs"],
       ];
 
       const SCHOLARSHIP_DEADLINE = new Date('2026-10-31');
@@ -6839,10 +6868,10 @@
               <Badge color={T.orange}>💼 Jobs & Internships DB</Badge>
               <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 28, fontWeight: 700, color: '#1F2937', marginTop: 12 }}>Jobs Management</h1>
               <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Add, fetch, and manage all job and internship listings on the platform.</p>
-<div style={{ display: 'flex', alignItems: 'center', marginTop: 8, color: '#6B7280', fontSize: 12 }}>
-  <span>Last updated: {new Date().toLocaleString()}</span>
-  <button onClick={handleFetchLatest} style={{ background: '#FF4F1F', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 8px', fontSize: 12, marginLeft: 8, cursor: 'pointer' }}>Refresh</button>
-</div>
+              <div style={{ display: 'flex', alignItems: 'center', marginTop: 8, color: '#6B7280', fontSize: 12 }}>
+                <span>Last updated: {new Date().toLocaleString()}</span>
+                <button onClick={handleFetchLatest} style={{ background: '#FF4F1F', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 8px', fontSize: 12, marginLeft: 8, cursor: 'pointer' }}>Refresh</button>
+              </div>
             </div>
           </div>
           <div className="screen-body">
