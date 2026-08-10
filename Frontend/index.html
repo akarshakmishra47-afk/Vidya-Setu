@@ -4730,6 +4730,7 @@
         if (cat === 'Government') return "account_balance";
         if (cat === 'Defence' || cat === 'CAPF') return "shield";
         if (cat === 'Institute') return "school";
+        
         return "volunteer_activism";
       };
 
@@ -4748,7 +4749,7 @@
           <div className="screen-hero" style={{ padding: "24px 32px", borderBottom: '1px solid #E5E7EB' }}>
             <div className="screen-hero-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
               <div>
-                <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 28, fontWeight: 700, color: '#111827', letterSpacing: '-0.2px', margin: 0 }}>Scholarships</h1>
+                <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 28, fontWeight: 800, color: '#111827', letterSpacing: '-0.2px', margin: 0 }}>Scholarships</h1>
                 <p style={{ color: '#6B7280', fontSize: 13.5, marginTop: 4, marginBottom: 0 }}>Browse, configure eligibility, and track multiple government & institute scholarships seamlessly.</p>
               </div>
               <button onClick={handleSyncExternal} disabled={isSyncing}
