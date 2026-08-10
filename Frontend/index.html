@@ -25,7 +25,7 @@
     html,
     body {
       height: 100%;
-      background: #FAFAFA;
+      background: #F9FAFB;
       font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
       color: #1A1A1A;
       -webkit-font-smoothing: antialiased;
@@ -3292,7 +3292,7 @@
         <div>
           <div className="screen-hero">
             <div className="screen-hero-inner">
-              
+
               <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, marginTop: 12, lineHeight: 1.15, color: T.text, letterSpacing: '-0.4px' }}>Student Perks</h1>
               <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Your digital identity and exclusive student perks, all in one place.</p>
             </div>
@@ -3445,7 +3445,7 @@
         <div>
           <div className="screen-hero">
             <div className="screen-hero-inner">
-              
+
               <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, marginTop: 12, lineHeight: 1.15, color: T.text, letterSpacing: '-0.4px' }}>Exam Topic Probability Map</h1>
               <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Based on 5-year AKTU previous paper analysis. Focus on what matters most.</p>
             </div>
@@ -3659,7 +3659,7 @@
             <div className="screen-hero-inner">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
-                  
+
                   <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, marginTop: 12, lineHeight: 1.15, color: T.text, letterSpacing: '-0.4px' }}>Campus Store</h1>
                   <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>{items.length} items from verified students</p>
                 </div>
@@ -4116,7 +4116,7 @@
           <div className="screen-hero">
             <div className="screen-hero-inner" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
               <div>
-                
+
                 <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, marginTop: 12, color: T.text, letterSpacing: '-0.4px' }}>Community Hub</h1>
                 <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Resolve doubts and share knowledge with fellow students</p>
               </div>
@@ -4321,7 +4321,7 @@
         <div>
           <div className="screen-hero">
             <div className="screen-hero-inner">
-              
+
               <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, marginTop: 12, lineHeight: 1.15, color: T.text, letterSpacing: '-0.4px' }}>Skill Guider</h1>
               <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Know exactly what to learn for your dream role</p>
             </div>
@@ -4740,7 +4740,7 @@
           <div className="screen-hero">
             <div className="screen-hero-inner">
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-                
+
                 <button onClick={handleSyncExternal} style={{ marginLeft: "auto", background: T.indigo + "15", color: T.indigo, border: `1px solid ${T.indigo}30`, borderRadius: 10, padding: "4px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, transition: "all .2s ease" }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 14 }}>sync</span> Sync Live Data
                 </button>
@@ -5171,13 +5171,13 @@
       const colors = { Fresher: T.success, 'Entry-Level': T.teal, Junior: T.indigo, Experienced: T.orange, Unknown: T.muted };
       const c = colors[level] || T.muted;
       if (!level || level === 'Unknown') return null;
-      return <span style={{ background: c + '15', color: c, border: `1px solid ${c}30`, borderRadius: 8, padding: '2px 7px', fontSize: 10, fontWeight: 700 }}>{level}</span>;
+      return <span style={{ background: c + '15', color: c, border: `1px solid ${c}30`, borderRadius: 6, padding: '2px 7px', fontSize: 12, fontWeight: 700 }}>{level}</span>;
     }
 
     /* ── SOURCE CHIP ── */
     function SourceChip({ source }) {
       const labels = { remotive: 'Remotive', arbeitnow: 'Arbeitnow', himalayas: 'Himalayas', govtRss: 'Govt Portal', hackathon: 'Hackathon', manual: 'Manual', web: 'Web' };
-      return <span style={{ fontSize: 10, color: T.muted, background: '#F3F4F6', borderRadius: 6, padding: '1px 6px' }}>{labels[source] || source}</span>;
+      return <span style={{ fontSize: 12, color: '#6B7280', background: '#F3F4F6', borderRadius: 6, padding: '2px 7px' }}>{labels[source] || source}</span>;
     }
 
     /* ── JOB CARD COMPONENT ── */
@@ -5204,14 +5204,14 @@
       const hasValidUrl = j.applyUrl && (j.applyUrl.startsWith('http://') || j.applyUrl.startsWith('https://'));
 
       return (
-        <div style={{ background: '#fff', borderRadius: 16, border: `1px solid ${T.border}`, boxShadow: '0 2px 12px rgba(0,0,0,0.05)', padding: '18px 18px 14px', display: 'flex', flexDirection: 'column', gap: 0, transition: 'all .2s ease', position: 'relative', overflow: 'hidden' }}
-          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,0,0,0.10)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-          onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.05)'; e.currentTarget.style.transform = 'translateY(0)'; }}>
+        <div style={{ background: '#FFFFFF', borderRadius: 8, border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: '20px 20px 16px', display: 'flex', flexDirection: 'column', gap: 0, transition: 'box-shadow .2s ease', position: 'relative', overflow: 'hidden' }}
+          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.10)'; }}
+          onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.07)'; }}>
           {/* Accent bar */}
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg,${accent},${accent}88)`, borderRadius: '16px 16px 0 0' }} />
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: accent, borderRadius: '8px 8px 0 0' }} />
 
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
             {j.companyLogo ? (
               <img src={j.companyLogo} alt={j.company} onError={e => e.target.style.display = 'none'}
                 style={{ width: 38, height: 38, objectFit: 'contain', borderRadius: 8, border: `1px solid ${T.border}`, background: '#F8F8F8', padding: 3, flexShrink: 0 }} />
@@ -5223,55 +5223,57 @@
               </div>
             )}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 13.5, color: T.text, lineHeight: 1.25, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>{j.title}</div>
-              <div style={{ color: T.muted, fontSize: 11.5, marginTop: 3, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: '#1A1A1A', lineHeight: 1.35, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>{j.title}</div>
+              <div style={{ color: '#6B7280', fontSize: 13, marginTop: 3, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
                 <span>{j.company}</span>
-                <span style={{ color: T.border }}>•</span>
-                <span className="material-symbols-outlined" style={{ fontSize: 11 }}>location_on</span>
+                <span style={{ color: '#D1D5DB' }}>•</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>location_on</span>
                 <span>{j.location}</span>
               </div>
             </div>
           </div>
 
           {/* Badge Row */}
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 9 }}>
-            <span style={{ background: accent + '15', color: accent, border: `1px solid ${accent}30`, borderRadius: 8, padding: '2px 8px', fontSize: 10.5, fontWeight: 700 }}>{typeLabel}</span>
-            {isGovt && <span style={{ background: '#4F46E510', color: '#4F46E5', border: '1px solid #4F46E530', borderRadius: 8, padding: '2px 8px', fontSize: 10.5, fontWeight: 700 }}>🏛️ {j.govtCategory !== 'Unknown' ? j.govtCategory : 'Govt'}</span>}
-            {compLabel && !isGovt && <span style={{ background: compColor + '10', color: compColor, border: `1px solid ${compColor}30`, borderRadius: 8, padding: '2px 8px', fontSize: 10.5, fontWeight: 700 }}>{compLabel}</span>}
-            {internTag && <span style={{ background: '#F3F4F6', color: T.muted, border: `1px solid ${T.border}`, borderRadius: 8, padding: '2px 8px', fontSize: 10.5, fontWeight: 600 }}>{internTag}</span>}
-            <span style={{ background: '#F3F4F6', color: T.muted, border: `1px solid ${T.border}`, borderRadius: 8, padding: '2px 8px', fontSize: 10.5, fontWeight: 600 }}>{j.branch}</span>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>
+            <span style={{ background: accent + '15', color: accent, border: `1px solid ${accent}30`, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>{typeLabel}</span>
+            {isGovt && <span style={{ background: '#4F46E510', color: '#4F46E5', border: '1px solid #4F46E530', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>🏛️ {j.govtCategory !== 'Unknown' ? j.govtCategory : 'Govt'}</span>}
+            {compLabel && !isGovt && <span style={{ background: compColor + '10', color: compColor, border: `1px solid ${compColor}30`, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>{compLabel}</span>}
+            {internTag && <span style={{ background: '#F3F4F6', color: T.muted, border: `1px solid ${T.border}`, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 }}>{internTag}</span>}
+            <span style={{ background: '#F3F4F6', color: T.muted, border: `1px solid ${T.border}`, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 }}>{j.branch}</span>
             <ExpBadge level={j.experienceLevel} />
           </div>
 
           {/* Description */}
-          {j.desc && <p style={{ color: T.muted, fontSize: 12, lineHeight: 1.5, margin: '0 0 10px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{j.desc}</p>}
+          {j.desc && <p style={{ color: '#6B7280', fontSize: 13, lineHeight: 1.55, margin: '0 0 10px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{j.desc}</p>}
 
           {/* Tags */}
           {j.tags && j.tags.length > 0 && (
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
               {j.tags.slice(0, 5).map((tag, i) => (
-                <span key={i} style={{ background: T.indigo + '10', color: T.indigo, border: `1px solid ${T.indigo}20`, borderRadius: 8, padding: '2px 7px', fontSize: 10, fontWeight: 600 }}>{tag}</span>
+                <span key={i} style={{ background: T.indigo + '10', color: T.indigo, border: `1px solid ${T.indigo}20`, borderRadius: 6, padding: '2px 7px', fontSize: 12, fontWeight: 600 }}>{tag}</span>
               ))}
             </div>
           )}
 
           {/* Meta row */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-            {postedText && <span style={{ fontSize: 11, color: T.muted, display: 'inline-flex', alignItems: 'center', gap: 3 }}><span className="material-symbols-outlined" style={{ fontSize: 12 }}>schedule</span>{postedText}</span>}
+            {postedText && <span style={{ fontSize: 12, color: T.muted, display: 'inline-flex', alignItems: 'center', gap: 3 }}><span className="material-symbols-outlined" style={{ fontSize: 13 }}>schedule</span>{postedText}</span>}
             {j.deadline && j.deadline !== 'Not specified' && j.deadline !== 'Rolling' && (
-              <span style={{ fontSize: 11, color: T.rose, display: 'inline-flex', alignItems: 'center', gap: 3 }}><span className="material-symbols-outlined" style={{ fontSize: 12 }}>event</span>{j.deadline}</span>
+              <span style={{ fontSize: 12, color: T.rose, display: 'inline-flex', alignItems: 'center', gap: 3 }}><span className="material-symbols-outlined" style={{ fontSize: 13 }}>event</span>{j.deadline}</span>
             )}
             <SourceChip source={j.source} />
           </div>
 
           {/* Footer */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${T.border}`, paddingTop: 10 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: j.salary && j.salary !== 'Not specified' ? T.success : T.muted, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: j.salary && j.salary !== 'Not specified' ? T.success : T.muted, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>
               {j.salary || 'Salary N/A'}
             </div>
             {hasValidUrl ? (
               <a href={j.applyUrl} target="_blank" rel="noopener noreferrer"
-                style={{ background: `linear-gradient(135deg,${accent},${accent}CC)`, color: '#fff', border: 'none', borderRadius: 10, padding: '7px 14px', fontSize: 12, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5, boxShadow: `0 3px 10px ${accent}30`, transition: 'all .18s ease' }}>
+                style={{ background: '#FF4F1F', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 13px', fontSize: 13, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, transition: 'background .15s ease' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#E04419'}
+                onMouseLeave={e => e.currentTarget.style.background = '#FF4F1F'}>
                 {isHackathon ? 'Register ↗' : 'Apply Now ↗'}
               </a>
             ) : (
@@ -5286,26 +5288,26 @@
     function HackathonCard({ h }) {
       const hasUrl = h.applyUrl && (h.applyUrl.startsWith('http://') || h.applyUrl.startsWith('https://'));
       return (
-        <div style={{ background: 'linear-gradient(135deg,rgba(244,63,94,0.04),rgba(239,68,68,0.02))', borderRadius: 16, border: `1px solid ${T.rose}25`, padding: '18px', position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg,${T.rose},#FB923C)` }} />
+        <div style={{ background: '#FFFFFF', borderRadius: 8, border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: '16px', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: T.rose, borderRadius: '8px 8px 0 0' }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
             <div style={{ width: 42, height: 42, borderRadius: 10, background: T.rose + '15', border: `1px solid ${T.rose}30`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span className="material-symbols-outlined" style={{ fontSize: 24, color: T.rose }}>emoji_events</span>
             </div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 14, color: T.text }}>{h.title}</div>
-              <div style={{ color: T.muted, fontSize: 12, marginTop: 2 }}>{h.hackathonOrganizer || h.company}</div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: T.text, lineHeight: 1.35 }}>{h.title}</div>
+              <div style={{ color: T.muted, fontSize: 13, marginTop: 3 }}>{h.hackathonOrganizer || h.company}</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
-            {h.hackathonMode && <span style={{ fontSize: 12, color: T.text, display: 'flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 14, color: T.rose }}>laptop</span>{h.hackathonMode}</span>}
-            {h.location && <span style={{ fontSize: 12, color: T.text, display: 'flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 14, color: T.rose }}>location_on</span>{h.location}</span>}
+            {h.hackathonMode && <span style={{ fontSize: 13, color: T.text, display: 'flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 14, color: T.rose }}>laptop</span>{h.hackathonMode}</span>}
+            {h.location && <span style={{ fontSize: 13, color: T.text, display: 'flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 14, color: T.rose }}>location_on</span>{h.location}</span>}
           </div>
-          {h.hackathonEligibility && <div style={{ fontSize: 12, color: T.muted, marginBottom: 10 }}>👥 {h.hackathonEligibility}</div>}
-          {h.desc && <p style={{ fontSize: 12, color: T.muted, lineHeight: 1.5, marginBottom: 12 }}>{h.desc.substring(0, 150)}</p>}
+          {h.hackathonEligibility && <div style={{ fontSize: 13, color: T.muted, marginBottom: 10 }}>👥 {h.hackathonEligibility}</div>}
+          {h.desc && <p style={{ fontSize: 14, color: T.muted, lineHeight: 1.6, marginBottom: 12 }}>{h.desc.substring(0, 150)}</p>}
           {hasUrl && (
             <a href={h.applyUrl} target="_blank" rel="noopener noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: `linear-gradient(135deg,${T.rose},#FB923C)`, color: '#fff', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 700, textDecoration: 'none', boxShadow: `0 3px 10px ${T.rose}30` }}>
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#FF4F1F', color: '#fff', borderRadius: 6, padding: '8px 16px', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
               <span className="material-symbols-outlined" style={{ fontSize: 15 }}>emoji_events</span> Register Now ↗
             </a>
           )}
@@ -5501,7 +5503,7 @@
                 </span>
 
               </div>
-              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 30, fontWeight: 900, marginTop: 12, lineHeight: 1.15, color: T.text, letterSpacing: '-0.4px' }}>Jobs, Internships &amp; Hackathons</h1>
+              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 30, fontWeight: 800, marginTop: 12, lineHeight: 1.15, color: '#1A1A1A', letterSpacing: '-0.2px' }}>Jobs, Internships &amp; Hackathons</h1>
 
             </div>
           </div>
@@ -5509,38 +5511,38 @@
           <div className="screen-body">
 
             {/* ── LIVE COUNTER STRIP ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))', gap: 10, marginBottom: 18 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
               {[
-                { label: 'Total', val: loading ? '…' : dbTotal, c: T.indigo, icon: 'work' },
-                { label: 'Government', val: loading ? '…' : dbGovt, c: '#4F46E5', icon: 'account_balance' },
-                { label: 'Internships', val: loading ? '…' : dbInternships, c: T.success, icon: 'school' },
-                { label: 'Paid Internships', val: loading ? '…' : dbPaid, c: T.success, icon: 'payments' },
-                { label: 'Free Internships', val: loading ? '…' : dbFree, c: T.teal, icon: 'volunteer_activism' },
-                { label: 'Hackathons', val: loading ? '…' : dbHackathons, c: T.rose, icon: 'emoji_events' },
-                { label: 'Fresher Jobs', val: loading ? '…' : dbFresher, c: '#8B5CF6', icon: 'star' },
+                { label: 'Total', val: loading ? '…' : dbTotal, c: '#374151' },
+                { label: 'Government', val: loading ? '…' : dbGovt, c: '#374151' },
+                { label: 'Internships', val: loading ? '…' : dbInternships, c: '#374151' },
+                { label: 'Paid Internships', val: loading ? '…' : dbPaid, c: '#374151' },
+                { label: 'Free Internships', val: loading ? '…' : dbFree, c: '#374151' },
+                { label: 'Hackathons', val: loading ? '…' : dbHackathons, c: '#374151' },
+                { label: 'Fresher Jobs', val: loading ? '…' : dbFresher, c: '#374151' },
               ].map(s => (
-                <div key={s.label} style={{ background: s.c + '08', border: `1px solid ${s.c}20`, borderRadius: 12, padding: '10px 12px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
-                  <span style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontWeight: 800, color: s.c, fontSize: 18, lineHeight: 1 }}>{s.val}</span>
-                  <span style={{ fontSize: 10.5, color: T.muted, fontWeight: 500 }}>{s.label}</span>
+                <div key={s.label} style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8, padding: '7px 13px', display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                  <span style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontWeight: 700, color: '#111827', fontSize: 19, lineHeight: 1 }}>{s.val}</span>
+                  <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 500 }}>{s.label}</span>
                 </div>
               ))}
             </div>
 
             {/* ── ACTION BAR ── */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 18 }}>
-              <div style={{ fontSize: 12, color: T.muted }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 13, color: '#6B7280' }}>
                 {lastUpdated && <span>Last updated: {lastUpdated.toLocaleTimeString()} • Auto-refreshes every 90s</span>}
               </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 {lastRefreshResult && (
                   <button onClick={() => setShowRefreshDetails(!showRefreshDetails)}
-                    style={{ background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 10, padding: '6px 12px', fontSize: 11, color: T.muted, cursor: 'pointer' }}>
+                    style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 6, padding: '5px 10px', fontSize: 11, color: '#6B7280', cursor: 'pointer' }}>
                     Last sync: +{lastRefreshResult.jobsAdded} new
                   </button>
                 )}
                 <button onClick={handleRefresh} disabled={refreshing || loading}
-                  style={{ display: 'flex', alignItems: 'center', gap: 7, background: refreshing ? T.teal + '18' : `linear-gradient(135deg,${T.teal},#0EA5E9)`, color: refreshing ? T.teal : '#fff', border: refreshing ? `1px solid ${T.teal}40` : 'none', borderRadius: 12, padding: '10px 18px', fontSize: 13, fontWeight: 700, cursor: refreshing ? 'wait' : 'pointer', boxShadow: refreshing ? 'none' : '0 4px 14px rgba(20,184,166,0.3)', transition: 'all .2s ease' }}>
-                  <span className="material-symbols-outlined" style={{ display: 'inline-block', fontSize: 17, animation: refreshing ? 'spin 1s linear infinite' : 'none' }}>sync</span>
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: refreshing ? '#F3F4F6' : '#FF4F1F', color: refreshing ? '#6B7280' : '#fff', border: refreshing ? '1px solid #E5E7EB' : 'none', borderRadius: 6, padding: '7px 15px', fontSize: 13, fontWeight: 700, cursor: refreshing ? 'wait' : 'pointer', transition: 'all .2s ease' }}>
+                  <span className="material-symbols-outlined" style={{ display: 'inline-block', fontSize: 15, animation: refreshing ? 'spin 1s linear infinite' : 'none' }}>sync</span>
                   {refreshing ? 'Fetching…' : 'Refresh Live Feed'}
                 </button>
               </div>
@@ -5583,45 +5585,45 @@
             )}
 
             {/* ── FILTER BAR ── */}
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18, padding: '12px 14px', background: '#F8FAFC', borderRadius: 14, border: `1px solid ${T.border}` }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14, padding: '10px 12px', background: '#FFFFFF', borderRadius: 8, border: '1px solid #E5E7EB' }}>
               {/* Branch */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 120 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>Branch</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: '1 1 140px' }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Branch</label>
                 <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)}
-                  style={{ border: `1px solid ${T.border}`, borderRadius: 8, padding: '5px 8px', fontSize: 12, background: '#fff', color: T.text, cursor: 'pointer' }}>
+                  style={{ border: '1px solid #E5E7EB', borderRadius: 6, padding: '5px 8px', fontSize: 13, background: '#fff', color: '#111827', cursor: 'pointer', height: 32 }}>
                   {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
                 </select>
               </div>
               {/* Location */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 130 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>Location</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: '1 1 140px' }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Location</label>
                 <select value={locationFilter} onChange={e => setLocationFilter(e.target.value)}
-                  style={{ border: `1px solid ${T.border}`, borderRadius: 8, padding: '5px 8px', fontSize: 12, background: '#fff', color: T.text, cursor: 'pointer' }}>
+                  style={{ border: '1px solid #E5E7EB', borderRadius: 6, padding: '5px 8px', fontSize: 13, background: '#fff', color: '#111827', cursor: 'pointer', height: 32 }}>
                   {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
               {/* Company Type */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 120 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>Company Type</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: '1 1 140px' }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Company Type</label>
                 <select value={companyTypeFilter} onChange={e => setCompanyTypeFilter(e.target.value)}
-                  style={{ border: `1px solid ${T.border}`, borderRadius: 8, padding: '5px 8px', fontSize: 12, background: '#fff', color: T.text, cursor: 'pointer' }}>
+                  style={{ border: '1px solid #E5E7EB', borderRadius: 6, padding: '5px 8px', fontSize: 13, background: '#fff', color: '#111827', cursor: 'pointer', height: 32 }}>
                   {COMPANY_TYPES.map(ct => <option key={ct} value={ct}>{ct.charAt(0).toUpperCase() + ct.slice(1)}</option>)}
                 </select>
               </div>
               {/* Experience Level */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 130 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>Experience</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: '1 1 140px' }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Experience</label>
                 <select value={expLevelFilter} onChange={e => setExpLevelFilter(e.target.value)}
-                  style={{ border: `1px solid ${T.border}`, borderRadius: 8, padding: '5px 8px', fontSize: 12, background: '#fff', color: T.text, cursor: 'pointer' }}>
+                  style={{ border: '1px solid #E5E7EB', borderRadius: 6, padding: '5px 8px', fontSize: 13, background: '#fff', color: '#111827', cursor: 'pointer', height: 32 }}>
                   {EXP_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
               {/* Reset */}
               {(branchFilter !== 'All' || locationFilter !== 'All India' || companyTypeFilter !== 'All' || expLevelFilter !== 'All') && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, justifyContent: 'flex-end' }}>
-                  <label style={{ fontSize: 10, color: 'transparent' }}>_</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, justifyContent: 'flex-end' }}>
+                  <label style={{ fontSize: 11, color: 'transparent' }}>_</label>
                   <button onClick={() => { setBranchFilter('All'); setLocationFilter('All India'); setCompanyTypeFilter('All'); setExpLevelFilter('All'); }}
-                    style={{ border: `1px solid ${T.rose}40`, background: T.rose + '08', color: T.rose, borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                    style={{ border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#EF4444', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', height: 32 }}>
                     ✕ Reset
                   </button>
                 </div>
@@ -5629,13 +5631,12 @@
             </div>
 
             {/* ── TAB BAR ── */}
-            <div style={{ display: 'flex', gap: 0, marginBottom: 22, background: '#F3F4F6', borderRadius: 14, padding: 4, overflowX: 'auto' }}>
+            <div style={{ display: 'flex', gap: 4, marginBottom: 18, flexWrap: 'wrap' }}>
               {TABS.map(t => (
                 <button key={t.id} onClick={() => setActiveTab(t.id)}
-                  style={{ flex: '0 0 auto', minWidth: 90, background: activeTab === t.id ? '#fff' : 'transparent', color: activeTab === t.id ? T.text : T.muted, border: 'none', boxShadow: activeTab === t.id ? '0 2px 10px rgba(0,0,0,0.09)' : 'none', borderRadius: 11, padding: '9px 12px', fontSize: 12, fontWeight: activeTab === t.id ? 800 : 600, cursor: 'pointer', transition: 'all .2s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 16, color: activeTab === t.id ? t.color : T.muted }}>{t.icon}</span>
-                  <span style={{ whiteSpace: 'nowrap', fontSize: 11 }}>{t.label}</span>
-                  <span style={{ background: activeTab === t.id ? t.color + '18' : 'transparent', color: activeTab === t.id ? t.color : T.muted, borderRadius: 20, padding: '0 6px', fontSize: 10, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>
+                  style={{ flex: '0 0 auto', background: activeTab === t.id ? '#FFF7F5' : '#F9FAFB', color: activeTab === t.id ? '#FF4F1F' : '#6B7280', border: activeTab === t.id ? '1px solid #FF4F1F' : '1px solid #E5E7EB', borderRadius: 6, padding: '6px 11px', fontSize: 13, fontWeight: activeTab === t.id ? 700 : 500, cursor: 'pointer', transition: 'all .15s ease', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ whiteSpace: 'nowrap' }}>{t.label}</span>
+                  <span style={{ background: activeTab === t.id ? '#FF4F1F20' : '#F3F4F6', color: activeTab === t.id ? '#FF4F1F' : '#9CA3AF', borderRadius: 10, padding: '1px 6px', fontSize: 12, fontWeight: 600 }}>
                     {loading ? '…' : t.count}
                   </span>
                 </button>
@@ -5679,8 +5680,7 @@
                     { label: 'Devfolio', url: 'https://devfolio.co/hackathons', color: '#3B49DF' },
                     { label: 'Unstop', url: 'https://unstop.com/hackathons', color: '#FF6B35' },
                     { label: 'HackWithIndia', url: 'https://hackwithindia.in', color: '#1DA462' },
-                    { label: 'MLH Events', url: 'https://mlh.io/seasons/', color: '#FF0E75' },
-                    { label: 'Devpost', url: 'https://devpost.com/hackathons', color: '#003E54' }
+
                   ].map(p => (
                     <a key={p.label} href={p.url} target="_blank" rel="noopener noreferrer"
                       style={{ background: p.color + '12', color: p.color, border: `1px solid ${p.color}30`, borderRadius: 12, padding: '9px 16px', fontSize: 13, fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -5745,8 +5745,8 @@
         { id: "bazaar", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>storefront</span>, title: "Campus Store", sub: "Buy & Sell on Campus", c: T.teal },
         { id: "karya", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>engineering</span>, title: "Skill Guider", sub: "Placement Skill Matcher", c: T.yellow },
         { id: "hub", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>account_balance</span>, title: "Scholarship Hub", sub: "Apply & Track Status", c: T.success },
+        { id: "jobs", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>work</span>, title: "Jobs, Internships & Hackathons", sub: "Find Jobs, Internships & Hackathons", c: T.orange },
       ];
-
       const stats = [
         [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>school</span>, "5K+", "Scholars"],
         [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>diamond</span>, "₹2k+", "Perks Unlocked"],
@@ -6233,16 +6233,16 @@
                   <path d="M22 22 V38" stroke="url(#newLoginGrad)" strokeWidth="4" strokeLinecap="round" />
                 </svg>
               </div>
-              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 52, fontWeight: 900, lineHeight: 1.15, marginBottom: 16, color: "#fff" }}>
-                Vidya-Setu<br />
-                <span style={{ color: "#111" ,fontSize:"38px"}}>A Smart Web-Portal for Students</span>
+              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 42, fontWeight: 900, lineHeight: 1.15, marginBottom: 16, color: "#fff" }}>
+                Your scholarship.<br />
+                <span style={{ color: "#111" }}>Simplified.</span>
               </h1>
-              <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 20, lineHeight: 1.7, marginBottom: 44, maxWidth: 380, margin: "0 auto 44px" }}>
-                “Guiding every student toward knowledge, opportunity, and a brighter future.”
+              <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, lineHeight: 1.7, marginBottom: 44, maxWidth: 380, margin: "0 auto 44px" }}>
+                The complete student platform for UP scholars — track applications, verify documents, claim perks, and land your first job.
               </p>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-                {[[<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>account_balance</span>], [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>diamond</span>], [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>storefront</span>]].map(([icon, val, label]) => (
+                {[[<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>account_balance</span>, "5K+", "Active Scholars"], [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>diamond</span>, "₹2k+", "Perks Unlocked"], [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>storefront</span>, "340+", "Campus Listings"]].map(([icon, val, label]) => (
                   <div key={label} style={{ background: "rgba(255,255,255,0.20)", borderRadius: 14, padding: "18px 10px", border: "1px solid rgba(255,255,255,0.32)", backdropFilter: "blur(16px)", textAlign: "center", transition: "background .2s ease" }}>
                     <div style={{ fontSize: 24 }}>{icon}</div>
                     <div style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 20, fontWeight: 700, color: "#fff", marginTop: 8 }}>{val}</div>
@@ -6833,12 +6833,16 @@
       // ── JOBS MANAGEMENT PANEL ──
       const inpStyle = { width: "100%", padding: "10px 14px", background: "#F8F8F8", border: `1.5px solid ${T.border}`, borderRadius: 10, fontSize: 13, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', color: T.text, outline: "none", transition: "border-color .18s" };
       const jobsContent = (
-        <div className="fade-up">
+        <div className="fade-up" style={{ backgroundColor: "#F9FAFB", padding: "24px" }}>
           <div className="screen-hero">
             <div className="screen-hero-inner">
               <Badge color={T.orange}>💼 Jobs & Internships DB</Badge>
-              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, color: T.text, marginTop: 12 }}>Jobs Management</h1>
+              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 28, fontWeight: 700, color: '#1F2937', marginTop: 12 }}>Jobs Management</h1>
               <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Add, fetch, and manage all job and internship listings on the platform.</p>
+<div style={{ display: 'flex', alignItems: 'center', marginTop: 8, color: '#6B7280', fontSize: 12 }}>
+  <span>Last updated: {new Date().toLocaleString()}</span>
+  <button onClick={handleFetchLatest} style={{ background: '#FF4F1F', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 8px', fontSize: 12, marginLeft: 8, cursor: 'pointer' }}>Refresh</button>
+</div>
             </div>
           </div>
           <div className="screen-body">
@@ -6849,10 +6853,10 @@
 
 
               ].map(s => (
-                <Card key={s.label} style={{ textAlign: "center", padding: "20px 16px" }}>
+                <Card key={s.label} style={{ backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.08)", textAlign: "center", padding: "20px 16px" }}>
                   <div style={{ fontSize: 26, marginBottom: 6 }}>{s.icon}</div>
-                  <div style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 28, fontWeight: 700, color: s.color }}>{s.value}</div>
-                  <div style={{ color: T.muted, fontSize: 12, marginTop: 4 }}>{s.label}</div>
+                  <div style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 24, fontWeight: 700, color: s.color }}>{s.value}</div>
+                  <div style={{ color: T.muted, fontSize: 13, fontWeight: 600, marginTop: 4 }}>{s.label}</div>
                 </Card>
               ))}
             </div>
@@ -6862,10 +6866,10 @@
                 { icon: "🌐", label: "Web-Fetched", value: jobStats.webFetched, color: T.teal },
                 { icon: "✍️", label: "Manually Added", value: jobStats.manual, color: T.warn },
               ].map(s => (
-                <Card key={s.label} style={{ textAlign: "center", padding: "20px 16px" }}>
+                <Card key={s.label} style={{ backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.08)", textAlign: "center", padding: "20px 16px" }}>
                   <div style={{ fontSize: 26, marginBottom: 6 }}>{s.icon}</div>
                   <div style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 28, fontWeight: 700, color: s.color }}>{s.value}</div>
-                  <div style={{ color: T.muted, fontSize: 12, marginTop: 4 }}>{s.label}</div>
+                  <div style={{ color: T.muted, fontSize: 13, fontWeight: 600, marginTop: 4 }}>{s.label}</div>
                 </Card>
               ))}
             </div>
@@ -6885,7 +6889,7 @@
 
             {/* ── ADD JOB FORM ── */}
             {addJobForm && (
-              <Card style={{ marginBottom: 24, background: "linear-gradient(135deg,rgba(255,79,31,0.04),rgba(255,199,0,0.03))", border: `1px solid ${T.orange}25` }}>
+              <Card style={{ marginBottom: 24, background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
                 <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: T.text }}>➕ Add New Listing</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
