@@ -71,4 +71,79 @@ User Context:
     }
 });
 
+router.post('/career-analyze', async (req, res) => {
+    try {
+        const { type, role, skills, missingSkills, coreSkills, bonusSkills, readiness, userContext } = req.body;
+        const apiKey = process.env.GROQ_API_KEY;
+
+        if (!apiKey || apiKey === 'your_key_here') {
+            return res.status(500).json({ 
+                error: "Groq API Key is missing. Please add it to your Render Settings as GROQ_API_KEY." 
+            });
+        }
+
+        let taskPrompt = "";
+        if (type === 'gap-analysis') {
+            taskPrompt = `Explain why the student's readiness for ${role} is at ${readiness}%. Identify the biggest weaknesses, highest-priority skills to learn first (from missing core skills: ${missingSkills.join(', ')}), and what can be ignored for now.`;
+        } else if (type === 'roadmap') {
+            taskPrompt = `Generate a personalized 30-day roadmap to help the student become a ${role}. Focus on their missing skills: ${missingSkills.join(', ')}. Structure it by Week 1, Week 2, Week 3, Week 4 with specific skills to learn and practice tasks. Do not use generic advice.`;
+        } else if (type === 'project-recommendations') {
+            taskPrompt = `Recommend 3 specific projects the student should build to improve their readiness for ${role} based on their missing skills (${missingSkills.join(', ')}). Explain why each project is recommended, the skills it develops, and the difficulty.`;
+        } else if (type === 'skill-verification') {
+            taskPrompt = `Generate a short 3-question multiple-choice assessment to verify the student's proficiency in ${skills[0] || 'one of their skills'}.`;
+        } else {
+            taskPrompt = `Analyze the student's career profile for ${role}.`;
+        }
+
+        const systemPrompt = `
+You are the "Vidya-Setu AI Career Advisor", a specialized AI designed to provide highly actionable, personalized career guidance to engineering students.
+
+Student Profile Context:
+- Name: ${userContext?.name || 'Student'}
+- Target Role: ${role}
+- Current Readiness Score: ${readiness}%
+- Current Skills: ${skills.join(', ')}
+- Missing Core Skills: ${missingSkills.join(', ')}
+- Bonus Skills Recommended: ${bonusSkills.join(', ')}
+
+Guidelines:
+1. Provide a direct, professional, and structured response.
+2. Base ALL your advice on the provided student profile and missing skills. Do NOT invent generic advice that ignores the user's specific context.
+3. Keep the formatting clean using markdown (bullet points, bold text for emphasis). Do NOT use oversized emojis or excessive exclamation marks.
+4. If recommending technologies to learn, be specific (e.g., "Learn Express.js routing" instead of "Learn backend").
+
+Task: ${taskPrompt}
+`;
+
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: "Please generate the requested career analysis." }
+                ],
+                temperature: 0.7,
+                max_tokens: 1024
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.choices && data.choices[0]) {
+            res.json({ reply: data.choices[0].message.content });
+        } else {
+            console.error('Groq Error Response:', data);
+            throw new Error(data.error?.message || "Groq API error");
+        }
+    } catch (error) {
+        console.error('Groq Career Analyze Error:', error);
+        res.status(500).json({ error: "The AI is thinking a bit too hard. Please try again in a few seconds!" });
+    }
+});
+
 module.exports = router;
