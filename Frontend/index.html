@@ -2416,21 +2416,19 @@
         <Modal 
           open={open} 
           onClose={onClose} 
-          title={
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span className="material-symbols-outlined" style={{ color: "#6B7280", fontSize: 24 }}>account_circle</span>
-              <span>My Profile</span>
-            </div>
-          }
+          title={<div style={{ fontSize: 20, fontWeight: 600, color: "#111827" }}>My Profile</div>}
           overlayStyle={{ alignItems: 'center' }}
           sheetStyle={{ 
+            width: "100%",
             maxWidth: 640, 
-            borderRadius: 12, 
+            borderRadius: 8, 
             margin: "auto", 
             border: "1px solid #E5E7EB", 
-            padding: "24px",
+            padding: "20px 24px",
             maxHeight: "90vh",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.05)"
+            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            background: "#fff",
+            overflowY: "auto"
           }}
         >
           <div className="profile-pop" style={{ display: "flex", flexDirection: "column", gap: 16, paddingBottom: 8 }}>
@@ -2438,15 +2436,14 @@
             {/* ⚠️ PERMANENT LOCK WARNING */}
             {!isLocked && (
               <div style={{
-                padding: "12px 16px", borderRadius: 8,
-                background: "#FEF3C7",
-                border: "1px solid #F59E0B",
-                display: "flex", gap: 12, alignItems: "flex-start",
-                color: "#92400E", fontSize: 13, lineHeight: 1.5
+                padding: "10px 14px", borderRadius: 6,
+                background: "#FFFBEB", border: "1px solid #FDE68A",
+                display: "flex", gap: 10, alignItems: "flex-start",
+                color: "#92400E", fontSize: 13, lineHeight: 1.4
               }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 18, marginTop: 2 }}>warning</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 16, marginTop: 2 }}>warning</span>
                 <div>
-                  <strong>Warning:</strong> After saving, your profile will be permanently locked and cannot be edited again. Please double-check all details.
+                  <strong>Warning:</strong> After saving, your profile will be permanently locked and cannot be edited again.
                 </div>
               </div>
             )}
@@ -2454,31 +2451,28 @@
             {/* 🔒 PROFILE LOCK BANNER */}
             {isLocked && (
               <div style={{
-                display: "flex", alignItems: "center", gap: 12,
-                padding: "12px 16px", borderRadius: 8,
-                background: "#FEE2E2",
-                border: "1px solid #EF4444",
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "10px 14px", borderRadius: 6,
+                background: "#FEF2F2", border: "1px solid #FECACA",
                 color: "#991B1B", fontSize: 13
               }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>lock</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>lock</span>
                 <div>
-                  <div style={{ fontWeight: 600 }}>Profile Locked</div>
-                  <div style={{ fontSize: 12, marginTop: 2 }}>
-                    Your profile has been saved and is now read-only. Contact admin if you need to make changes.
-                  </div>
+                  <strong>Profile Locked</strong>
+                  <span style={{ marginLeft: 6, color: "#B91C1C" }}>Your profile is read-only. Contact admin for changes.</span>
                 </div>
               </div>
             )}
 
             {/* AVATAR HEADER */}
-            <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px 0", borderBottom: "1px solid #E5E7EB", marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "12px 0", borderBottom: "1px solid #E5E7EB", marginBottom: 8 }}>
               <div
                 onClick={() => !photoUploading && photoInputRef.current && photoInputRef.current.click()}
                 style={{
-                  width: 72, height: 72, borderRadius: 36, flexShrink: 0,
+                  width: 64, height: 64, borderRadius: 32, flexShrink: 0,
                   background: currentPhoto ? "transparent" : "#F3F4F6",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontWeight: 600, fontSize: 24, color: "#6B7280",
+                  fontWeight: 600, fontSize: 20, color: "#6B7280",
                   cursor: "pointer", position: "relative", overflow: "hidden",
                   border: "1px solid #E5E7EB",
                   transition: "opacity .2s ease"
@@ -2499,10 +2493,10 @@
               </div>
               <input ref={photoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoUpload} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 16, color: "#111827" }}>{draft.name || user.name}</div>
+                <div style={{ fontWeight: 600, fontSize: 15, color: "#111827" }}>{draft.name || user.name}</div>
                 <div style={{ color: "#6B7280", fontSize: 13, marginTop: 2 }}>{draft.branch || user.branch} • {draft.year || user.year}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
-                  {isLocked && <span style={{ fontSize: 11, fontWeight: 600, color: "#4B5563", background: "#F3F4F6", padding: "2px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4 }}><span className="material-symbols-outlined" style={{fontSize:12}}>lock</span> Locked</span>}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 6 }}>
+                  {isLocked && <span style={{ fontSize: 11, fontWeight: 500, color: "#4B5563", background: "#F3F4F6", padding: "2px 6px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4, border: "1px solid #E5E7EB" }}><span className="material-symbols-outlined" style={{fontSize:12}}>lock</span> Locked</span>}
                   <button
                     onClick={() => !photoUploading && photoInputRef.current && photoInputRef.current.click()}
                     style={{ background: "transparent", border: "none", color: T.orange, fontSize: 13, fontWeight: 500, cursor: "pointer", padding: 0 }}
@@ -2519,13 +2513,13 @@
               const D = draft; const U = user;
               const val = (a, b) => a || b || null;
               const Row = ({ label, value }) => (
-                <div style={{ padding: "8px 0" }}>
-                  <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 2 }}>{label}</div>
-                  <div style={{ fontSize: 14, color: value ? "#111827" : "#9CA3AF" }}>{value || "—"}</div>
+                <div style={{ padding: "8px 0", borderBottom: "1px solid #F3F4F6" }}>
+                  <div style={{ fontSize: 11, color: "#6B7280", textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: value ? "#111827" : "#9CA3AF" }}>{value || "—"}</div>
                 </div>
               );
               const SectionHead = ({ title }) => (
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", textTransform: "uppercase", borderBottom: "1px solid #E5E7EB", paddingBottom: 8, marginBottom: 12, marginTop: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", textTransform: "uppercase", borderBottom: "1px solid #E5E7EB", paddingBottom: 6, marginBottom: 8, marginTop: 16 }}>
                   {title}
                 </div>
               );
@@ -2533,7 +2527,7 @@
                 <div style={{ marginBottom: 16 }}>
                   {/* Personal */}
                   <SectionHead title="Personal Information" />
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: 8, columnGap: 24 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 32 }}>
                     <Row label="Full Name" value={val(D.name, U.name)} />
                     <Row label="Roll Number" value={val(D.rollNo, U.rollNo)} />
                     <Row label="Branch" value={val(D.branch, U.branch)} />
@@ -2546,7 +2540,7 @@
 
                   {/* Financial */}
                   <SectionHead title="Financial Details" />
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: 8, columnGap: 24 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 32 }}>
                     <Row label="Family Income" value={(val(D.familyIncome, U.familyIncome) && Number(val(D.familyIncome, U.familyIncome)) > 0) ? `₹${Number(val(D.familyIncome, U.familyIncome)).toLocaleString('en-IN')}` : null} />
                   </div>
                 </div>
@@ -2843,43 +2837,52 @@
             {/* ACTION BUTTONS */}
             {!isLocked ? (
               <>
-                <Btn onClick={saveProfile} disabled={draft.isFeeWaiver && !tfwEligible} style={{ width: "100%", padding: 14, fontSize: 15 }}>
-                  {saved ? "✓ Saved & Locked!" : (draft.isFeeWaiver && !tfwEligible) ? "⚠ Fix TFW Eligibility First" : "🔒 Save Profile (One-Time)"}
-                </Btn>
+                <button 
+                  onClick={saveProfile} 
+                  disabled={draft.isFeeWaiver && !tfwEligible} 
+                  style={{ 
+                    width: "100%", padding: "10px 16px", fontSize: 14, 
+                    background: (draft.isFeeWaiver && !tfwEligible) ? "#D1D5DB" : T.orange, 
+                    color: "#fff", border: "none", borderRadius: 8, fontWeight: 500, cursor: (draft.isFeeWaiver && !tfwEligible) ? "not-allowed" : "pointer",
+                    height: 42
+                  }}
+                >
+                  {saved ? "✓ Saved & Locked" : (draft.isFeeWaiver && !tfwEligible) ? "⚠ Fix TFW Eligibility First" : "Save Profile"}
+                </button>
               </>
             ) : (
-              <div style={{ marginTop: 8 }}>
-                <div style={{ padding: "12px 16px", borderRadius: 12, background: "#F5F5F5", border: "1px solid #E8E8E8", textAlign: "center", marginBottom: 8 }}>
-                  <span className="material-symbols-outlined" style={{ color: "#999", fontSize: 18, verticalAlign: "middle" }}>lock</span>
-                  <span style={{ fontSize: 13, color: "#999", fontWeight: 600, marginLeft: 6 }}>Profile editing is disabled</span>
+              <div style={{ marginTop: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px", borderRadius: 8, background: "#F9FAFB", border: "1px solid #E5E7EB", marginBottom: 12 }}>
+                  <span className="material-symbols-outlined" style={{ color: "#6B7280", fontSize: 16 }}>info</span>
+                  <span style={{ fontSize: 13, color: "#4B5563" }}>Profile editing is disabled.</span>
                 </div>
 
                 {user.role === 'student' && (
-                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <div style={{ display: "flex", gap: 8 }}>
                     <button
                       onClick={requestUnlock}
                       disabled={user.profileEditRequested}
                       style={{
                         flex: 1,
-                        background: user.profileEditRequested ? T.gray : `linear-gradient(135deg, ${T.indigo}, ${T.purple})`,
-                        color: user.profileEditRequested ? T.muted : "#fff",
+                        background: user.profileEditRequested ? "#F3F4F6" : T.orange,
+                        color: user.profileEditRequested ? "#9CA3AF" : "#fff",
                         border: "none",
-                        borderRadius: 10,
-                        padding: "11px 16px",
-                        fontSize: 13,
-                        fontWeight: 700,
+                        borderRadius: 8,
+                        padding: "10px 16px",
+                        fontSize: 14,
+                        fontWeight: 500,
                         cursor: user.profileEditRequested ? "not-allowed" : "pointer",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         gap: 8,
-                        boxShadow: user.profileEditRequested ? "none" : "0 4px 12px rgba(99,102,241,0.3)"
+                        height: 42
                       }}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
                         {user.profileEditRequested ? "pending_actions" : "lock_open"}
                       </span>
-                      {user.profileEditRequested ? "Unlock Request Pending..." : "Request Admin to Re-edit Profile"}
+                      {user.profileEditRequested ? "Unlock Request Pending" : "Request Admin to Re-edit Profile"}
                     </button>
 
                     {user.profileEditRequested && (
@@ -2887,18 +2890,19 @@
                         onClick={handleRefreshStatus}
                         style={{
                           background: "#fff",
-                          color: T.indigo,
-                          border: `1px solid ${T.indigo}40`,
-                          borderRadius: 10,
-                          padding: "11px",
+                          color: "#374151",
+                          border: "1px solid #D1D5DB",
+                          borderRadius: 8,
+                          padding: "0 12px",
                           cursor: "pointer",
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center"
+                          justifyContent: "center",
+                          height: 42
                         }}
                         title="Refresh Status"
                       >
-                        <span className="material-symbols-outlined" style={{ fontSize: 20 }}>refresh</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>refresh</span>
                       </button>
                     )}
                   </div>
@@ -2906,9 +2910,19 @@
 
               </div>
             )}
-            <Btn onClick={onLogout} variant="ghost" style={{ width: "100%", padding: 14, fontSize: 15, marginTop: 8, borderColor: "#EF4444", color: "#EF4444" }}>
-              🚪 Log Out
-            </Btn>
+            
+            <button 
+              onClick={onLogout} 
+              style={{ 
+                width: "100%", padding: "10px 16px", fontSize: 14, marginTop: 8, 
+                background: "#fff", color: "#EF4444", border: "1px solid #EF4444", 
+                borderRadius: 8, fontWeight: 500, cursor: "pointer",
+                height: 42, display: "flex", alignItems: "center", justifyContent: "center", gap: 8
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>logout</span>
+              Log Out
+            </button>
           </div>
         </Modal>
       );
@@ -6383,44 +6397,19 @@
               </div>
 
               {/* Main Brand */}
-              <div style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: "48px", fontWeight: 800, color: "#FFFFFF", letterSpacing: "-1px", lineHeight: 1.1, marginBottom: 8 }}>
+              <div style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: "52px", fontWeight: 800, color: "#FFFFFF", letterSpacing: "-1px", lineHeight: 1.1, marginBottom: 8 }}>
                 Vidya-Setu
               </div>
 
               {/* Tagline Heading */}
-              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: "30px", fontWeight: 700, color: "#FFFFFF", letterSpacing: "-0.5px", lineHeight: 1.25, margin: "0 0 24px" }}>
-                Your Smart Web-Portal<br />for Students
+              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: "38px", fontWeight: 700, color: "#000000", letterSpacing: "-0.5px", lineHeight: 1.25, margin: "0 0 24px" }}>
+                A Smart Web-Portal for Students
               </h1>
 
               {/* Quote */}
-              <p style={{ color: "rgba(255,255,255,0.92)", fontSize: "18px", fontWeight: 400, lineHeight: 1.6, marginBottom: 40, maxWidth: 380, margin: "0 auto 40px", fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>
-                "Guiding every student toward<br />knowledge, opportunity, and a brighter<br />future."
+              <p style={{ color: "#000000", fontSize: "20px", fontWeight: 400, lineHeight: 1.6, marginBottom: 40, maxWidth: 380, margin: "0 auto 40px", fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>
+                "Guiding every student toward knowledge, opportunity, and a brighter future."
               </p>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-                {[
-                  [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em', color: '#fff' }}>account_balance</span>, "5K+", "Active Scholars"],
-                  [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em', color: '#fff' }}>diamond</span>, "₹2k+", "Perks Unlocked"],
-                  [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em', color: '#fff' }}>storefront</span>, "340+", "Campus Listings"]
-                ].map(([icon, val, label]) => (
-                  <div key={label} style={{
-                    background: "rgba(255,255,255,0.12)",
-                    borderRadius: 10,
-                    padding: "16px 8px",
-                    border: "1px solid rgba(255,255,255,0.22)",
-                    textAlign: "center",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    minHeight: 100
-                  }}>
-                    <div style={{ fontSize: 22, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</div>
-                    <div style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 18, fontWeight: 700, color: "#ffffff", marginTop: 6, lineHeight: 1 }}>{val}</div>
-                    <div style={{ color: "rgba(255,255,255,0.75)", fontSize: 11, marginTop: 4, lineHeight: 1.2 }}>{label}</div>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
 
