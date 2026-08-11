@@ -6437,7 +6437,7 @@
                         <input type="text" required value={regData.securityAnswer} onChange={e => setRegData(p => ({ ...p, securityAnswer: e.target.value }))} style={{ ...inpSt, marginTop: 6 }} placeholder="Your secret answer…" />
                       </div>
                     </div>
-                    <Btn onClick={handleRegister} variant="teal" style={{ width: "100%", padding: 14, marginTop: 6, fontSize: 15, borderRadius: 11 }}>Create Student Account</Btn>
+                    <Btn variant="teal" style={{ width: "100%", padding: 14, marginTop: 6, fontSize: 15, borderRadius: 11 }}>Create Student Account</Btn>
                   </>
                 ) : (
                   <>
@@ -6452,7 +6452,7 @@
                         {showPass ? <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>visibility</span> : <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>visibility_off</span>}
                       </button>
                     </div>
-                    <Btn onClick={handleLogin} variant="primary" style={{ width: "100%", padding: 14, marginTop: 6, fontSize: 15, borderRadius: 11 }}>Log In to Vidya-Setu →</Btn>
+                    <Btn variant="primary" style={{ width: "100%", padding: 14, marginTop: 6, fontSize: 15, borderRadius: 11 }}>Log In to Vidya-Setu →</Btn>
                   </>
                 )}
               </form>
