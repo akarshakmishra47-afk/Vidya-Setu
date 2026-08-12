@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Subject = require('../models/Subject');
 const Role = require('../models/Role');
+const PYQ = require('../models/PYQ');
 
 // Get all subjects
 router.get('/subjects', async (req, res) => {
@@ -33,6 +34,197 @@ router.get('/roles', async (req, res) => {
     res.json(structured);
   } catch (err) {
     res.status(500).json({ error: 'Server error fetching roles' });
+  }
+});
+
+// ============================================================
+// PYQ (Prashna-Kosh) Endpoints — Isolated Exam Analytics API
+// ============================================================
+
+// GET /api/academic/pyqs/filters — Return dynamically available filter options
+router.get('/pyqs/filters', async (req, res) => {
+  try {
+    const pyqs = await PYQ.find({}, 'exam branch semester subject -_id');
+    const taxonomyMap = {};
+
+    pyqs.forEach(q => {
+      if (!q.exam) return;
+      const exam = q.exam;
+      const branch = q.branch || 'General';
+      const semester = q.semester || 0;
+      const subject = q.subject;
+
+      if (!taxonomyMap[exam]) taxonomyMap[exam] = {};
+      if (!taxonomyMap[exam][branch]) taxonomyMap[exam][branch] = {};
+      if (!taxonomyMap[exam][branch][semester]) taxonomyMap[exam][branch][semester] = new Set();
+      if (subject) taxonomyMap[exam][branch][semester].add(subject);
+    });
+
+    const taxonomy = Object.keys(taxonomyMap).map(exam => ({
+      exam,
+      branches: Object.keys(taxonomyMap[exam]).map(branch => ({
+        branch: branch === 'General' ? '' : branch,
+        semesters: Object.keys(taxonomyMap[exam][branch]).map(semester => ({
+          semester: semester === '0' ? '' : Number(semester),
+          subjects: Array.from(taxonomyMap[exam][branch][semester])
+        }))
+      }))
+    }));
+
+    res.json({ taxonomy });
+  } catch (err) {
+    console.error('PYQ Filters Error:', err.message);
+    res.status(500).json({ error: 'Server error fetching PYQ filters' });
+  }
+});
+
+// GET /api/academic/pyqs/analytics — Return analytics from VERIFIED data only
+router.get('/pyqs/analytics', async (req, res) => {
+  try {
+    const { exam, subject, branch, semester } = req.query;
+    if (!exam || !subject) {
+      return res.status(400).json({ error: 'Exam and subject are required' });
+    }
+
+    // STRICT: Only verified data for analytics — never sample data
+    const query = { exam, subject, isVerified: true };
+    if (branch) query.branch = branch;
+    if (semester) query.semester = Number(semester);
+
+    const pyqs = await PYQ.find(query);
+
+    // Sufficiency check: BOTH conditions must be true (AND, not OR)
+    const distinctYears = new Set(pyqs.map(q => q.year));
+    const hasSufficientData = pyqs.length >= 5 && distinctYears.size >= 2;
+
+    if (!hasSufficientData) {
+      return res.json({
+        sufficientData: false,
+        totalQuestions: pyqs.length,
+        yearsCovered: distinctYears.size,
+        topics: [],
+        units: [],
+        availableYears: Array.from(distinctYears).sort((a, b) => a - b)
+      });
+    }
+
+    // Build topic analytics
+    const topicsMap = {};
+    const unitMap = {};
+
+    pyqs.forEach(q => {
+      // Topic aggregation
+      if (!topicsMap[q.topic]) {
+        topicsMap[q.topic] = {
+          title: q.topic,
+          yearsSet: new Set(),
+          frequency: 0,
+          totalMarks: 0
+        };
+      }
+      topicsMap[q.topic].yearsSet.add(q.year);
+      topicsMap[q.topic].frequency += 1;
+      topicsMap[q.topic].totalMarks += (q.marks || 0);
+
+      // Unit aggregation
+      if (q.unit) {
+        if (!unitMap[q.unit]) unitMap[q.unit] = { unit: q.unit, questions: 0 };
+        unitMap[q.unit].questions += 1;
+      }
+    });
+
+    const yearsCovered = distinctYears.size;
+    const availableYears = Array.from(distinctYears).sort((a, b) => a - b);
+
+    // Unit coverage percentages (from verified data only)
+    const units = Object.values(unitMap).map(u => ({
+      u: u.unit,
+      c: Math.round((u.questions / pyqs.length) * 100)
+    })).sort((a, b) => a.u - b.u);
+
+    // Topic probabilities (based on years appeared vs total years)
+    let maxFreq = 0;
+    const preTopics = Object.values(topicsMap).map(t => {
+      const probability = Math.round((t.yearsSet.size / yearsCovered) * 100);
+      if (t.frequency > maxFreq) maxFreq = t.frequency;
+      return {
+        t: t.title,
+        p: probability,
+        y: Array.from(t.yearsSet).sort((a, b) => a - b),
+        frequency: t.frequency,
+        totalMarks: t.totalMarks,
+        questionCount: t.frequency,
+        yearCount: t.yearsSet.size
+      };
+    });
+
+    const topics = preTopics.map(t => {
+      const relativeFrequency = maxFreq > 0 ? Math.round((t.frequency / maxFreq) * 100) : 0;
+      let priority = 'Low';
+      if (relativeFrequency >= 75) priority = 'High';
+      else if (relativeFrequency >= 50) priority = 'Medium';
+      
+      return { ...t, relativeFrequency, priority };
+    }).sort((a, b) => {
+      // Sort by relative frequency first, then by probability
+      if (b.relativeFrequency !== a.relativeFrequency) return b.relativeFrequency - a.relativeFrequency;
+      return b.p - a.p;
+    });
+
+    res.json({
+      sufficientData: true,
+      totalQuestions: pyqs.length,
+      yearsCovered,
+      topics,
+      units,
+      availableYears
+    });
+  } catch (err) {
+    console.error('PYQ Analytics Error:', err.message);
+    res.status(500).json({ error: 'Server error generating PYQ analytics' });
+  }
+});
+
+// GET /api/academic/pyqs/questions — Return PYQ questions (verified + sample)
+router.get('/pyqs/questions', async (req, res) => {
+  try {
+    const { exam, subject, topic, year, verified } = req.query;
+    if (!exam || !subject) {
+      return res.status(400).json({ error: 'Exam and subject are required' });
+    }
+
+    const query = { exam, subject };
+    if (topic) query.topic = topic;
+    if (year) query.year = Number(year);
+    if (verified === 'true') query.isVerified = true;
+    if (verified === 'false') query.isVerified = false;
+
+    const pyqs = await PYQ.find(query).sort({ year: -1, topic: 1 });
+
+    // Always expose verification fields for every question
+    const result = pyqs.map(q => ({
+      _id: q._id,
+      exam: q.exam,
+      branch: q.branch,
+      semester: q.semester,
+      subject: q.subject,
+      year: q.year,
+      unit: q.unit,
+      topic: q.topic,
+      question: q.question,
+      marks: q.marks,
+      questionType: q.questionType,
+      difficulty: q.difficulty,
+      isVerified: q.isVerified,
+      isSampleData: q.isSampleData,
+      source: q.source,
+      sourceYear: q.sourceYear
+    }));
+
+    res.json(result);
+  } catch (err) {
+    console.error('PYQ Questions Error:', err.message);
+    res.status(500).json({ error: 'Server error fetching PYQ questions' });
   }
 });
 
