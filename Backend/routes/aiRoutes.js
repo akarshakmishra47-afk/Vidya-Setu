@@ -164,14 +164,37 @@ router.post('/exam-analyze', async (req, res) => {
         const hasData = topics && topics.length > 0;
 
         let taskPrompt = "";
-        if (!hasData) {
+        if (!hasData && type !== 'pyq-explain' && type !== 'detect-patterns') {
             taskPrompt = `The user is asking about the subject "${subject}" in the "${exam}" exam. However, we do not currently have enough verified Previous Year Question (PYQ) data to generate reliable statistical predictions or probabilities. Provide general syllabus guidance and study advice, but clearly state that this is general guidance, not based on verified PYQ trends.`;
-        } else if (type === 'study-plan') {
-            taskPrompt = `Generate a 7-day personalized study and revision plan for the subject "${subject}" in the "${exam}" exam. Base this strictly on the top 5 high-frequency topics provided: ${topics.slice(0, 5).map(t => t.t).join(', ')}. Include specific practice strategies for these topics.`;
-        } else if (type === 'topic-explain') {
-            taskPrompt = `Explain how to prepare for the topic "${specificTopic}" in the context of the "${subject}" subject for the "${exam}" exam. Include common question styles and mistakes to avoid, given that this topic has a frequency of ${topics.find(t => t.t === specificTopic)?.frequency || 'moderate'} in recent years.`;
         } else {
-            taskPrompt = `Analyze the PYQ trends for "${subject}" (${exam}). The top topics are ${topics.slice(0, 3).map(t => t.t).join(', ')}. Suggest an exam strategy and unit-wise preparation priority based on this real data.`;
+            switch (type) {
+                case 'what-to-study-first':
+                    taskPrompt = `Recommend a study order for the subject "${subject}" in the "${exam}" exam. Base this strictly on the provided verified topic probabilities and frequencies: ${topics.map(t => `${t.t} (${t.p}%)`).join(', ')}. Explicitly state that this recommendation is based on the available verified PYQ data. Do NOT invent topics or probabilities.`;
+                    break;
+                case 'study-plan':
+                    taskPrompt = `Generate a ${req.body.duration || 7}-day personalized study and revision plan for the subject "${subject}" in the "${exam}" exam. Prioritize high-frequency topics provided: ${topics.slice(0, 5).map(t => `${t.t} (${t.p}%)`).join(', ')}. Detail daily goals. Explicitly state this plan is based on verified PYQ data.`;
+                    break;
+                case 'limited-time':
+                    taskPrompt = `The student has very limited time (${req.body.duration || 3} days) to prepare for "${subject}" in the "${exam}" exam. Create a highly compressed strategy focusing strictly on the highest probability topics: ${topics.slice(0, 5).map(t => `${t.t} (${t.p}%)`).join(', ')}. Tell them what to skip or deprioritize. Explicitly state this is based on verified PYQ data.`;
+                    break;
+                case 'topic-explain':
+                    taskPrompt = `Explain how to prepare for the topic "${specificTopic}" in the context of the "${subject}" subject for the "${exam}" exam. Include common question styles and mistakes to avoid. Note that this topic has a probability of ${req.body.topicProbability || 'high'}% based on verified PYQs. Do NOT invent new statistics.`;
+                    break;
+                case 'detect-patterns':
+                    taskPrompt = `Analyze the following verified PYQ questions for "${subject}" (${exam}) and identify recurring concepts, patterns, and question styles:\n\n${(req.body.questions || []).map((q, i) => `${i+1}. ${q.question}`).join('\n')}\n\nDo NOT invent new questions. Only analyze the provided ones. Explain the patterns clearly.`;
+                    break;
+                case 'practice-test':
+                    taskPrompt = `Generate a practice test of ${req.body.count || 5} questions for "${subject}" (${exam}) at a "${req.body.difficulty || 'mixed'}" difficulty level. Focus on the high-priority topics provided: ${topics.slice(0, 3).map(t => t.t).join(', ')}. IMPORTANT: Label all questions clearly with "🤖 AI Generated Practice" and do NOT claim these are official PYQs. Include brief solutions or hints at the end.`;
+                    break;
+                case 'pyq-explain':
+                    taskPrompt = `Explain the following official PYQ for "${subject}" (${exam}), topic "${req.body.topic || 'Unknown'}":\n\n"${req.body.questionText}"\n\nExplain what concept it tests, the approach to solve it, and common mistakes. Do NOT modify the original question. Ensure you state this is an explanation of an existing verified question.`;
+                    break;
+                case 'chat':
+                    taskPrompt = `The student asks: "${req.body.prompt}". Answer their query using the provided verified PYQ context for "${subject}" (${exam}). The top topics are ${topics.slice(0, 5).map(t => `${t.t} (${t.p}%)`).join(', ')}. Never invent statistics.`;
+                    break;
+                default:
+                    taskPrompt = `Analyze the PYQ trends for "${subject}" (${exam}). The top topics are ${topics.slice(0, 3).map(t => t.t).join(', ')}. Suggest an exam strategy based on this real data.`;
+            }
         }
 
         const systemPrompt = `
