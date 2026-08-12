@@ -146,4 +146,88 @@ Task: ${taskPrompt}
     }
 });
 
+// ============================================================
+// Exam Analytics AI Endpoint — Optional enhancement for Prashna-Kosh
+// ============================================================
+
+router.post('/exam-analyze', async (req, res) => {
+    try {
+        const { type, exam, subject, topics, stats, userContext, specificTopic } = req.body;
+        const apiKey = process.env.GROQ_API_KEY;
+
+        if (!apiKey || apiKey === 'your_key_here') {
+            return res.status(500).json({ 
+                error: "Groq API Key is missing. Please add it to your Render Settings as GROQ_API_KEY." 
+            });
+        }
+
+        const hasData = topics && topics.length > 0;
+
+        let taskPrompt = "";
+        if (!hasData) {
+            taskPrompt = `The user is asking about the subject "${subject}" in the "${exam}" exam. However, we do not currently have enough verified Previous Year Question (PYQ) data to generate reliable statistical predictions or probabilities. Provide general syllabus guidance and study advice, but clearly state that this is general guidance, not based on verified PYQ trends.`;
+        } else if (type === 'study-plan') {
+            taskPrompt = `Generate a 7-day personalized study and revision plan for the subject "${subject}" in the "${exam}" exam. Base this strictly on the top 5 high-frequency topics provided: ${topics.slice(0, 5).map(t => t.t).join(', ')}. Include specific practice strategies for these topics.`;
+        } else if (type === 'topic-explain') {
+            taskPrompt = `Explain how to prepare for the topic "${specificTopic}" in the context of the "${subject}" subject for the "${exam}" exam. Include common question styles and mistakes to avoid, given that this topic has a frequency of ${topics.find(t => t.t === specificTopic)?.frequency || 'moderate'} in recent years.`;
+        } else {
+            taskPrompt = `Analyze the PYQ trends for "${subject}" (${exam}). The top topics are ${topics.slice(0, 3).map(t => t.t).join(', ')}. Suggest an exam strategy and unit-wise preparation priority based on this real data.`;
+        }
+
+        const systemPrompt = `
+You are the "Vidya-Setu AI Exam Analyst", a specialized AI designed to analyze actual Previous Year Questions (PYQs) and provide highly actionable exam strategies for AKTU and GATE students.
+
+Student Profile:
+- Name: ${userContext?.name || 'Student'}
+- Branch: ${userContext?.branch || 'N/A'}
+- Semester: ${userContext?.semester || 'N/A'}
+
+Exam Context:
+- Exam: ${exam}
+- Subject: ${subject}
+- Total Verified PYQs Analyzed: ${stats?.totalQuestions || 0}
+- Years Covered: ${stats?.yearsCovered || 0}
+- Top 3 Focus Topics: ${hasData ? topics.slice(0, 3).map(t => t.t).join(', ') : 'Insufficient Data'}
+
+Guidelines:
+1. Provide a direct, professional, and structured response.
+2. Base ALL your advice on the provided PYQ data context. Do NOT invent PYQ statistics or topics that are not in the context. If you say "Based on the analyzed PYQs", make sure it aligns with the data.
+3. Keep the formatting clean using markdown (bullet points, bold text for emphasis). Do NOT use oversized emojis or excessive exclamation marks.
+4. Keep it concise but highly valuable.
+
+Task: ${taskPrompt}
+`;
+
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: "Please generate the requested exam analysis." }
+                ],
+                temperature: 0.7,
+                max_tokens: 1024
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.choices && data.choices[0]) {
+            res.json({ reply: data.choices[0].message.content });
+        } else {
+            console.error('Groq Error Response:', data);
+            throw new Error(data.error?.message || "Groq API error");
+        }
+    } catch (error) {
+        console.error('Groq Exam Analyze Error:', error);
+        res.status(500).json({ error: "The AI is thinking a bit too hard. Please try again in a few seconds!" });
+    }
+});
+
 module.exports = router;
+
