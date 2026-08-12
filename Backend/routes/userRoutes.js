@@ -4,6 +4,32 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const { uploadImage } = require('../cloudinaryConfig');
 
+// GET /api/users/admin/stats
+router.get('/admin/stats', async (req, res) => {
+  try {
+    const totalEnrolled = await require('../models/AktuStudentOtr').countDocuments();
+    const totalRegistered = await User.countDocuments();
+    const profileEditRequests = await User.countDocuments({ profileEditRequested: true });
+    
+    // Check if there's any other pending requests from ScholarshipApplication
+    const pendingScholarships = await require('../models/ScholarshipApplication').countDocuments({ status: 'Applied' });
+    
+    // total requests = profileEditRequests + pendingScholarships
+    const totalPendingRequests = profileEditRequests + pendingScholarships;
+    
+    res.status(200).json({
+      totalEnrolled,
+      totalRegistered,
+      totalPendingRequests,
+      loginUpdateRequests: 0, // Placeholder
+      profileUpdateRequests: profileEditRequests,
+      otherRequests: pendingScholarships
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // POST route /register to save a student with hashed credentials
 router.post('/register', async (req, res) => {
   try {

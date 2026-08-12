@@ -58,16 +58,25 @@ router.get('/', async (req, res) => {
   try {
     const items = await MarketplaceItem.find({ active: true }).sort({ createdAt: -1 });
 
-    // Collect unique seller roll numbers and look up their profile photos
+    // Collect unique seller roll numbers and look up their profile photos, emails, and contact numbers
     const rollNumbers = [...new Set(items.map(i => i.sellerRoll).filter(Boolean))];
-    const sellers = await User.find({ rollNo: { $in: rollNumbers } }, { rollNo: 1, profilePhoto: 1 });
-    const photoMap = {};
-    sellers.forEach(s => { if (s.profilePhoto) photoMap[s.rollNo] = s.profilePhoto; });
+    const sellers = await User.find({ rollNo: { $in: rollNumbers } }, { rollNo: 1, profilePhoto: 1, email: 1, mobileNumber: 1 });
+    const sellerMap = {};
+    sellers.forEach(s => { 
+      sellerMap[s.rollNo] = {
+        profilePhoto: s.profilePhoto,
+        email: s.email,
+        mobileNumber: s.mobileNumber
+      }; 
+    });
 
-    // Attach sellerPhoto to each item
+    // Attach seller info to each item
     const enrichedItems = items.map(item => {
       const obj = item.toObject();
-      obj.sellerPhoto = photoMap[item.sellerRoll] || '';
+      const sInfo = sellerMap[item.sellerRoll] || {};
+      obj.sellerPhoto = sInfo.profilePhoto || '';
+      obj.sellerEmail = sInfo.email || '';
+      obj.sellerContact = sInfo.mobileNumber || '';
       return obj;
     });
 

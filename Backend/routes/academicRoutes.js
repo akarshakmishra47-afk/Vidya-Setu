@@ -44,24 +44,34 @@ router.get('/roles', async (req, res) => {
 // GET /api/academic/pyqs/filters — Return dynamically available filter options
 router.get('/pyqs/filters', async (req, res) => {
   try {
-    const exams = await PYQ.distinct('exam');
-    const branches = await PYQ.distinct('branch');
-    const semesters = await PYQ.distinct('semester');
-    const subjects = await PYQ.distinct('subject');
+    const pyqs = await PYQ.find({}, 'exam branch semester subject -_id');
+    const taxonomyMap = {};
 
-    // Create a mapping of exam -> available subjects for cascading dropdowns
-    const examSubjects = {};
-    for (const exam of exams) {
-      examSubjects[exam] = await PYQ.distinct('subject', { exam });
-    }
+    pyqs.forEach(q => {
+      if (!q.exam) return;
+      const exam = q.exam;
+      const branch = q.branch || 'General';
+      const semester = q.semester || 0;
+      const subject = q.subject;
 
-    res.json({
-      exams,
-      branches: branches.filter(Boolean),
-      semesters: semesters.filter(Boolean),
-      subjects,
-      examSubjects
+      if (!taxonomyMap[exam]) taxonomyMap[exam] = {};
+      if (!taxonomyMap[exam][branch]) taxonomyMap[exam][branch] = {};
+      if (!taxonomyMap[exam][branch][semester]) taxonomyMap[exam][branch][semester] = new Set();
+      if (subject) taxonomyMap[exam][branch][semester].add(subject);
     });
+
+    const taxonomy = Object.keys(taxonomyMap).map(exam => ({
+      exam,
+      branches: Object.keys(taxonomyMap[exam]).map(branch => ({
+        branch: branch === 'General' ? '' : branch,
+        semesters: Object.keys(taxonomyMap[exam][branch]).map(semester => ({
+          semester: semester === '0' ? '' : Number(semester),
+          subjects: Array.from(taxonomyMap[exam][branch][semester])
+        }))
+      }))
+    }));
+
+    res.json({ taxonomy });
   } catch (err) {
     console.error('PYQ Filters Error:', err.message);
     res.status(500).json({ error: 'Server error fetching PYQ filters' });
@@ -133,16 +143,33 @@ router.get('/pyqs/analytics', async (req, res) => {
     })).sort((a, b) => a.u - b.u);
 
     // Topic probabilities (based on years appeared vs total years)
-    const topics = Object.values(topicsMap).map(t => {
+    let maxFreq = 0;
+    const preTopics = Object.values(topicsMap).map(t => {
       const probability = Math.round((t.yearsSet.size / yearsCovered) * 100);
+      if (t.frequency > maxFreq) maxFreq = t.frequency;
       return {
         t: t.title,
         p: probability,
         y: Array.from(t.yearsSet).sort((a, b) => a - b),
         frequency: t.frequency,
-        totalMarks: t.totalMarks
+        totalMarks: t.totalMarks,
+        questionCount: t.frequency,
+        yearCount: t.yearsSet.size
       };
-    }).sort((a, b) => b.p - a.p);
+    });
+
+    const topics = preTopics.map(t => {
+      const relativeFrequency = maxFreq > 0 ? Math.round((t.frequency / maxFreq) * 100) : 0;
+      let priority = 'Low';
+      if (relativeFrequency >= 75) priority = 'High';
+      else if (relativeFrequency >= 50) priority = 'Medium';
+      
+      return { ...t, relativeFrequency, priority };
+    }).sort((a, b) => {
+      // Sort by relative frequency first, then by probability
+      if (b.relativeFrequency !== a.relativeFrequency) return b.relativeFrequency - a.relativeFrequency;
+      return b.p - a.p;
+    });
 
     res.json({
       sufficientData: true,

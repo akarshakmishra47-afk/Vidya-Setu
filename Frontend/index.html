@@ -1983,7 +1983,12 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:')
+    const isLocal =
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.protocol === 'file:';
+
+    const API_BASE_URL = isLocal
       ? 'http://localhost:5000'
       : 'https://vidya-setu-api.onrender.com';
 
@@ -3446,7 +3451,7 @@
     ══════════════════════════════════════ */
     function ExamAnalytics() {
       const { user } = useUser();
-      const [filtersData, setFiltersData] = useState({ exams: [], branches: [], semesters: [], subjects: [], examSubjects: {} });
+      const [filtersData, setFiltersData] = useState({ taxonomy: [] });
       const [fLoading, setFLoading] = useState(true);
       const [fErr, setFErr] = useState(false);
 
@@ -3463,27 +3468,28 @@
       const [qLoading, setQLoading] = useState(false);
       const [viewPyqs, setViewPyqs] = useState(false);
       
-      const [aiReply, setAiReply] = useState("");
-      const [aiLoading, setAiLoading] = useState(false);
-      const [aiModalOpen, setAiModalOpen] = useState(false);
-      const [aiModalTitle, setAiModalTitle] = useState("");
-      const [aiModalContent, setAiModalContent] = useState("");
-      const [aiActionLoading, setAiActionLoading] = useState(false);
-      const [aiChatInput, setAiChatInput] = useState("");
       const [aiModalOpen, setAiModalOpen] = useState(false);
       const [aiModalTitle, setAiModalTitle] = useState("");
       const [aiModalContent, setAiModalContent] = useState("");
       const [aiActionLoading, setAiActionLoading] = useState(false);
       const [aiChatInput, setAiChatInput] = useState("");
 
+      const availableExams = (filtersData.taxonomy || []).map(t => t.exam);
+      const selectedExamData = (filtersData.taxonomy || []).find(t => t.exam === selExam);
+      const availableBranches = selectedExamData ? selectedExamData.branches.map(b => b.branch) : [];
+      const selectedBranchData = selectedExamData ? selectedExamData.branches.find(b => b.branch === (selBranch || '')) : null;
+      const availableSemesters = selectedBranchData ? selectedBranchData.semesters.map(s => s.semester) : [];
+      const selectedSemesterData = selectedBranchData ? selectedBranchData.semesters.find(s => String(s.semester) === String(selSem || '')) : null;
+      const availableSubjects = selectedSemesterData ? selectedSemesterData.subjects : [];
+
       const fetchFilters = async () => {
         try {
           setFLoading(true); setFErr(false);
           const res = await fetch(`${API_BASE_URL}/api/academic/pyqs/filters`);
-          if (!res.ok) throw new Error("API error");
           const text = await res.text();
           let data;
           try { data = JSON.parse(text); } catch(e) { throw new Error("Invalid JSON"); }
+          if (!res.ok) throw new Error(data.error || "API error");
           setFiltersData(data);
         } catch(e) {
           setFErr(true);
@@ -3495,15 +3501,15 @@
       const fetchAnalytics = async () => {
         if (!selExam || !selSub) return;
         try {
-          setALoading(true); setAErr(false); setViewPyqs(false); setAiReply("");
+          setALoading(true); setAErr(false); setViewPyqs(false);
           const q = new URLSearchParams({ exam: selExam, subject: selSub });
           if (selBranch) q.append('branch', selBranch);
           if (selSem) q.append('semester', selSem);
           const res = await fetch(`${API_BASE_URL}/api/academic/pyqs/analytics?${q.toString()}`);
-          if (!res.ok) throw new Error("API error");
           const text = await res.text();
           let data;
           try { data = JSON.parse(text); } catch(e) { throw new Error("Invalid JSON"); }
+          if (!res.ok) throw new Error(data.error || "API error");
           setAnalytics(data);
         } catch(e) {
           setAErr(true);
@@ -3521,41 +3527,70 @@
           setViewPyqs(true);
           const q = new URLSearchParams({ exam: selExam, subject: selSub });
           const res = await fetch(`${API_BASE_URL}/api/academic/pyqs/questions?${q.toString()}`);
-          if (!res.ok) throw new Error("API error");
           const text = await res.text();
           let data;
           try { data = JSON.parse(text); } catch(e) { throw new Error("Invalid JSON"); }
+          if (!res.ok) throw new Error(data.error || "API error");
           setQuestions(data);
+          return data;
         } catch(e) {
           alert("Failed to load questions");
         } finally { setQLoading(false); }
       };
       
-      const handleAskAi = async () => {
+      const executeAiAction = async (type, extraPayload = {}) => {
         if (!analytics) return;
+        setAiModalOpen(true);
+        setAiActionLoading(true);
         try {
-          setAiLoading(true); setAiReply("");
           const payload = {
-             type: "general", exam: selExam, subject: selSub, 
-             topics: analytics.topics || [], stats: { totalQuestions: analytics.totalQuestions, yearsCovered: analytics.yearsCovered },
-             userContext: { name: user?.name, branch: user?.branch, semester: user?.semester }
+            type,
+            exam: selExam,
+            subject: selSub,
+            stats: { totalQuestions: analytics.totalQuestions, yearsCovered: analytics.yearsCovered },
+            topics: analytics.topics || [],
+            ...extraPayload
           };
+          console.log(`[AI Request] ${type}`, payload);
           const res = await fetch(`${API_BASE_URL}/api/ai/exam-analyze`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
           });
-          if (!res.ok) throw new Error("AI failed");
+          
           const text = await res.text();
+          console.log(`[AI Response Status] ${res.status}`);
+          console.log(`[AI Raw Response]`, text);
+          
           let data;
-          try { data = JSON.parse(text); } catch(e) { throw new Error("Invalid JSON"); }
-          if (data.reply) setAiReply(data.reply);
-          else if (data.error) setAiReply(`Error: ${data.error}`);
+          try { data = JSON.parse(text); } catch(e) { throw new Error(`Invalid JSON: ${text.slice(0, 300)}`); }
+          
+          if (!res.ok) throw new Error((data && data.error) || `AI failed (${res.status})`);
+          
+          if (data.reply) {
+            setAiModalContent(data.reply);
+          } else if (data.error) {
+            setAiModalContent(`Error: ${data.error}`);
+          }
         } catch(e) {
-          setAiReply("AI is currently unavailable.");
-        } finally { setAiLoading(false); }
+          console.error(`[AI Error]`, e);
+          setAiModalContent(`AI service error: ${e.message || 'Temporarily unavailable'}`);
+        } finally {
+          setAiActionLoading(false);
+        }
       };
 
-      const pc = p => p >= 80 ? T.rose : p >= 60 ? T.yellow : T.teal;
-      const pl = p => p >= 80 ? "🔥 High" : p >= 60 ? "⚡ Medium" : "💧 Low";
+      const handleAiChatSubmit = (e) => {
+        if (e) e.preventDefault();
+        if (!aiChatInput.trim()) return;
+        const msg = aiChatInput;
+        setAiChatInput("");
+        setAiModalContent("AI is thinking...");
+        executeAiAction("chat", { userMessage: msg });
+      };
+
+      const pc = p => p >= 75 ? T.rose : p >= 50 ? T.yellow : T.teal;
+      const pl = p => p >= 75 ? "🔥 High" : p >= 50 ? "⚡ Medium" : "💧 Low";
 
       if (fErr) {
         return (
@@ -3573,7 +3608,7 @@
         <div>
           <div className="screen-hero">
             <div className="screen-hero-inner">
-              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, marginTop: 12, lineHeight: 1.15, color: T.text, letterSpacing: '-0.4px' }}>Exam Analytics (Prashna-Kosh)</h1>
+              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, marginTop: 12, lineHeight: 1.15, color: T.text, letterSpacing: '-0.4px' }}>Exam Analytics</h1>
               <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Discover verified topics, study efficiently, and access previous year questions.</p>
             </div>
           </div>
@@ -3583,34 +3618,34 @@
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
                 <div>
                   <label style={{ color: T.muted, fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Exam</label>
-                  <select value={selExam} onChange={e => { setSelExam(e.target.value); setSelSub(""); }} style={{ width: "100%", padding: "10px", background: T.gray, border: "1px solid #E8E8E8", borderRadius: 8, marginTop: 4 }}>
+                  <select value={selExam} onChange={e => { setSelExam(e.target.value); setSelBranch(""); setSelSem(""); setSelSub(""); }} style={{ width: "100%", padding: "10px", background: T.gray, border: "1px solid #E8E8E8", borderRadius: 8, marginTop: 4 }}>
                     <option value="">Select Exam…</option>
-                    {filtersData.exams.map(e => <option key={e} value={e}>{e}</option>)}
+                    {availableExams.map(e => <option key={e} value={e}>{e}</option>)}
                   </select>
                 </div>
-                {filtersData.branches.length > 0 && (
+                {availableBranches.length > 0 && availableBranches[0] !== '' && (
                   <div>
                     <label style={{ color: T.muted, fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Branch</label>
-                    <select value={selBranch} onChange={e => setSelBranch(e.target.value)} style={{ width: "100%", padding: "10px", background: T.gray, border: "1px solid #E8E8E8", borderRadius: 8, marginTop: 4 }}>
+                    <select value={selBranch} onChange={e => { setSelBranch(e.target.value); setSelSem(""); setSelSub(""); }} style={{ width: "100%", padding: "10px", background: T.gray, border: "1px solid #E8E8E8", borderRadius: 8, marginTop: 4 }}>
                       <option value="">All Branches</option>
-                      {filtersData.branches.map(b => <option key={b} value={b}>{b}</option>)}
+                      {availableBranches.filter(Boolean).map(b => <option key={b} value={b}>{b}</option>)}
                     </select>
                   </div>
                 )}
-                {filtersData.semesters.length > 0 && (
+                {availableSemesters.length > 0 && availableSemesters[0] !== '' && (
                   <div>
                     <label style={{ color: T.muted, fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Semester</label>
-                    <select value={selSem} onChange={e => setSelSem(e.target.value)} style={{ width: "100%", padding: "10px", background: T.gray, border: "1px solid #E8E8E8", borderRadius: 8, marginTop: 4 }}>
+                    <select value={selSem} onChange={e => { setSelSem(e.target.value); setSelSub(""); }} style={{ width: "100%", padding: "10px", background: T.gray, border: "1px solid #E8E8E8", borderRadius: 8, marginTop: 4 }}>
                       <option value="">All Semesters</option>
-                      {filtersData.semesters.map(s => <option key={s} value={s}>{s}</option>)}
+                      {availableSemesters.filter(Boolean).map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                 )}
                 <div>
                   <label style={{ color: T.muted, fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Subject</label>
-                  <select value={selSub} onChange={e => setSelSub(e.target.value)} disabled={!selExam} style={{ width: "100%", padding: "10px", background: T.gray, border: "1px solid #E8E8E8", borderRadius: 8, marginTop: 4 }}>
+                  <select value={selSub} onChange={e => setSelSub(e.target.value)} disabled={!selExam || availableSubjects.length === 0} style={{ width: "100%", padding: "10px", background: T.gray, border: "1px solid #E8E8E8", borderRadius: 8, marginTop: 4 }}>
                     <option value="">Select Subject…</option>
-                    {(filtersData.examSubjects[selExam] || []).map(s => <option key={s} value={s}>{s}</option>)}
+                    {availableSubjects.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
               </div>
@@ -3630,7 +3665,7 @@
             )}
 
             {!aLoading && !aErr && analytics && !analytics.sufficientData && (
-              <Card style={{ padding: 30, textAlign: "center", background: "#FFFBF0", border: `1px solid ${T.yellow}40` }}>
+              <Card style={{ padding: 30, textAlign: "center", border: `1px solid ${T.yellow}` }}>
                 <div style={{fontSize: 24, marginBottom: 8}}>⚠️</div>
                 <h3 style={{color: T.warn, marginBottom: 8}}>Insufficient verified PYQ data for reliable analytics.</h3>
                 <p style={{color: T.muted, fontSize: 14, marginBottom: 16}}>We need at least 5 verified questions across 2 different years to generate accurate analytics.</p>
@@ -3640,17 +3675,15 @@
 
             {!aLoading && !aErr && analytics && analytics.sufficientData && !viewPyqs && (
               <div className="fade-up">
-                <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
                   <button onClick={loadQuestions} style={{ background: "#fff", border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>View All Questions</button>
-                  <button onClick={handleAskAi} disabled={aiLoading} style={{ background: T.indigo, color: "#fff", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>{aiLoading ? "AI Thinking..." : "Ask AI Analyst ✨"}</button>
+                  <button onClick={() => { setAiModalTitle("What to Study First"); setAiModalContent(""); executeAiAction("what-to-study-first"); }} style={{ background: "#fff", color: T.text, border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>✨ Tell Me What to Study First</button>
+                  <button onClick={() => { setAiModalTitle("Study Plan"); setAiModalContent(""); const days = prompt("Enter duration (e.g., 1 day, 3 days, 7 days, 15 days):", "7 days"); if (days) executeAiAction("study-plan", { duration: days }); }} style={{ background: "#fff", color: T.text, border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>✨ Generate My Study Plan</button>
+                  <button onClick={() => { setAiModalTitle("Limited Time Strategy"); setAiModalContent(""); const days = prompt("Enter duration (e.g., 1 day, 3 days, 7 days, 15 days):", "1 day"); if (days) executeAiAction("limited-time", { duration: days }); }} style={{ background: "#fff", color: T.text, border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>⏳ I Have Limited Time</button>
+                  <button onClick={() => { setAiModalTitle("PYQ Patterns"); setAiModalContent(""); loadQuestions().then((loadedData) => executeAiAction("detect-patterns", { questions: (loadedData || questions).filter(q => q.isVerified) })); }} style={{ background: "#fff", color: T.text, border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>🔎 Detect PYQ Patterns</button>
+                  <button onClick={() => { setAiModalTitle("Practice Test"); setAiModalContent(""); const count = prompt("How many questions?", "10"); if (count) executeAiAction("practice-test", { count, difficulty: "mixed" }); }} style={{ background: "#fff", color: T.text, border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>🧪 Generate Practice Test</button>
+                  <button onClick={() => { setAiModalTitle("Ask AI About This Exam"); setAiModalContent(""); setAiModalOpen(true); }} style={{ background: T.orange, color: "#fff", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>🤖 Ask AI About This Exam</button>
                 </div>
-                
-                {aiReply && (
-                  <Card style={{ marginBottom: 16, border: `1px solid ${T.indigo}40`, background: `${T.indigo}08` }}>
-                    <h3 style={{color: T.indigo, marginBottom: 8}}>✨ AI Exam Strategy</h3>
-                    <div style={{fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap"}}>{aiReply}</div>
-                  </Card>
-                )}
 
                 <div className="two-panel">
                   <div className="section-block">
@@ -3660,24 +3693,35 @@
                         <div style={{ width: 160, fontSize: 10, color: T.muted }}>TOPIC</div>
                         {(analytics.availableYears || []).map(y => <div key={y} style={{ width: 30, textAlign: "center", fontSize: 9, color: T.muted }}>{y}</div>)}
                       </div>
-                      {(analytics.topics || []).map(({ t, y, p }) => (
-                        <div key={t} style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 6 }}>
-                          <div style={{ width: 160, fontSize: 11, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={t}>{t}</div>
-                          {(analytics.availableYears || []).map(yr => y.includes(yr)
-                            ? <div key={yr} title={p + "%"} style={{ width: 30, height: 18, borderRadius: 4, background: pc(p) + Math.round((p / 100) * 255).toString(16).padStart(2, "0"), border: `1px solid ${pc(p)}33` }} />
-                            : <div key={yr} style={{ width: 30, height: 18, borderRadius: 4, background: T.gray, border: `1px solid ${T.border}` }} />
-                          )}
+                      {(analytics.topics || []).map(topicObj => (
+                        <div key={topicObj.t} style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 6 }}>
+                          <div style={{ width: 160, fontSize: 11, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={topicObj.t}>{topicObj.t}</div>
+                          {(analytics.availableYears || []).map(yr => {
+                            const isPresent = topicObj.y.includes(yr);
+                            // We use frequency directly to infer intensity, but a topic might appear multiple times in one year.
+                            // Assuming frequency corresponds somewhat to presence. For a true year-frequency we'd need year distribution array.
+                            // But for now, we tint based on overall relativeFrequency as requested or a flat value if present.
+                            const alpha = isPresent ? Math.min(255, 40 + Math.round((topicObj.relativeFrequency / 100) * 215)).toString(16).padStart(2, "0") : null;
+                            return isPresent
+                            ? <div key={yr} title={`${topicObj.t} — ${yr}: Verified questions present`} style={{ width: 30, height: 18, borderRadius: 4, background: pc(topicObj.relativeFrequency) + alpha, border: `1px solid ${pc(topicObj.relativeFrequency)}33` }} />
+                            : <div key={yr} style={{ width: 30, height: 18, borderRadius: 4, background: T.gray, border: `1px solid ${T.border}` }} />;
+                          })}
                         </div>
                       ))}
                     </Card>
 
-                    <Card style={{ background: "linear-gradient(135deg,rgba(239,68,68,0.07),rgba(255,199,0,0.04))", border: "1px solid rgba(239,68,68,0.18)", marginTop: 16 }}>
-                      <div style={{ fontWeight: 700, marginBottom: 12, color: T.text }}>🎯 Focus These First (Top 3)</div>
+                    <Card style={{ marginTop: 16 }}>
+                      <div style={{ fontWeight: 700, marginBottom: 12, color: T.text }}>🎯 AI Recommended Focus</div>
                       {(analytics.topics || []).slice(0, 3).map(({ t, p }) => (
-                        <div key={t} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                          <span style={{ fontSize: 16 }}>🔥</span>
-                          <span style={{ fontSize: 13, color: T.text }}>{t}</span>
-                          <span style={{ marginLeft: "auto", fontFamily: 'Inter', color: T.rose, fontWeight: 700 }}>{p}%</span>
+                        <div key={t} style={{ display: "flex", flexDirection: "column", marginBottom: 12 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <span style={{ fontSize: 16 }}>🔥</span>
+                            <span style={{ fontSize: 13, color: T.text }}>{t}</span>
+                            <span style={{ marginLeft: "auto", fontFamily: 'Inter', color: T.rose, fontWeight: 700 }}>{p}%</span>
+                          </div>
+                          <div style={{ marginLeft: 30, marginTop: 4 }}>
+                            <button onClick={() => { setAiModalTitle(`Why ${t}?`); setAiModalContent(""); executeAiAction("topic-explain", { specificTopic: t, topicProbability: p }); }} style={{ background: "transparent", border: "none", color: T.indigo, fontSize: 12, cursor: "pointer", padding: 0, fontWeight: 600 }}>Why this topic? →</button>
+                          </div>
                         </div>
                       ))}
                     </Card>
@@ -3699,8 +3743,8 @@
                   </div>
 
                   <Card>
-                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14, color: T.text }}>📈 Probability Ranking</div>
-                    {(analytics.topics || []).map(({ t, p }, i) => (
+                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14, color: T.text }}>📈 Priority Ranking</div>
+                    {(analytics.topics || []).map(({ t, p, frequency, relativeFrequency, priority }, i) => (
                       <div key={t} style={{ marginBottom: 14 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -3708,11 +3752,12 @@
                             <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{t}</span>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <Badge color={pc(p)}>{pl(p)}</Badge>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: pc(p) }}>{p}%</span>
+                            <Badge color={pc(relativeFrequency)}>{priority === 'High' ? "🔥 High" : priority === 'Medium' ? "⚡ Medium" : "💧 Low"}</Badge>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: T.muted }} title="Questions">Q: {frequency}</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: pc(relativeFrequency) }}>{p}%</span>
                           </div>
                         </div>
-                        <PBar value={p} color={pc(p)} h={6} />
+                        <PBar value={relativeFrequency} color={pc(relativeFrequency)} h={6} />
                       </div>
                     ))}
                   </Card>
@@ -3722,7 +3767,15 @@
             
             {viewPyqs && (
                <div className="fade-up">
-                 <button onClick={() => setViewPyqs(false)} style={{ background: "transparent", border: "none", color: T.muted, cursor: "pointer", marginBottom: 16, fontWeight: "bold", padding: 0 }}>← Back to Analytics</button>
+                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+                   <button onClick={() => setViewPyqs(false)} style={{ background: "transparent", border: "none", color: T.muted, cursor: "pointer", fontWeight: "bold", padding: 0 }}>← Back to Analytics</button>
+                   {analytics?.sufficientData && (
+                     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                       <button onClick={() => { setAiModalTitle("PYQ Patterns"); setAiModalContent(""); executeAiAction("detect-patterns", { questions: questions.filter(q => q.isVerified) }); }} style={{ background: "#fff", color: T.text, border: "1px solid #ddd", padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>🔎 Detect PYQ Patterns</button>
+                       <button onClick={() => { setAiModalTitle("Practice Test"); setAiModalContent(""); const count = prompt("How many questions?", "5"); if (count) executeAiAction("practice-test", { count }); }} style={{ background: "#fff", color: T.text, border: "1px solid #ddd", padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>🧪 Generate Practice Test</button>
+                     </div>
+                   )}
+                 </div>
                  {qLoading ? (
                    <Card style={{ padding: 40, textAlign: "center", color: T.muted }}>Loading questions…</Card>
                  ) : (
@@ -3737,11 +3790,16 @@
                              <span style={{ fontSize: 12, color: T.muted }}>{q.year} • {q.marks ? `${q.marks} Marks` : ''}</span>
                            </div>
                            <div style={{ fontSize: 15, fontWeight: 500, color: T.text, marginBottom: 8, whiteSpace: "pre-wrap" }}>{q.question}</div>
-                           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 11 }}>
-                             <span style={{ background: T.gray, padding: "4px 8px", borderRadius: 4, color: T.muted }}>Topic: {q.topic}</span>
-                             {q.unit && <span style={{ background: T.gray, padding: "4px 8px", borderRadius: 4, color: T.muted }}>Unit {q.unit}</span>}
-                             {q.questionType && <span style={{ background: T.gray, padding: "4px 8px", borderRadius: 4, color: T.muted }}>{q.questionType}</span>}
-                             {q.isVerified && q.source && <span style={{ background: `${T.success}10`, padding: "4px 8px", borderRadius: 4, color: T.success }}>Source: {q.source}</span>}
+                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 8, flexWrap: "wrap", gap: 8 }}>
+                             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 11 }}>
+                               <span style={{ background: T.gray, padding: "4px 8px", borderRadius: 4, color: T.muted }}>Topic: {q.topic}</span>
+                               {q.unit && <span style={{ background: T.gray, padding: "4px 8px", borderRadius: 4, color: T.muted }}>Unit {q.unit}</span>}
+                               {q.questionType && <span style={{ background: T.gray, padding: "4px 8px", borderRadius: 4, color: T.muted }}>{q.questionType}</span>}
+                               {q.isVerified && q.source && <span style={{ background: `${T.success}10`, padding: "4px 8px", borderRadius: 4, color: T.success }}>Source: {q.source}</span>}
+                             </div>
+                             {analytics?.sufficientData && (
+                               <button onClick={() => { setAiModalTitle("Question Explanation"); setAiModalContent(""); executeAiAction("pyq-explain", { question: q.question, isVerified: q.isVerified, year: q.year, marks: q.marks }); }} style={{ background: "transparent", color: T.indigo, border: "1px solid " + T.indigo, padding: "4px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }}>Ask AI ✨</button>
+                             )}
                            </div>
                          </Card>
                        ))
@@ -3750,6 +3808,38 @@
                  )}
                </div>
             )}
+
+            {aiModalOpen && (
+              <Modal open={aiModalOpen} onClose={() => setAiModalOpen(false)} title={aiModalTitle}>
+                {aiActionLoading && !aiModalContent ? (
+                  <div style={{ textAlign: "center", padding: 40, color: T.muted }}>
+                    <div style={{ marginBottom: 12 }}>🤖 AI is analyzing...</div>
+                    <div style={{ fontSize: 13 }}>Applying verified PYQ deterministic data.</div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", height: "100%", maxHeight: "60vh" }}>
+                    <div style={{ flex: 1, overflowY: "auto", paddingRight: 8, marginBottom: 16 }}>
+                      {aiModalContent ? (
+                        <div style={{ fontSize: 14, lineHeight: 1.6, color: T.text, whiteSpace: "pre-wrap" }}>
+                          {aiModalContent}
+                        </div>
+                      ) : null}
+                    </div>
+                    <form onSubmit={handleAiChatSubmit} style={{ display: "flex", gap: 10, marginTop: "auto", borderTop: "1px solid #eee", paddingTop: 16 }}>
+                      <input 
+                        type="text" 
+                        value={aiChatInput} 
+                        onChange={(e) => setAiChatInput(e.target.value)} 
+                        placeholder="Ask a follow-up question..." 
+                        style={{ flex: 1, padding: "10px 14px", border: "1px solid #ddd", borderRadius: 8, outline: "none" }}
+                      />
+                      <button type="submit" disabled={aiActionLoading || !aiChatInput.trim()} style={{ background: T.indigo, color: "#fff", border: "none", padding: "0 20px", borderRadius: 8, cursor: aiActionLoading || !aiChatInput.trim() ? "not-allowed" : "pointer", opacity: aiActionLoading || !aiChatInput.trim() ? 0.6 : 1 }}>Send</button>
+                    </form>
+                  </div>
+                )}
+              </Modal>
+            )}
+
           </div>
         </div>
       );
@@ -4133,14 +4223,21 @@
                 ))}
                 <div style={{ color: T.muted, fontSize: 11, marginTop: 10, padding: "10px 14px", background: "rgba(255,79,31,0.04)", borderRadius: 10, border: "1px solid rgba(255,79,31,0.14)", lineHeight: 1.5 }}>💡 Meet in a public campus location. Never share bank OTPs.</div>
                 <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                  <Btn variant="teal" style={{ flex: 1 }} onClick={() => {
-                    addToast("Opening WhatsApp", "Connecting you with " + con.seller, <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>chat</span>, T.teal);
-                    window.open(`https://wa.me/919999999999?text=Hi%20${encodeURIComponent(con.seller)},%20I'm%20interested%20in%20your%20${encodeURIComponent(con.title)}%20listed%20for%20%E2%82%B9${con.price}%20on%20TechBazaar!`, '_blank');
-                  }}>💬 WhatsApp</Btn>
-                  <Btn variant="secondary" style={{ flex: 1 }} onClick={() => {
-                    addToast("Opening Email", "Composing email to " + con.seller, <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>email</span>, T.muted);
-                    window.location.href = `mailto:${con.seller.split(' ')[0].toLowerCase()}@aktu.ac.in?subject=TechBazaar:%20${encodeURIComponent(con.title)}`;
-                  }}>📧 Email</Btn>
+                  {con.sellerContact ? (
+                    <Btn variant="teal" style={{ flex: 1 }} onClick={() => {
+                      addToast("Opening WhatsApp", "Connecting you with " + con.seller, <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>chat</span>, T.teal);
+                      window.open(`https://wa.me/${con.sellerContact.replace(/[^0-9]/g, '')}?text=Hi%20${encodeURIComponent(con.seller)},%20I'm%20interested%20in%20your%20${encodeURIComponent(con.title)}%20listed%20for%20%E2%82%B9${con.price}%20on%20TechBazaar!`, '_blank');
+                    }}>💬 WhatsApp</Btn>
+                  ) : null}
+                  {con.sellerEmail ? (
+                    <Btn variant="secondary" style={{ flex: 1 }} onClick={() => {
+                      addToast("Opening Email", "Composing email to " + con.seller, <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>email</span>, T.muted);
+                      window.location.href = `mailto:${con.sellerEmail}?subject=TechBazaar:%20${encodeURIComponent(con.title)}`;
+                    }}>📧 Email</Btn>
+                  ) : null}
+                  {(!con.sellerContact && !con.sellerEmail) && (
+                    <div style={{ color: T.rose, fontSize: 13, fontWeight: 600, textAlign: "center", width: "100%", padding: 10 }}>Contact information unavailable</div>
+                  )}
                 </div>
               </>
             )}
@@ -4840,7 +4937,7 @@
         <div>
           <div className="screen-hero">
             <div className="screen-hero-inner">
-              <h1 style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 26, fontWeight: 800, color: "#1F2937", margin: 0, marginTop: 12, lineHeight: 1.15, letterSpacing: '-0.2px' }}>Skill Matcher</h1>
+              <h1 style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 32, fontWeight: 800, color: "#1F2937", margin: 0, marginTop: 12, lineHeight: 1.15, letterSpacing: '-0.2px' }}>Career Compass</h1>
               <p style={{ color: "#6B7280", fontSize: 14, margin: "6px 0 0 0" }}>Analyze your skills, find gaps, and plan your career path.</p>
             </div>
           </div>
@@ -6448,9 +6545,9 @@
 
       const mods = [
         { id: "chhatra", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>badge</span>, title: "Student Perks", sub: "Digital ID & Perks", c: T.indigo },
-        { id: "prashna", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>fact_check</span>, title: " Exam Analytics", sub: "Exam Topic Analytics", c: T.rose },
+        { id: "prashna", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>fact_check</span>, title: "Exam Analytics", sub: "Exam Topic Analytics", c: T.rose },
         { id: "bazaar", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>storefront</span>, title: "Campus Store", sub: "Buy & Sell on Campus", c: T.teal },
-        { id: "karya", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>engineering</span>, title: "Skill Guider", sub: "Placement Skill Matcher", c: T.yellow },
+        { id: "karya", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>engineering</span>, title: "Career Compass", sub: "Placement Skill Matcher", c: T.yellow },
         { id: "hub", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>account_balance</span>, title: "Scholarship Hub", sub: "Apply & Track Status", c: T.success },
         { id: "jobs", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>work</span>, title: "Jobs, Internships & Hackathons", sub: "Find Jobs, Internships & Hackathons", c: T.orange },
       ];
@@ -6587,7 +6684,7 @@
                 <div style={{ fontWeight: 800, fontSize: 14, color: "#92400E", fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', letterSpacing: "-0.1px" }}>Scholarship Deadline Approaching</div>
                 <div style={{ color: "#78350F", fontSize: 12, marginTop: 3, opacity: 0.82 }}>{deadlineText}</div>
               </div>
-              <button onClick={() => go("hub")} style={{ background: T.orange, color: "#fff", border: "none", borderRadius: 10, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0, boxShadow: "0 4px 14px rgba(255,79,31,0.30)", transition: "all .18s ease" }}>Check Now →</button>
+              <button onClick={() => window.open('https://scholarship.up.gov.in/', '_blank')} style={{ background: T.orange, color: "#fff", border: "none", borderRadius: 10, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0, boxShadow: "0 4px 14px rgba(255,79,31,0.30)", transition: "all .18s ease" }}>Check Now →</button>
             </div>
 
             {/* Modules Grid */}
@@ -6629,13 +6726,19 @@
     const TOOLS_NAV = [
       { id: "chhatra", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>badge</span>, label: "Student ID & Perks" },
       { id: "prashna", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>bar_chart</span>, label: "Exam Analytics" },
-      { id: "karya", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>ads_click</span>, label: "Skill Matcher" },
+      { id: "karya", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>ads_click</span>, label: "Career Compass" },
     ];
 
     function App({ onLogout }) {
       const { user } = useUser();
       const addToast = useToast();
-      const [tab, setTab] = useState("home");
+      const [tab, setTab] = useState(() => window.location.hash.replace("#", "") || "home");
+      
+      useEffect(() => {
+        const handleHashChange = () => setTab(window.location.hash.replace("#", "") || "home");
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+      }, []);
       const [search, setSearch] = useState("");
       const [profileOpen, setProfileOpen] = useState(false);
       const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -6665,7 +6768,7 @@
         return () => el.removeEventListener('scroll', handleScroll);
       }, []);
 
-      const go = t => { setTab(t); if (ref.current) ref.current.scrollTop = 0; setSidebarOpen(false); };
+      const go = t => { window.location.hash = t; if (ref.current) ref.current.scrollTop = 0; setSidebarOpen(false); };
 
       const screens = {
         home: <Home go={go} />,
@@ -6876,6 +6979,7 @@
       const handleLogin = async (e) => {
         e.preventDefault();
         if (!email || !pass) return alert("Please enter both Roll Number and Password.");
+        if (!/^\d{13}$/.test(email)) return alert("Roll Number must be exactly 13 digits.");
 
         try {
           const res = await fetch(`${API_BASE_URL}/api/users/login`, {
@@ -6905,6 +7009,7 @@
         if (!regData.name || !regData.rollNo || !regData.email || !regData.pass || !regData.securityAnswer) {
           return alert("Please fill all fields including the Security Answer.");
         }
+        if (!/^\d{13}$/.test(regData.rollNo)) return alert("Roll Number must be exactly 13 digits.");
         try {
           const payload = {
             name: regData.name,
@@ -7050,7 +7155,7 @@
                       </div>
                       <div>
                         <label style={{ color: T.muted, fontSize: 11, fontWeight: 700, display: "block", letterSpacing: .8, textTransform: "uppercase" }}>Roll Number</label>
-                        <input type="text" required value={regData.rollNo} onChange={e => setRegData(p => ({ ...p, rollNo: e.target.value }))} style={{ ...inpSt, marginTop: 6 }} placeholder="e.g. 2200123..." />
+                        <input type="text" required value={regData.rollNo} onChange={e => setRegData(p => ({ ...p, rollNo: e.target.value }))} style={{ ...inpSt, marginTop: 6 }} placeholder="e.g. 2200123456789" />
                       </div>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -7095,8 +7200,8 @@
                 ) : (
                   <>
                     <div>
-                      <label style={{ color: T.muted, fontSize: 11, fontWeight: 700, marginBottom: 6, display: "block", letterSpacing: .8, textTransform: "uppercase" }}>Email / Roll Number</label>
-                      <input type="text" required value={email} onChange={e => setEmail(e.target.value)} style={inpSt} placeholder="e.g. 2200123456 or you@aktu.ac.in" />
+                      <label style={{ color: T.muted, fontSize: 11, fontWeight: 700, marginBottom: 6, display: "block", letterSpacing: .8, textTransform: "uppercase" }}>Roll Number</label>
+                      <input type="text" required value={email} onChange={e => setEmail(e.target.value)} style={inpSt} placeholder="e.g. 2200123456789" />
                     </div>
                     <div style={{ position: "relative" }}>
                       <label style={{ color: T.muted, fontSize: 11, fontWeight: 700, marginBottom: 6, display: "block", letterSpacing: .8, textTransform: "uppercase" }}>Password</label>
@@ -7173,6 +7278,7 @@
       // ── LIVE DATA STATE ──
       const [students, setStudents] = useState([]);
       const [adminScholarships, setAdminScholarships] = useState([]);
+      const [adminStats, setAdminStats] = useState(null);
       const [loading, setLoading] = useState(true);
       const addToast = useToast();
 
@@ -7202,11 +7308,12 @@
       // ── FETCH DATA FROM MONGODB ──
       const fetchRealData = async () => {
         try {
-          const [resStudents, resApps, resMarket, resPosts] = await Promise.all([
+          const [resStudents, resApps, resMarket, resPosts, resAdminStats] = await Promise.all([
             fetch(`${API_BASE_URL}/api/users/all`),
             fetch(`${API_BASE_URL}/api/scholarships/admin/all`),
             fetch(`${API_BASE_URL}/api/marketplace/admin/all`),
-            fetch(`${API_BASE_URL}/api/community`)
+            fetch(`${API_BASE_URL}/api/community`),
+            fetch(`${API_BASE_URL}/api/users/admin/stats`)
           ]);
           if (resStudents.ok) {
             const data = await resStudents.json();
@@ -7215,6 +7322,7 @@
           if (resApps.ok) setAdminScholarships(await resApps.json() || []);
           if (resMarket.ok) setAdminMarketplace(await resMarket.json() || []);
           if (resPosts.ok) setAdminCommunity(await resPosts.json() || []);
+          if (resAdminStats && resAdminStats.ok) setAdminStats(await resAdminStats.json());
         } catch (err) {
           console.error("Database connection error:", err);
         } finally {
@@ -7395,9 +7503,13 @@
           <div className="screen-body">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 28 }}>
               {[
-                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>school</span>, label: "Total Students", value: totalCount, color: T.orange },
-                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>pending_actions</span>, label: "Pending Review", value: pendingCount, color: T.warn },
-                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>check_circle</span>, label: "Approved", value: approvedCount, color: T.success },
+                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>how_to_reg</span>, label: "Total Registered", value: adminStats?.totalRegistered || totalCount, color: T.orange },
+                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>school</span>, label: "Total Enrolled", value: adminStats?.totalEnrolled || 0, color: T.indigo },
+                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>pending_actions</span>, label: "Pending Requests", value: adminStats?.totalPendingRequests || 0, color: T.warn },
+                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>manage_accounts</span>, label: "Login/Update Req", value: adminStats?.loginUpdateRequests || 0, color: T.teal },
+                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>edit_document</span>, label: "Profile Update Req", value: adminStats?.profileUpdateRequests || 0, color: T.rose },
+                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>more_horiz</span>, label: "Other Requests", value: adminStats?.otherRequests || 0, color: T.muted },
+                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>check_circle</span>, label: "Approved Schol.", value: approvedCount, color: T.success },
                 { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>cancel</span>, label: "Rejected", value: rejectedCount, color: T.rose },
               ].map(stat => (
                 <Card key={stat.label} style={{ textAlign: "center" }}>

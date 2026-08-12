@@ -187,10 +187,10 @@ router.post('/exam-analyze', async (req, res) => {
                     taskPrompt = `Generate a practice test of ${req.body.count || 5} questions for "${subject}" (${exam}) at a "${req.body.difficulty || 'mixed'}" difficulty level. Focus on the high-priority topics provided: ${topics.slice(0, 3).map(t => t.t).join(', ')}. IMPORTANT: Label all questions clearly with "🤖 AI Generated Practice" and do NOT claim these are official PYQs. Include brief solutions or hints at the end.`;
                     break;
                 case 'pyq-explain':
-                    taskPrompt = `Explain the following official PYQ for "${subject}" (${exam}), topic "${req.body.topic || 'Unknown'}":\n\n"${req.body.questionText}"\n\nExplain what concept it tests, the approach to solve it, and common mistakes. Do NOT modify the original question. Ensure you state this is an explanation of an existing verified question.`;
+                    taskPrompt = `Explain the following official PYQ for "${subject}" (${exam}), topic "${req.body.topic || 'Unknown'}":\n\n"${req.body.question}"\n\nExplain what concept it tests, the approach to solve it, and common mistakes. Do NOT modify the original question. Ensure you state this is an explanation of an existing verified question.`;
                     break;
                 case 'chat':
-                    taskPrompt = `The student asks: "${req.body.prompt}". Answer their query using the provided verified PYQ context for "${subject}" (${exam}). The top topics are ${topics.slice(0, 5).map(t => `${t.t} (${t.p}%)`).join(', ')}. Never invent statistics.`;
+                    taskPrompt = `The student asks: "${req.body.userMessage}". Answer their query using the provided verified PYQ context for "${subject}" (${exam}). The top topics are ${topics.slice(0, 5).map(t => `${t.t} (${t.p}%)`).join(', ')}. Never invent statistics.`;
                     break;
                 default:
                     taskPrompt = `Analyze the PYQ trends for "${subject}" (${exam}). The top topics are ${topics.slice(0, 3).map(t => t.t).join(', ')}. Suggest an exam strategy based on this real data.`;
