@@ -188,7 +188,7 @@ async function getLiveCounts() {
 function startAutoRefresh() {
   if (isAutoRefreshRunning) return;
   isAutoRefreshRunning = true;
-  console.log(`⏰ [AutoRefresh] Enabled — interval: ${AUTO_REFRESH_MS / 60000} minutes`);
+  console.log(`⏰ [AutoRefresh] Enabled — interval: ${AUTO_REFRESH_MS / 3600000} minutes`);
 
   // Immediate first fetch
   performJobRefresh().catch(err => console.error('[AutoRefresh] Initial fetch error:', err.message));
