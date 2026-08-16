@@ -2268,8 +2268,13 @@ const T = {
             updateUser({ ...user, links: updatedLinks });
             setNewLink({ type: "LinkedIn", url: "" });
             addToast("Link Added", "", "🔗", T.teal);
+          } else {
+            const errData = await res.json();
+            addToast("Error", errData.error || "Failed to add link", "❌", T.rose);
           }
-        } catch (err) {}
+        } catch (err) {
+          addToast("Error", err.message, "❌", T.rose);
+        }
       };
 
       const handleDeleteLink = async (idx) => {
@@ -6493,7 +6498,11 @@ const T = {
           } else {
             setStats(null);
           }
-          setLastUpdated(new Date());
+          if (statsData && statsData.lastRefreshTime) {
+            setLastUpdated(new Date(statsData.lastRefreshTime));
+          } else {
+            setLastUpdated(new Date());
+          }
         } catch (err) {
           console.error('loadJobs error:', err);
           if (!silent) addToast('Connection Error', 'Could not reach backend at ' + API_BASE_URL, '❌', T.rose);
@@ -6599,7 +6608,7 @@ const T = {
             {/* ── ACTION BAR ── */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
               <div style={{ fontSize: 13, color: '#6B7280' }}>
-                {lastUpdated && <span>Last updated: {lastUpdated.toLocaleTimeString()} • Auto-refreshes every 60 minutes</span>}
+                {lastUpdated && <span>Last updated: {lastUpdated.toLocaleString()} • Auto-refreshes every 24 hours</span>}
               </div>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 {lastRefreshResult && (

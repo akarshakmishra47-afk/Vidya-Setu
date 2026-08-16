@@ -317,7 +317,7 @@ router.get('/', async (req, res) => {
 router.get('/stats', async (req, res) => {
   try {
     const counts = await getLiveCounts(req.query);
-    res.json({ success: true, ...counts });
+    res.json({ success: true, ...counts, lastRefreshTime: getLastRefreshTime() });
   } catch (err) {
     console.error('[GET /api/jobs/stats] Error:', err.message);
     res.status(500).json({ error: 'Failed to get stats', details: err.message });
