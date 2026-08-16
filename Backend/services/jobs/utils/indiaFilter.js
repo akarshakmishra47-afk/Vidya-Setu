@@ -38,7 +38,7 @@ const INDIA_CITY_WORDS = new Set([
 const INDIA_KEYWORDS = [
   'india', 'remote - india', 'remote, india', 'india-based',
   'nationwide', 'all india', 'pan-india', 'across india',
-  'pan india', 'india (remote)', 'india remote'
+  'pan india', 'india (remote)', 'india remote', 'multiple locations', 'multiple-locations'
 ];
 
 // Indian states (lowercase)
@@ -99,20 +99,7 @@ function isIndiaLocation(location) {
   // Tokenize for word-based matching
   const tokens = loc.replace(/[,./|()[\]]/g, ' ').split(/\s+/).filter(Boolean);
 
-  // Check against known reject countries first (prioritize rejection)
-  for (const token of tokens) {
-    if (REJECT_COUNTRY_WORDS.has(token)) return false;
-  }
-  // Multi-word reject checks
-  if (REJECT_COUNTRY_WORDS.has(loc)) return false;
-  for (const w of REJECT_COUNTRY_WORDS) {
-    if (w.includes(' ') && loc.includes(w)) return false;
-  }
-
-  // If "remote" + reject country word → reject
-  if (loc.includes('remote') && tokens.some(t => REJECT_COUNTRY_WORDS.has(t))) return false;
-
-  // Check city/state words
+  // Check city/state words first (prioritize acceptance if Indian location exists)
   for (const token of tokens) {
     if (INDIA_CITY_WORDS.has(token)) return true;
   }
@@ -125,8 +112,24 @@ function isIndiaLocation(location) {
     if (tokens.includes(state)) return true;
   }
 
-  // If "remote" with no explicit country → treat as potential India (accepted for remote-friendly roles)
-  if (loc.startsWith('remote') && !tokens.some(t => REJECT_COUNTRY_WORDS.has(t))) return true;
+  // Check against known reject countries
+  for (const token of tokens) {
+    if (REJECT_COUNTRY_WORDS.has(token)) {
+      // Check if it's a strict "Only" rejection like "US Only", though just finding the word is enough to reject if no India city was found.
+      return false;
+    }
+  }
+  // Multi-word reject checks
+  if (REJECT_COUNTRY_WORDS.has(loc)) return false;
+  for (const w of REJECT_COUNTRY_WORDS) {
+    if (w.includes(' ') && loc.includes(w)) return false;
+  }
+
+  // If "remote" + reject country word → reject
+  if (loc.includes('remote') && tokens.some(t => REJECT_COUNTRY_WORDS.has(t))) return false;
+
+  // If "remote" with no explicit country -> treat as potential India (accepted for remote-friendly roles)
+  if ((loc.includes('remote') || loc.includes('wfh')) && !tokens.some(t => REJECT_COUNTRY_WORDS.has(t))) return true;
 
   return false;
 }

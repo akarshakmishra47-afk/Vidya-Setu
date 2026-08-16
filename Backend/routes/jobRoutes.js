@@ -23,9 +23,9 @@ const {
   setLastRefreshTime,
   getLastRefreshError,
   setLastRefreshError,
+  getLastSourceStats,
   AUTO_REFRESH_MS
 } = require('../services/jobs/jobFetcher');
-const { filterAgainstDB } = require('../services/jobs/utils/deduplicator');
 
 const router = express.Router();
 
@@ -46,78 +46,7 @@ async function performJobRefresh() {
   console.log('\n🔄 [JobRoutes] Refresh started...');
 
   try {
-    // 1. Fetch from all sources
-    const { jobs: freshJobs, stats: aggStats, sourceStats } = await fetchLatestJobs();
-
-    if (!freshJobs || freshJobs.length === 0) {
-      console.log('⚠️  [JobRoutes] No jobs returned from any source');
-      setLastRefreshError('No jobs returned from any source');
-      setRefreshing(false);
-      return {
-        status: 'warning',
-        message: 'No new jobs found from any source',
-        jobsAdded: 0,
-        duplicates: 0,
-        rejected: 0,
-        staleRemoved: 0,
-        sources: sourceStats,
-        aggregate: aggStats
-      };
-    }
-
-    // 2. Load existing deduplication keys from DB (for sources that responded)
-    const respondedSources = API_SOURCES.filter(s => {
-      const ss = sourceStats[s];
-      return ss && !ss.error && ss.fetched > 0;
-    });
-
-    const existingKeys = await Job.distinct('deduplicationKey', {
-      source: { $in: respondedSources }
-    });
-
-    // 3. Filter out DB duplicates
-    const { toInsert, duplicateCount } = filterAgainstDB(freshJobs, existingKeys);
-    console.log(`[JobRoutes] DB duplicates filtered: ${duplicateCount} | To insert: ${toInsert.length}`);
-
-    // 4. Insert new jobs
-    let inserted = 0;
-    if (toInsert.length > 0) {
-      try {
-        const result = await Job.insertMany(toInsert, { ordered: false });
-        inserted = result.length;
-        console.log(`✅ [JobRoutes] Inserted ${inserted} new jobs`);
-      } catch (err) {
-        // ordered: false means partial inserts succeed despite duplicates
-        if (err.result && err.result.nInserted !== undefined) {
-          inserted = err.result.nInserted;
-          console.log(`✅ [JobRoutes] Inserted ${inserted} jobs (some duplicates skipped by DB index)`);
-        } else {
-          console.warn(`⚠️  [JobRoutes] Insert warning: ${err.message}`);
-        }
-      }
-    }
-
-    // 5. For sources that responded with 0 records and no error,
-    //    optionally clean stale records older than 7 days.
-    //    IMPORTANT: Only clean if source responded successfully (no error).
-    let staleRemoved = 0;
-    for (const s of respondedSources) {
-      const ss = sourceStats[s];
-      if (ss && !ss.error) {
-        // Source responded but found 0 India jobs — remove records older than 7 days
-        const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        const res = await Job.deleteMany({
-          source: s,
-          createdAt: { $lt: cutoff }
-        });
-        staleRemoved += res.deletedCount;
-        if (res.deletedCount > 0) {
-          console.log(`🗑️  [JobRoutes] Removed ${res.deletedCount} stale ${s} jobs`);
-        }
-      }
-    }
-
-    // 6. Live counts from DB
+    const { stats: aggStats, sourceStats } = await fetchLatestJobs();
     const dbStats = await getLiveCounts();
 
     setLastRefreshTime(new Date());
@@ -126,13 +55,10 @@ async function performJobRefresh() {
 
     return {
       status: 'success',
-      message: `Added ${inserted} new real India opportunities`,
-      jobsAdded: inserted,
-      duplicates: duplicateCount + aggStats.inMemoryDuplicates,
-      rejected: aggStats.validationRejected,
-      staleRemoved,
-      sources: sourceStats,
+      message: `Sync completed. Inserted ${aggStats.totalInserted}, Updated ${aggStats.totalUpdated}, Deactivated ${aggStats.totalDeactivated}`,
+      jobsAdded: aggStats.totalInserted,
       aggregate: aggStats,
+      sources: sourceStats,
       dbStats
     };
 
@@ -144,8 +70,115 @@ async function performJobRefresh() {
   }
 }
 
+// ── UTILITY: Build Filter from Request ───────────────────────────────────────
+function buildJobFilter(query) {
+  let filter = { 
+    isIndiaLocation: { $ne: false }, 
+    isActive: { $ne: false },
+    source: { $nin: ['greenhouse', 'lever', 'govtRss', 'manual', 'web', 'arbeitnow'] }
+  };
+
+  if (query.primaryType) {
+    filter.primaryType = query.primaryType;
+  } else if (query.type) {
+    const t = query.type;
+    filter.primaryType = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+  }
+
+  if (query.category) filter.category = query.category;
+  
+  if (query.domain && query.domain !== 'All Domains') {
+    filter.domain = query.domain;
+  } else if (query.domainGroup === 'it') {
+    filter.domain = { $in: ['Software Development', 'Web Development', 'App Development', 'AI/ML', 'Data Science', 'Cyber Security', 'Cloud Computing', 'DevOps', 'Database'] };
+  } else if (query.domainGroup === 'engineering') {
+    filter.domain = { $in: ['Mechanical Engineering', 'Civil Engineering', 'Electrical Engineering', 'Electronics', 'Embedded Systems'] };
+  }
+
+  if (query.branch) filter.branch = query.branch;
+  if (query.companyType) filter.companyType = query.companyType;
+  if (query.experienceLevel) filter.experienceLevel = query.experienceLevel;
+  
+  // Paid / Free should only apply if primaryType is Internship
+  if (query.secondaryType && filter.primaryType === 'Internship') {
+    filter.secondaryType = query.secondaryType;
+  }
+  
+  if (query.source && query.source.toLowerCase() !== 'all') {
+    const disabledSources = ['greenhouse', 'lever', 'govtRss', 'manual', 'web', 'arbeitnow'];
+    if (disabledSources.includes(query.source.toLowerCase())) {
+      filter.source = '__DISABLED__';
+    } else {
+      filter.source = new RegExp(`^${query.source}$`, 'i');
+    }
+  }
+  
+  if (query.indiaOnly === 'true') filter.isIndiaLocation = true;
+  if (query.govtCategory) filter.govtCategory = query.govtCategory;
+  
+  // Location and Work Mode combinations
+  let locationConditions = [];
+  
+  if (query.location && query.location !== 'All India') {
+    if (query.location.toLowerCase() === 'remote') {
+      locationConditions.push({ location: { $regex: /remote/i } });
+    } else {
+      locationConditions.push({ location: { $regex: new RegExp(query.location, 'i') } });
+    }
+  }
+
+  if (query.workMode && query.workMode !== 'All') {
+    if (query.workMode === 'Remote') {
+      locationConditions.push({ location: { $regex: /remote/i } });
+    } else if (query.workMode === 'Hybrid') {
+      locationConditions.push({ location: { $regex: /hybrid/i } });
+    } else if (query.workMode === 'On-site') {
+      locationConditions.push({ location: { $not: /remote|hybrid/i } });
+    }
+  }
+
+  if (locationConditions.length > 0) {
+    if (locationConditions.length === 1) {
+      filter.location = locationConditions[0].location;
+    } else {
+      filter.$and = filter.$and || [];
+      filter.$and.push(...locationConditions);
+    }
+  }
+
+  if (query.excludeGovt === 'true') {
+    filter.category = { $ne: 'Government' };
+    filter.companyType = { $ne: 'government' };
+  }
+
+  if (query.search) {
+    const searchRegex = new RegExp(query.search.substring(0, 100), 'i');
+    filter.$or = [
+      { title:    searchRegex },
+      { company:  searchRegex },
+      { location: searchRegex },
+      { desc:     searchRegex },
+      { tags:     searchRegex },
+      { branch:   searchRegex },
+      { domain:   searchRegex }
+    ];
+  }
+  return filter;
+}
+
 // ── UTILITY: Get live counts from DB ─────────────────────────────────────────
-async function getLiveCounts() {
+async function getLiveCounts(query = {}) {
+  const baseQuery = { ...query };
+  delete baseQuery.primaryType;
+  delete baseQuery.type;
+  delete baseQuery.category;
+  delete baseQuery.experienceLevel;
+  delete baseQuery.secondaryType; // strip paid/free for tab base context
+  delete baseQuery.domainGroup;
+  delete baseQuery.excludeGovt;
+  
+  const baseFilter = buildJobFilter(baseQuery);
+  
   const [
     total, internships, jobs, hackathons,
     paidInternships, freeInternships, unknownInternships,
@@ -153,26 +186,26 @@ async function getLiveCounts() {
     productJobs, serviceJobs,
     remotiveCount, arbeitnowCount, himalayasCount, govtRssCount, greenhouseCount, leverCount
   ] = await Promise.all([
-    Job.countDocuments(),
-    Job.countDocuments({ primaryType: 'Internship' }),
-    Job.countDocuments({ primaryType: 'Job' }),
-    Job.countDocuments({ primaryType: 'Hackathon' }),
-    Job.countDocuments({ primaryType: 'Internship', secondaryType: 'Paid' }),
-    Job.countDocuments({ primaryType: 'Internship', secondaryType: 'Free' }),
-    Job.countDocuments({ primaryType: 'Internship', secondaryType: 'Unknown' }),
-    Job.countDocuments({ category: 'Government' }),
-    Job.countDocuments({ category: 'Private' }),
-    Job.countDocuments({ category: 'IT' }),
-    Job.countDocuments({ category: 'Engineering' }),
-    Job.countDocuments({ experienceLevel: 'Fresher' }),
-    Job.countDocuments({ companyType: 'product' }),
-    Job.countDocuments({ companyType: 'service' }),
-    Job.countDocuments({ source: 'remotive' }),
-    Job.countDocuments({ source: 'arbeitnow' }),
-    Job.countDocuments({ source: 'himalayas' }),
-    Job.countDocuments({ source: 'govtRss' }),
-    Job.countDocuments({ source: 'greenhouse' }),
-    Job.countDocuments({ source: 'lever' })
+    Job.countDocuments({ ...baseFilter }),
+    Job.countDocuments({ ...baseFilter, primaryType: 'Internship' }),
+    Job.countDocuments({ ...baseFilter, primaryType: 'Job' }),
+    Job.countDocuments({ ...baseFilter, primaryType: 'Hackathon' }),
+    Job.countDocuments({ ...baseFilter, primaryType: 'Internship', secondaryType: 'Paid' }),
+    Job.countDocuments({ ...baseFilter, primaryType: 'Internship', secondaryType: 'Free' }),
+    Job.countDocuments({ ...baseFilter, primaryType: 'Internship', secondaryType: 'Unknown' }),
+    Job.countDocuments({ ...baseFilter, $or: [{ category: 'Government' }, { companyType: 'government' }] }),
+    Job.countDocuments({ ...baseFilter, primaryType: 'Job', category: { $ne: 'Government' }, companyType: { $ne: 'government' } }),
+    Job.countDocuments({ ...baseFilter, domain: { $in: ['Software Development', 'Web Development', 'App Development', 'AI/ML', 'Data Science', 'Cyber Security', 'Cloud Computing', 'DevOps', 'Database'] } }),
+    Job.countDocuments({ ...baseFilter, domain: { $in: ['Mechanical Engineering', 'Civil Engineering', 'Electrical Engineering', 'Electronics', 'Embedded Systems'] } }),
+    Job.countDocuments({ ...baseFilter, experienceLevel: { $in: ['Fresher', 'Entry-Level'] } }),
+    Job.countDocuments({ ...baseFilter, companyType: 'product' }),
+    Job.countDocuments({ ...baseFilter, companyType: 'service' }),
+    Job.countDocuments({ ...buildJobFilter({}), source: 'remotive' }), // Keep source counts global
+    Job.countDocuments({ ...buildJobFilter({}), source: 'arbeitnow' }),
+    Job.countDocuments({ ...buildJobFilter({}), source: 'himalayas' }),
+    Job.countDocuments({ ...buildJobFilter({}), source: 'govtRss' }),
+    Job.countDocuments({ ...buildJobFilter({}), source: 'greenhouse' }),
+    Job.countDocuments({ ...buildJobFilter({}), source: 'lever' })
   ]);
 
   return {
@@ -219,80 +252,61 @@ function initializeJobRefresh() {
 // ── GET /api/jobs — List with filters, search, pagination ─────────────────────
 router.get('/', async (req, res) => {
   try {
-    // Initialize filter with India-only default (exclude records where isIndiaLocation is false)
-    let filter = { isIndiaLocation: { $ne: false } };
-
-    // Primary type filter
-    if (req.query.type) {
-      const t = req.query.type;
-      filter.primaryType = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
-    }
-
-    // Category filter (Government, Private, IT, Engineering, Internship, Hackathon, Fresher)
-    if (req.query.category) {
-      filter.category = req.query.category;
-    }
-
-    // Branch filter
-    if (req.query.branch) filter.branch = req.query.branch;
-
-    // Company type filter
-    if (req.query.companyType) filter.companyType = req.query.companyType;
-
-    // Experience level filter
-    if (req.query.experienceLevel) filter.experienceLevel = req.query.experienceLevel;
-
-    // Secondary type filter (Paid/Free/Unknown for internships)
-    if (req.query.secondaryType) filter.secondaryType = req.query.secondaryType;
-
-    // Source filter
-    if (req.query.source) filter.source = req.query.source;
-
-    // India only (redundant with default but explicit)
-    if (req.query.indiaOnly === 'true') filter.isIndiaLocation = true;
-
-    // Government category
-    if (req.query.govtCategory) filter.govtCategory = req.query.govtCategory;
-
-    // Location filter (city-based)
-    if (req.query.location && req.query.location !== 'All India') {
-      if (req.query.location === 'Remote') {
-        filter.location = { $regex: /remote/i };
-      } else {
-        filter.location = { $regex: new RegExp(req.query.location, 'i') };
-      }
-    }
-
-    // Search: title, company, desc, tags, branch, location
-    if (req.query.search) {
-      const searchRegex = new RegExp(req.query.search.substring(0, 100), 'i');
-      filter.$or = [
-        { title:    searchRegex },
-        { company:  searchRegex },
-        { location: searchRegex },
-        { desc:     searchRegex },
-        { tags:     searchRegex },
-        { branch:   searchRegex }
-      ];
-    }
+    const filter = buildJobFilter(req.query);
 
     // Pagination
-    // Parse and clamp limit (max 300 as per requirement) and offset safely
     const rawLimit = parseInt(req.query.limit);
-    const limit = Math.min(Math.max(isNaN(rawLimit) ? 100 : rawLimit, 1), 300);
-    const rawOffset = parseInt(req.query.offset);
-    const offset = isNaN(rawOffset) ? 0 : rawOffset;
+    const limit = Math.min(Math.max(isNaN(rawLimit) ? 20 : rawLimit, 1), 300);
+    const rawPage = parseInt(req.query.page);
+    let page = isNaN(rawPage) ? 1 : Math.max(rawPage, 1);
+    
+    // Fallback to offset if page is not provided but offset is
+    if (isNaN(rawPage) && !isNaN(parseInt(req.query.offset))) {
+      page = Math.floor(parseInt(req.query.offset) / limit) + 1;
+    }
+    const skip = (page - 1) * limit;
 
-    // Sort by postedAt DESC, then createdAt DESC
-    const jobs = await Job.find(filter)
-      .sort({ postedAt: -1, createdAt: -1 })
-      .skip(offset)
-      .limit(limit)
-      .lean();
+    // Execute queries
+    const [rawJobs, total] = await Promise.all([
+      Job.find(filter)
+        .sort({ postedAt: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Job.countDocuments(filter)
+    ]);
 
-    const total = await Job.countDocuments(filter);
+    // Normalization layer
+    const domainMap = {
+      'Mechanical': 'Mechanical Engineering',
+      'Civil': 'Civil Engineering',
+      'Electrical': 'Electrical Engineering',
+      'EE': 'Electrical Engineering',
+      'EEE': 'Electrical Engineering',
+      'ECE': 'Electronics',
+      'Embedded': 'Embedded Systems',
+      'CSE': 'Software Development',
+      'IT': 'Software Development'
+    };
 
-    res.json({ success: true, count: jobs.length, total, jobs });
+    const jobs = rawJobs.map(job => {
+      if (!job.domain && job.branch && domainMap[job.branch]) {
+        job.domain = domainMap[job.branch];
+      }
+      return job;
+    });
+
+    const totalPages = Math.ceil(total / limit);
+
+    res.json({ 
+      success: true, 
+      jobs, 
+      count: jobs.length, 
+      total, 
+      page, 
+      limit, 
+      totalPages 
+    });
   } catch (err) {
     console.error('[GET /api/jobs] Error:', err);
     res.status(500).json({ success: false, error: 'Unable to load jobs' });
@@ -302,11 +316,21 @@ router.get('/', async (req, res) => {
 // ── GET /api/jobs/stats — Live category counters ──────────────────────────────
 router.get('/stats', async (req, res) => {
   try {
-    const counts = await getLiveCounts();
+    const counts = await getLiveCounts(req.query);
     res.json({ success: true, ...counts });
   } catch (err) {
     console.error('[GET /api/jobs/stats] Error:', err.message);
     res.status(500).json({ error: 'Failed to get stats', details: err.message });
+  }
+});
+
+// ── GET /api/jobs/source-status — Live source statuses ──────────────────────────────
+router.get('/source-status', (req, res) => {
+  try {
+    const stats = getLastSourceStats();
+    res.json({ success: true, sources: stats });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get source status', details: err.message });
   }
 });
 

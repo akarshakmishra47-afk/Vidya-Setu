@@ -252,5 +252,113 @@ Task: ${taskPrompt}
     }
 });
 
+// Resume Analysis Endpoint
+router.post('/resume/analyze', async (req, res) => {
+    try {
+        const { rollNo, userContext } = req.body;
+        const User = require('../models/User');
+        const user = await User.findOne({ rollNo });
+        const resumeText = user ? user.resumeText : null;
+        
+        const apiKey = process.env.GROQ_API_KEY;
+
+        if (!apiKey || apiKey === 'your_key_here') {
+            return res.status(500).json({ 
+                error: "Groq API Key is missing. Please add it to your Render Settings as GROQ_API_KEY." 
+            });
+        }
+        
+        if (!resumeText) {
+            return res.status(400).json({ error: "Resume text is missing." });
+        }
+
+        const systemPrompt = `
+You are the "Vidya-Setu AI Resume Analyzer", an expert recruiter and career advisor.
+Your task is to analyze the provided resume text and the student's context, and output a STRICT JSON response.
+
+Student Profile Context:
+- Name: ${userContext?.name || 'Student'}
+- Branch: ${userContext?.branch || 'N/A'}
+- Year: ${userContext?.year || 'N/A'}
+- Domain of Interest: ${userContext?.domain || 'Software Engineering'}
+- Claimed Skills (Profile): ${userContext?.skills?.join(', ') || 'None provided'}
+
+Guidelines:
+1. Analyze the resume content thoroughly. Do NOT invent information.
+2. Calculate a "score" (0-100) based on how well the resume matches their Target Domain and Branch.
+3. Identify strengths, gaps, and missing evidence (e.g., projects, metrics).
+4. Provide a personalized skill roadmap with highly actionable, specific tasks.
+5. Provide actionable improvements for the resume itself.
+6. The output MUST be a valid JSON object matching the exact structure below, without any markdown formatting outside the JSON, and no extra explanatory text.
+
+Required JSON Structure:
+{
+  "score": 0,
+  "targetDomain": "string",
+  "strengths": ["string"],
+  "gaps": ["string"],
+  "skillsToLearn": [
+    { "skill": "string", "priority": "High|Medium|Low", "reason": "string", "suggestedProject": "string" }
+  ],
+  "resumeImprovements": ["string"],
+  "projectImprovements": ["string"],
+  "recommendedRoles": ["string"],
+  "priorityActions": ["string"]
+}
+`;
+
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "llama-3.3-70b-versatile",
+                response_format: { type: "json_object" },
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: "Here is the resume text to analyze:\n\n" + resumeText }
+                ],
+                temperature: 0.3,
+                max_tokens: 2000
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.choices && data.choices[0]) {
+            let jsonString = data.choices[0].message.content;
+            
+            // Basic cleanup in case of extra spaces
+            jsonString = jsonString.trim();
+            
+            let parsedData;
+            try {
+                parsedData = JSON.parse(jsonString);
+            } catch (e) {
+                console.error("Failed to parse Groq response as JSON:", jsonString);
+                return res.status(500).json({ error: "AI returned invalid JSON format." });
+            }
+            
+            // Save to User model
+            const User = require('../models/User');
+            await User.findOneAndUpdate(
+                { rollNo },
+                { $set: { resumeAnalysis: parsedData } },
+                { strict: false }
+            );
+
+            res.json({ success: true, analysis: parsedData });
+        } else {
+            console.error('Groq Error Response:', data);
+            throw new Error(data.error?.message || "Groq API error");
+        }
+    } catch (error) {
+        console.error('Groq Resume Analyze Error:', error);
+        res.status(500).json({ error: "Failed to analyze resume. Please try again later." });
+    }
+});
+
 module.exports = router;
 

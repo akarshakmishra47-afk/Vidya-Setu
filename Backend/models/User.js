@@ -30,6 +30,19 @@ const userSchema = new mongoose.Schema({
   course: { type: String, default: 'B.Tech' },
   // Administrative fields
   role: { type: String, enum: ['student', 'super_admin'], default: 'student' },
+  
+  // Resume Intelligence and Links
+  links: {
+    type: [{ type: String, url: String, label: String }],
+    default: []
+  },
+  resume: {
+    url: { type: String },
+    filename: { type: String },
+    uploadDate: { type: Date }
+  },
+  resumeText: { type: String, default: '' },
+  resumeAnalysis: { type: mongoose.Schema.Types.Mixed, default: null }
 });
 
 module.exports = mongoose.model('User', userSchema);
