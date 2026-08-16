@@ -33,7 +33,11 @@ const userSchema = new mongoose.Schema({
   
   // Resume Intelligence and Links
   links: {
-    type: [{ type: String, url: String, label: String }],
+    type: [{ 
+      type: { type: String }, 
+      url: String, 
+      label: String 
+    }],
     default: []
   },
   resume: {

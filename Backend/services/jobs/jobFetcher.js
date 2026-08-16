@@ -22,7 +22,7 @@ const { fetchAicteJobs }       = require('./sources/private/aicteAdapter');
 const { validateJob }         = require('./utils/jobValidator');
 const Job = require('../../models/Job');
 
-const AUTO_REFRESH_MS = 60 * 60 * 1000; // Exactly 1 hour
+const AUTO_REFRESH_MS = 24 * 60 * 60 * 1000; // Exactly 24 hours
 
 let _isRefreshing   = false;
 let _lastRefreshTime  = null;
