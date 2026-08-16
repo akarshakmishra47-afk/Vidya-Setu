@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const ProfileEditRequest = require('../models/ProfileEditRequest');
 const bcrypt = require('bcryptjs');
 const { uploadImage } = require('../cloudinaryConfig');
 
@@ -52,7 +53,12 @@ router.post('/register', async (req, res) => {
     });
 
     await newUser.save();
-    res.status(201).json({ message: "Registered successfully", user: newUser });
+    
+    const userResponse = newUser.toObject();
+    delete userResponse.password;
+    delete userResponse.securityAnswer;
+    
+    res.status(201).json({ message: "Registered successfully", user: userResponse });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -61,7 +67,7 @@ router.post('/register', async (req, res) => {
 // GET route /all to retrieve all students
 router.get('/all', async (req, res) => {
   try {
-    const users = await User.find({});
+    const users = await User.find({}).select('-password -securityAnswer -resumeBase64 -profilePhoto -resumeAnalysis');
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -86,7 +92,11 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: "Invalid Credentials" });
     }
     
-    res.status(200).json(user);
+    const userResponse = user.toObject();
+    delete userResponse.password;
+    delete userResponse.securityAnswer;
+    
+    res.status(200).json(userResponse);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -133,7 +143,7 @@ router.post('/forgot-password/reset', async (req, res) => {
 // GET route /search/:rollNo to find a student by roll number
 router.get('/search/:rollNo', async (req, res) => {
   try {
-    const user = await User.findOne({ rollNo: req.params.rollNo });
+    const user = await User.findOne({ rollNo: req.params.rollNo }).select('-password -securityAnswer');
     if (!user) {
       return res.status(404).json({ error: "Student not found" });
     }
@@ -146,7 +156,7 @@ router.get('/search/:rollNo', async (req, res) => {
 // GET Student Profile by ID
 router.get('/profile/:id', async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password');
+    const user = await User.findById(req.params.id).select('-password -securityAnswer');
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user);
   } catch (error) {
@@ -225,48 +235,116 @@ router.put('/update-profile', async (req, res) => {
     }
 
     // ── APPLY UPDATE + LOCK ──
-    const updatePayload = { ...req.body, profileEditedOnce: true };
-    delete updatePayload.rollNo; // don't overwrite rollNo
+    const allowedFields = ['name', 'branch', 'year', 'mobileNumber', 'email', 'casteCategory', 'familyIncome', 'isFeeWaiver', 'domicileState', 'hasIncomeCertificate', 'course'];
+    const updatePayload = { profileEditedOnce: true };
+    for (const key of allowedFields) {
+      if (req.body[key] !== undefined) {
+        updatePayload[key] = req.body[key];
+      }
+    }
 
     const updatedUser = await User.findOneAndUpdate(
       { rollNo: req.body.rollNo },
       { $set: updatePayload },
       { new: true }
-    );
+    ).select('-password -securityAnswer');
     res.status(200).json(updatedUser);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST route /request-profile-unlock
-router.post('/request-profile-unlock', async (req, res) => {
+// POST route /request-profile-edit
+router.post('/request-profile-edit', async (req, res) => {
   try {
-    const { rollNo } = req.body;
-    const user = await User.findOneAndUpdate(
-      { rollNo },
-      { $set: { profileEditRequested: true } },
-      { new: true }
-    );
+    const { rollNo, requestedChanges, reason } = req.body;
+    const user = await User.findOne({ rollNo });
     if (!user) return res.status(404).json({ error: "Student not found" });
+    
+    const newReq = new ProfileEditRequest({
+      userId: user._id,
+      requestedChanges: requestedChanges || {},
+      reason: reason || ''
+    });
+    await newReq.save();
+    
+    // Set flag so UI knows request is pending
+    await User.updateOne({ rollNo }, { $set: { profileEditRequested: true } });
+    
     res.status(200).json({ success: true, message: "Profile edit request sent to admin." });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST route /approve-profile-unlock
-router.post('/approve-profile-unlock', async (req, res) => {
+// GET route /admin/profile-edit-requests
+router.get('/admin/profile-edit-requests', async (req, res) => {
   try {
-    const { rollNo } = req.body;
-    // Approving the unlock: reset the lock and the request flag
-    const user = await User.findOneAndUpdate(
-      { rollNo },
-      { $set: { profileEditedOnce: false, profileEditRequested: false } },
-      { new: true }
-    );
-    if (!user) return res.status(404).json({ error: "Student not found" });
-    res.status(200).json({ success: true, message: "Profile unlocked successfully." });
+    const requests = await ProfileEditRequest.find({}).populate('userId', 'name rollNo branch year email').sort({ requestedAt: -1 });
+    res.status(200).json(requests);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST route /admin/approve-profile-edit
+router.post('/admin/approve-profile-edit', async (req, res) => {
+  try {
+    const { requestId } = req.body;
+    const editReq = await ProfileEditRequest.findById(requestId);
+    if (!editReq) return res.status(404).json({ error: "Request not found" });
+    if (editReq.status !== 'Pending') return res.status(400).json({ error: "Request is not pending" });
+    
+    const user = await User.findById(editReq.userId);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const allowedFields = ['name', 'branch', 'year', 'mobileNumber', 'email', 'casteCategory', 'familyIncome', 'isFeeWaiver', 'domicileState', 'hasIncomeCertificate', 'course'];
+    const updatePayload = {};
+    for (const key of allowedFields) {
+      if (editReq.requestedChanges[key] !== undefined) {
+        updatePayload[key] = editReq.requestedChanges[key];
+      }
+    }
+    
+    // We unlock the profile when approving so they can edit again, or just apply the fields
+    // The instructions say "Apply ONLY approved requested fields... After approval, the student's profile editing ability may be restored"
+    // We will set profileEditedOnce to false so they can edit again.
+    updatePayload.profileEditedOnce = false;
+    updatePayload.profileEditRequested = false;
+
+    await User.updateOne({ _id: user._id }, { $set: updatePayload });
+    
+    editReq.status = 'Approved';
+    editReq.reviewedAt = new Date();
+    editReq.reviewedBy = 'Admin';
+    await editReq.save();
+    
+    res.status(200).json({ success: true, message: "Profile edit approved successfully." });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST route /admin/reject-profile-edit
+router.post('/admin/reject-profile-edit', async (req, res) => {
+  try {
+    const { requestId, rejectionReason } = req.body;
+    if (!rejectionReason) return res.status(400).json({ error: "Rejection reason required" });
+    
+    const editReq = await ProfileEditRequest.findById(requestId);
+    if (!editReq) return res.status(404).json({ error: "Request not found" });
+    if (editReq.status !== 'Pending') return res.status(400).json({ error: "Request is not pending" });
+    
+    editReq.status = 'Rejected';
+    editReq.rejectionReason = rejectionReason;
+    editReq.reviewedAt = new Date();
+    editReq.reviewedBy = 'Admin';
+    await editReq.save();
+    
+    // Remove the pending flag from the user so they can submit another one
+    await User.updateOne({ _id: editReq.userId }, { $set: { profileEditRequested: false } });
+    
+    res.status(200).json({ success: true, message: "Profile edit rejected." });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -281,11 +359,19 @@ router.put('/update-status', async (req, res) => {
     const user = await User.findOne({ rollNo });
     if(!user) return res.status(404).json({ error: "User not found" });
 
-    if(updates.ochk) {
-       updates.ochk = { ...user.ochk, ...updates.ochk };
+    const allowedStatusFields = ['scholarshipStage', 'dbt', 'ochk', 'tokens', 'claimedPerks'];
+    const updatePayload = {};
+    for (const key of allowedStatusFields) {
+      if (updates[key] !== undefined) {
+        updatePayload[key] = updates[key];
+      }
+    }
+
+    if(updatePayload.ochk) {
+       updatePayload.ochk = { ...user.ochk, ...updatePayload.ochk };
     }
     
-    const updatedUser = await User.findOneAndUpdate({ rollNo }, { $set: updates }, { new: true });
+    const updatedUser = await User.findOneAndUpdate({ rollNo }, { $set: updatePayload }, { new: true }).select('-password -securityAnswer');
     res.status(200).json(updatedUser);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -309,13 +395,105 @@ router.put('/upload-profile-photo', async (req, res) => {
       { rollNo },
       { $set: { profilePhoto: photoUrl } },
       { new: true }
-    );
+    ).select('-password -securityAnswer');
 
     if (!user) return res.status(404).json({ error: "Student not found" });
 
     res.status(200).json({ success: true, profilePhoto: photoUrl, user });
   } catch (error) {
     console.error('❌ Profile photo upload error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT route /profile/links to update links
+router.put('/profile/links', async (req, res) => {
+  try {
+    const { rollNo, links } = req.body;
+    if (!rollNo || !links) {
+      return res.status(400).json({ error: 'Roll number and links are required.' });
+    }
+    const user = await User.findOneAndUpdate(
+      { rollNo },
+      { $set: { links } },
+      { new: true }
+    ).select('-password -securityAnswer');
+    if (!user) return res.status(404).json({ error: 'Student not found' });
+    res.status(200).json({ success: true, links: user.links, user });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Upload resume
+const multer = require('multer');
+const pdfParse = require('pdf-parse');
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed!'), false);
+    }
+  }
+});
+
+router.put('/profile/resume/upload', upload.single('resume'), async (req, res) => {
+  try {
+    const { rollNo } = req.body;
+    if (!rollNo) return res.status(400).json({ error: 'Roll number required.' });
+    if (!req.file) return res.status(400).json({ error: 'No PDF file uploaded.' });
+    
+    let extractedText = '';
+    try {
+      const pdfData = await pdfParse(req.file.buffer);
+      extractedText = pdfData.text;
+    } catch (parseErr) {
+      console.error('PDF Parse Error:', parseErr);
+      return res.status(400).json({ error: 'Failed to extract text from PDF. Ensure the file is not corrupted or image-based.' });
+    }
+    
+    const fakeUrl = 'https://vidyasetu-storage.example.com/resumes/' + Date.now() + '.pdf';
+
+    const user = await User.findOneAndUpdate(
+      { rollNo },
+      { 
+        $set: { 
+          resume: { 
+            url: fakeUrl, 
+            filename: req.file.originalname, 
+            uploadDate: new Date() 
+          },
+          resumeText: extractedText // store temporarily for analyze endpoint
+        } 
+      },
+      { new: true, strict: false }
+    ).select('-password -securityAnswer');
+    
+    if (!user) return res.status(404).json({ error: 'Student not found' });
+    res.status(200).json({ success: true, resume: user.resume, user });
+  } catch (error) {
+    if (error.message === 'Only PDF files are allowed!') {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/profile/resume', async (req, res) => {
+  try {
+    const { rollNo } = req.body;
+    if (!rollNo) return res.status(400).json({ error: 'Roll number required.' });
+    const user = await User.findOneAndUpdate(
+      { rollNo },
+      { $unset: { resume: '', resumeAnalysis: '', resumeText: '' } },
+      { new: true, strict: false }
+    ).select('-password -securityAnswer');
+    if (!user) return res.status(404).json({ error: 'Student not found' });
+    res.status(200).json({ success: true, message: 'Resume deleted', user });
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });

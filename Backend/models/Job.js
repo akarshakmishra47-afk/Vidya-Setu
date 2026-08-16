@@ -59,6 +59,18 @@ const jobSchema = new mongoose.Schema({
     default: 'General Engineering'
   },
 
+  // ── Domain Classification (New) ───────────────────────────────────────────
+  domain: {
+    type: String,
+    enum: [
+      'Software Development', 'Web Development', 'App Development', 'AI/ML',
+      'Data Science', 'Cyber Security', 'Cloud Computing', 'DevOps', 'Database',
+      'Electronics', 'Embedded Systems', 'Mechanical Engineering', 'Civil Engineering',
+      'Electrical Engineering', 'Finance', 'Marketing', 'Human Resources',
+      'UI/UX Design', 'Graphic Design', 'Product Management', 'Business Analytics'
+    ]
+  },
+
   // ── Experience Level ───────────────────────────────────────────────────────
   experienceLevel: {
     type: String,
@@ -77,7 +89,11 @@ const jobSchema = new mongoose.Schema({
   applyUrl:   { type: String, default: '' },
   source:     {
     type: String,
-    enum: ['manual', 'web', 'remotive', 'arbeitnow', 'himalayas', 'govtRss', 'hackathon', 'greenhouse', 'lever'],
+    enum: [
+      'manual', 'web', 'remotive', 'arbeitnow', 'himalayas', 'govtRss', 'hackathon', 
+      'greenhouse', 'lever', 'Unstop',
+      'internshala', 'linkedin', 'indeed', 'naukri', 'Naukri', 'wellfound', 'aicte'
+    ],
     default: 'manual'
   },
   sourceId:   { type: String, default: '' },
@@ -110,6 +126,7 @@ const jobSchema = new mongoose.Schema({
   deduplicationKey: { type: String, index: true, unique: true, sparse: true, default: '' },
 
   // ── Scoring & Housekeeping ────────────────────────────────────────────────
+  isActive:       { type: Boolean, default: true },
   relevanceScore: { type: Number, default: 0 },
   fetchedAt:      { type: Date,   default: Date.now },
 

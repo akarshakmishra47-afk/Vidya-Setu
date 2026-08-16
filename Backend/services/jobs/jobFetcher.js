@@ -1,13 +1,6 @@
 /**
  * jobFetcher.js
  * Main orchestrator for the Vidya-Setu Jobs & Internships module.
- *
- * Calls all configured source adapters in parallel.
- * Normalizes, validates, deduplicates, and returns results.
- * Handles source failures gracefully — one failing source never breaks others.
- *
- * NO DUMMY DATA. NO FALLBACK FAKE JOBS. REAL DATA ONLY.
- * If all sources fail, returns { jobs: [], stats: {...} } honestly.
  */
 
 const { fetchRemotiveJobs }   = require('./sources/private/remotiveAdapter');
@@ -17,16 +10,24 @@ const { fetchGovtJobsRss }    = require('./sources/government/govtJobsRss');
 const { fetchHackathons }     = require('./sources/hackathons/hackathonAdapter');
 const { fetchGreenhouseJobs } = require('./sources/private/greenhouseAdapter');
 const { fetchLeverJobs }      = require('./sources/private/leverAdapter');
+// New Adapters
+const { fetchInternshalaJobs } = require('./sources/private/internshalaAdapter');
+const { fetchLinkedInJobs }    = require('./sources/private/linkedinAdapter');
+const { fetchUnstopJobs, fetchUnstopHackathons } = require('./sources/private/unstopAdapter');
+const { fetchIndeedJobs }      = require('./sources/private/indeedAdapter');
+const { fetchNaukriJobs }      = require('./sources/private/naukriAdapter');
+const { fetchWellfoundJobs }   = require('./sources/private/wellfoundAdapter');
+const { fetchAicteJobs }       = require('./sources/private/aicteAdapter');
+
 const { validateJob }         = require('./utils/jobValidator');
-const { deduplicateInMemory } = require('./utils/deduplicator');
+const Job = require('../../models/Job');
 
-// ── Configuration ─────────────────────────────────────────────────────────────
-const AUTO_REFRESH_MS = Number(process.env.JOBS_REFRESH_MS) || (60 * 60 * 1000); // 60 minutes
+const AUTO_REFRESH_MS = 60 * 60 * 1000; // Exactly 1 hour
 
-// ── Refresh State (module-level singletons) ────────────────────────────────────
 let _isRefreshing   = false;
 let _lastRefreshTime  = null;
 let _lastRefreshError = null;
+let _lastSourceStats  = {};
 
 function isRefreshing()        { return _isRefreshing; }
 function setRefreshing(v)      { _isRefreshing = v; }
@@ -34,111 +35,193 @@ function getLastRefreshTime()  { return _lastRefreshTime; }
 function setLastRefreshTime(t) { _lastRefreshTime = t; }
 function getLastRefreshError() { return _lastRefreshError; }
 function setLastRefreshError(e){ _lastRefreshError = e; }
+function getLastSourceStats()  { return _lastSourceStats; }
 
-// ── Main Fetch Function ────────────────────────────────────────────────────────
-
-/**
- * Fetches jobs from all configured sources in parallel.
- * Each source failure is isolated — other sources continue working.
- *
- * @returns {Promise<{
- *   jobs: Object[],
- *   stats: Object,
- *   sourceStats: Object
- * }>}
- */
 async function fetchLatestJobs() {
   console.log('\n🚀 [JobFetcher] Starting full fetch cycle from all sources...\n');
-
   const startTime = Date.now();
 
-  // Run all sources in parallel; each catches its own errors
   const [
-    remotiveResult,
-    arbeitnowResult,
-    himalayasResult,
-    govtRssResult,
-    hackathonResult,
-    greenhouseResult,
-    leverResult
+    remotiveResult, himalayasResult, hackathonResult,
+    internshalaResult, linkedinResult, unstopResult, unstopHackathonsResult,
+    indeedResult, naukriResult, wellfoundResult, aicteResult
   ] = await Promise.all([
-    fetchRemotiveJobs().catch(err => ({ jobs: [], stats: { fetched: 0, accepted: 0, rejected: 0, duplicates: 0, error: err.message } })),
-    fetchArbeitnowJobs().catch(err => ({ jobs: [], stats: { fetched: 0, accepted: 0, rejected: 0, duplicates: 0, error: err.message } })),
-    fetchHimalayasJobs().catch(err => ({ jobs: [], stats: { fetched: 0, accepted: 0, rejected: 0, duplicates: 0, error: err.message } })),
-    fetchGovtJobsRss().catch(err   => ({ jobs: [], stats: { fetched: 0, accepted: 0, rejected: 0, duplicates: 0, error: err.message } })),
-    fetchHackathons().catch(err    => ({ jobs: [], stats: { fetched: 0, accepted: 0, rejected: 0, duplicates: 0, error: err.message } })),
-    fetchGreenhouseJobs().catch(err => ({ jobs: [], stats: { fetched: 0, accepted: 0, rejected: 0, duplicates: 0, error: err.message } })),
-    fetchLeverJobs().catch(err      => ({ jobs: [], stats: { fetched: 0, accepted: 0, rejected: 0, duplicates: 0, error: err.message } }))
+    fetchRemotiveJobs().catch(e => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
+    fetchHimalayasJobs().catch(e => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
+    fetchHackathons().catch(e    => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
+    fetchInternshalaJobs().catch(e=> ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
+    fetchLinkedInJobs().catch(e   => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
+    fetchUnstopJobs().catch(e     => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
+    fetchUnstopHackathons().catch(e => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
+    fetchIndeedJobs().catch(e     => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
+    fetchNaukriJobs().catch(e     => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
+    fetchWellfoundJobs().catch(e  => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
+    fetchAicteJobs().catch(e      => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } }))
   ]);
 
-  const sourceStats = {
-    remotive:   remotiveResult.stats,
-    arbeitnow:  arbeitnowResult.stats,
-    himalayas:  himalayasResult.stats,
-    govtRss:    govtRssResult.stats,
-    hackathons: hackathonResult.stats,
-    greenhouse: greenhouseResult.stats,
-    lever:      leverResult.stats
+  const results = {
+    remotive: remotiveResult, himalayas: himalayasResult,
+    hackathon: hackathonResult, internshala: internshalaResult, linkedin: linkedinResult, 
+    'Unstop Jobs/Internships': unstopResult, 'Unstop Hackathons': unstopHackathonsResult,
+    indeed: indeedResult, naukri: naukriResult, 
+    wellfound: wellfoundResult, aicte: aicteResult
   };
 
-  // Log per-source summary
-  console.log('\n📊 [JobFetcher] Source Results:');
-  for (const [name, s] of Object.entries(sourceStats)) {
-    const status = s.error ? `❌ ERROR: ${s.error}` : `✅ OK`;
-    console.log(`  ${name}: fetched=${s.fetched} accepted=${s.accepted} rejected=${s.rejected} [${status}]`);
-  }
+  const sourceStats = {};
+  let totalInserted = 0;
+  let totalUpdated = 0;
+  let totalReactivated = 0;
+  let totalDeactivated = 0;
 
-  // Merge all jobs
-  const allJobs = [
-    ...remotiveResult.jobs,
-    ...arbeitnowResult.jobs,
-    ...himalayasResult.jobs,
-    ...govtRssResult.jobs,
-    ...hackathonResult.jobs,
-    ...greenhouseResult.jobs,
-    ...leverResult.jobs
-  ];
+  for (const [sourceName, result] of Object.entries(results)) {
+    const jobs = result.jobs || [];
+    const stats = result.stats || { error: 'Unknown error', status: 'Failed' };
+    
+    sourceStats[sourceName] = {
+      status: stats.status || (stats.error ? 'Unavailable' : 'Working'),
+      fetched: stats.fetched || 0,
+      accepted: stats.accepted || 0,
+      rejected: stats.rejected || 0,
+      inserted: 0,
+      updated: 0,
+      reactivated: 0,
+      deactivated: 0,
+      error: stats.error || null,
+      lastSuccessfulSync: !stats.error ? new Date() : null
+    };
 
-  console.log(`\n📦 [JobFetcher] Total raw jobs from all sources: ${allJobs.length}`);
+    if (sourceStats[sourceName].status === 'Working') {
+      const activeKeys = new Set();
 
-  // Validate all jobs
-  const validJobs = [];
-  let validationRejections = 0;
+      for (const job of jobs) {
+        // Validate URL requirement: must have sourceUrl (or applyUrl fallback handled inside adapter, but prefer sourceUrl)
+        if (!job.sourceUrl && !job.applyUrl) {
+          sourceStats[sourceName].rejected++;
+          continue;
+        }
 
-  for (const job of allJobs) {
-    const { valid, reasons } = validateJob(job);
-    if (valid) {
-      validJobs.push(job);
-    } else {
-      validationRejections++;
-      // Only log first 10 validation failures to avoid log spam
-      if (validationRejections <= 10) {
-        console.warn(`[JobFetcher] Validation rejected: ${job.title || 'untitled'} — ${reasons.join('; ')}`);
+        const dedupKey = job.deduplicationKey || `${job.source}::${job.sourceUrl || job.applyUrl}`;
+        activeKeys.add(dedupKey);
+
+        const jobData = {
+          ...job,
+          isActive: true,
+          fetchedAt: new Date()
+        };
+
+        const existing = await Job.findOne({ deduplicationKey: dedupKey });
+        if (existing) {
+          if (!existing.isActive) {
+            await Job.updateOne({ _id: existing._id }, { $set: jobData });
+            sourceStats[sourceName].reactivated++;
+            totalReactivated++;
+          } else {
+            await Job.updateOne({ _id: existing._id }, { $set: jobData });
+            sourceStats[sourceName].updated++;
+            totalUpdated++;
+          }
+        } else {
+          await Job.create(jobData);
+          sourceStats[sourceName].inserted++;
+          totalInserted++;
+        }
       }
+
+      // Source-Safe Deactivation: deactivate any jobs from THIS source that are currently active in DB but missing from this fetch
+      const activeKeysArray = Array.from(activeKeys);
+      
+      let deactivationFilter = { source: jobSourceMap(sourceName), isActive: true, deduplicationKey: { $nin: activeKeysArray } };
+
+      if (sourceName === 'Unstop Jobs/Internships') {
+        deactivationFilter.primaryType = { $in: ['Job', 'Internship'] };
+      } else if (sourceName === 'Unstop Hackathons') {
+        deactivationFilter.primaryType = 'Hackathon';
+      }
+
+      const staleResult = await Job.updateMany(
+        deactivationFilter,
+        { $set: { isActive: false } }
+      );
+      sourceStats[sourceName].deactivated = staleResult.modifiedCount;
+      totalDeactivated += staleResult.modifiedCount;
     }
   }
 
-  console.log(`✅ [JobFetcher] After validation: ${validJobs.length} valid (${validationRejections} rejected)`);
-
-  // Deduplicate in-memory across all sources
-  const uniqueJobs = deduplicateInMemory(validJobs);
-  const inMemoryDuplicates = validJobs.length - uniqueJobs.length;
-
-  console.log(`🔄 [JobFetcher] After deduplication: ${uniqueJobs.length} unique (${inMemoryDuplicates} duplicates removed)`);
+  // Handle Expiry
+  const now = new Date();
+  const allActiveWithDeadline = await Job.find({ isActive: true, deadline: { $ne: 'Not specified' } });
+  let expiredCount = 0;
+  for (const j of allActiveWithDeadline) {
+    if (new Date(j.deadline) < now) {
+      j.isActive = false;
+      await j.save();
+      expiredCount++;
+    }
+  }
+  if (expiredCount > 0) {
+    console.log(`[JobFetcher] Auto-expired ${expiredCount} past-deadline jobs/internships.`);
+  }
 
   const elapsed = Date.now() - startTime;
-  console.log(`⏱️  [JobFetcher] Fetch cycle complete in ${elapsed}ms\n`);
+  console.log(`⏱️  [JobFetcher] Fetch cycle complete in ${elapsed}ms`);
 
   const aggregateStats = {
-    totalFetched: allJobs.length,
-    totalValid: validJobs.length,
-    totalUnique: uniqueJobs.length,
-    validationRejected: validationRejections,
-    inMemoryDuplicates,
+    totalInserted,
+    totalUpdated,
+    totalReactivated,
+    totalDeactivated,
+    expiredCount,
     elapsed
   };
 
-  return { jobs: uniqueJobs, stats: aggregateStats, sourceStats };
+  const disabledStatsTemplate = {
+    status: 'Disabled', fetched: 0, accepted: 0, rejected: 0,
+    inserted: 0, updated: 0, reactivated: 0, deactivated: 0,
+    error: 'Legacy source disabled', lastSuccessfulSync: null
+  };
+
+  const unavailableStatsTemplate = {
+    status: 'Unavailable', fetched: 0, accepted: 0, rejected: 0,
+    inserted: 0, updated: 0, reactivated: 0, deactivated: 0,
+    error: 'Not currently configured', lastSuccessfulSync: null
+  };
+
+  sourceStats['greenhouse'] = { ...disabledStatsTemplate };
+  sourceStats['lever'] = { ...disabledStatsTemplate };
+  sourceStats['govtRss'] = { ...disabledStatsTemplate };
+  sourceStats['manual'] = { ...disabledStatsTemplate };
+  sourceStats['web'] = { ...disabledStatsTemplate };
+  sourceStats['arbeitnow'] = { ...disabledStatsTemplate };
+  
+  sourceStats['Jobicy'] = { ...unavailableStatsTemplate };
+  sourceStats['The Muse'] = { ...unavailableStatsTemplate };
+
+  _lastSourceStats = sourceStats;
+  _lastRefreshTime = new Date();
+  return { stats: aggregateStats, sourceStats };
+}
+
+function jobSourceMap(name) {
+  // maps our results key to the DB source enum
+  const map = {
+    'hackathon': 'hackathon',
+    'Unstop': 'Unstop',
+    'Unstop Jobs/Internships': 'Unstop',
+    'Unstop Hackathons': 'Unstop',
+    'internshala': 'internshala',
+    'linkedin': 'linkedin',
+    'indeed': 'indeed',
+    'naukri': 'naukri',
+    'wellfound': 'wellfound',
+    'aicte': 'aicte',
+    'remotive': 'remotive',
+    'arbeitnow': 'arbeitnow',
+    'himalayas': 'himalayas',
+    'govtRss': 'govtRss',
+    'greenhouse': 'greenhouse',
+    'lever': 'lever'
+  };
+  return map[name] || name;
 }
 
 module.exports = {
@@ -149,5 +232,6 @@ module.exports = {
   setLastRefreshTime,
   getLastRefreshError,
   setLastRefreshError,
+  getLastSourceStats,
   AUTO_REFRESH_MS
 };

@@ -2001,7 +2001,64 @@
     const useToast = () => useContext(ToastContext) || (() => { });
 
     /* ─── THEME ─── */
-    const T = {
+    const parseInlineMarkdown = (text) => {
+  if (typeof text !== 'string') return text;
+  const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+      return React.createElement('strong', { key: i }, part.slice(2, -2));
+    }
+    if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
+      return React.createElement('code', { key: i, style: { background: 'rgba(0,0,0,0.05)', padding: '2px 4px', borderRadius: 4, fontFamily: 'monospace' } }, part.slice(1, -1));
+    }
+    const italicParts = part.split(/(\*.*?\*)/g);
+    if (italicParts.length > 1) {
+      return italicParts.map((sub, j) => {
+        if (sub.startsWith('*') && sub.endsWith('*') && !sub.startsWith('**') && sub.length >= 2) {
+          return React.createElement('em', { key: j }, sub.slice(1, -1));
+        }
+        return sub;
+      });
+    }
+    return part;
+  });
+};
+
+const safeRenderMarkdown = (text) => {
+  if (!text) return null;
+  const lines = text.split('\n');
+  return lines.map((line, i) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('### ')) {
+      return React.createElement('h4', { key: i, style: { fontSize: 16, fontWeight: 700, margin: '16px 0 8px', color: 'inherit' } }, parseInlineMarkdown(trimmed.slice(4)));
+    }
+    if (trimmed.startsWith('## ')) {
+      return React.createElement('h3', { key: i, style: { fontSize: 18, fontWeight: 700, margin: '20px 0 10px', color: 'inherit' } }, parseInlineMarkdown(trimmed.slice(3)));
+    }
+    if (trimmed.startsWith('# ')) {
+      return React.createElement('h2', { key: i, style: { fontSize: 20, fontWeight: 800, margin: '24px 0 12px', color: 'inherit' } }, parseInlineMarkdown(trimmed.slice(2)));
+    }
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      return React.createElement('div', { key: i, style: { display: 'flex', marginBottom: 6, lineHeight: 1.5, color: 'inherit' } },
+        React.createElement('span', { style: { marginRight: 8 } }, '•'),
+        React.createElement('div', null, parseInlineMarkdown(trimmed.substring(2)))
+      );
+    }
+    const numMatch = trimmed.match(/^(\d+)\.\s/);
+    if (numMatch) {
+      return React.createElement('div', { key: i, style: { display: 'flex', marginBottom: 6, lineHeight: 1.5, color: 'inherit' } },
+        React.createElement('span', { style: { marginRight: 8, fontWeight: 600 } }, numMatch[1] + '.'),
+        React.createElement('div', null, parseInlineMarkdown(trimmed.substring(numMatch[0].length)))
+      );
+    }
+    if (trimmed === '') {
+      return React.createElement('div', { key: i, style: { height: 8 } });
+    }
+    return React.createElement('p', { key: i, style: { marginBottom: 10, lineHeight: 1.6, color: 'inherit' } }, parseInlineMarkdown(trimmed));
+  });
+};
+
+const T = {
       orange: "#FF4F1F", orangeLt: "#FF7044", yellow: "#FFC700",
       black: "#111111", white: "#FFFFFF", gray: "#F5F5F5",
       border: "#EBEBEB", muted: "#888888", cardBg: "#FFFFFF",
@@ -2193,6 +2250,118 @@
       const [showPassword, setShowPassword] = useState(false);
       const [uploadedDocs, setUploadedDocs] = useState({});
       const photoInputRef = useRef(null);
+      const resumeInputRef = useRef(null);
+      const [resumeUploading, setResumeUploading] = useState(false);
+      const [resumeAnalyzing, setResumeAnalyzing] = useState(false);
+      const [newLink, setNewLink] = useState({ type: "LinkedIn", url: "" });
+
+      const handleAddLink = async () => {
+        if (!newLink.url) return;
+        const currentLinks = user.links || [];
+        const updatedLinks = [...currentLinks, newLink];
+        try {
+          const res = await fetch(API_BASE_URL + "/api/users/profile/links", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rollNo: user.rollNo, links: updatedLinks })
+          });
+          if (res.ok) {
+            updateUser({ ...user, links: updatedLinks });
+            setNewLink({ type: "LinkedIn", url: "" });
+            addToast("Link Added", "", "🔗", T.teal);
+          }
+        } catch (err) {}
+      };
+
+      const handleDeleteLink = async (idx) => {
+        const currentLinks = user.links || [];
+        const updatedLinks = currentLinks.filter((_, i) => i !== idx);
+        try {
+          const res = await fetch(API_BASE_URL + "/api/users/profile/links", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rollNo: user.rollNo, links: updatedLinks })
+          });
+          if (res.ok) {
+            updateUser({ ...user, links: updatedLinks });
+            addToast("Link Removed", "", "", T.rose);
+          }
+        } catch (err) {}
+      };
+
+      const handleResumeUpload = async (e) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        const file = e.target.files[0];
+        if (file.type !== "application/pdf") {
+          addToast("Invalid File", "Only PDF files are allowed", "", T.rose);
+          return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          addToast("File Too Large", "Max size is 5MB", "", T.rose);
+          return;
+        }
+        setResumeUploading(true);
+        const formData = new FormData();
+        formData.append("resume", file);
+        formData.append("rollNo", user.rollNo);
+        try {
+          const res = await fetch(API_BASE_URL + "/api/users/profile/resume/upload", {
+            method: "PUT",
+            body: formData
+          });
+          const data = await res.json();
+          if (res.ok) {
+            updateUser({ ...user, resume: data.resume });
+            addToast("Resume Uploaded", "Your resume has been saved.", "", T.success);
+          } else {
+            addToast("Upload Failed", data.error, "", T.rose);
+          }
+        } catch (err) {
+          addToast("Error", err.message, "", T.rose);
+        } finally {
+          setResumeUploading(false);
+          e.target.value = null;
+        }
+      };
+
+      const handleDeleteResume = async () => {
+        try {
+          const res = await fetch(API_BASE_URL + "/api/users/profile/resume", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rollNo: user.rollNo })
+          });
+          if (res.ok) {
+            updateUser({ ...user, resume: null, resumeAnalysis: null });
+            addToast("Resume Deleted", "", "", T.rose);
+          }
+        } catch (err) {}
+      };
+
+      const handleAnalyzeResume = async () => {
+        setResumeAnalyzing(true);
+        try {
+          const res = await fetch(API_BASE_URL + "/api/ai/resume/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              rollNo: user.rollNo,
+              userContext: { name: user.name, branch: user.branch, year: user.year, domain: "Software Engineering", skills: user.skills || [] }
+            })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            updateUser({ ...user, resumeAnalysis: data.analysis });
+            addToast("Analysis Complete", "Your Resume Intelligence is ready!", "", T.orange);
+          } else {
+            addToast("Analysis Failed", data.error, "", T.rose);
+          }
+        } catch (err) {
+          addToast("Error", err.message, "", T.rose);
+        } finally {
+          setResumeAnalyzing(false);
+        }
+      };
 
       const isLocked = !!(user.profileEditedOnce);
 
@@ -2291,7 +2460,9 @@
       const saveProfile = async (e) => {
         if (e) e.preventDefault();
         if (isLocked) {
-          addToast("Profile Locked 🔒", "Your profile can only be edited once.", <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>lock</span>, T.rose);
+          const reason = window.prompt("Your profile is locked. Please provide a reason for these changes (optional):");
+          if (reason === null) return; // user cancelled
+          await requestUnlock(reason);
           return;
         }
         // Block save if TFW is on but not eligible
@@ -2312,6 +2483,7 @@
             course: draft.course || "B.Tech",
             password: confirmPassword,
             mobileNumber: draft.mobileNumber || "",
+            email: draft.email || user.email || "",
           };
 
           const initials = payload.name ? payload.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() : user.initials;
@@ -2351,18 +2523,30 @@
         }
       };
 
-      const requestUnlock = async () => {
+      const requestUnlock = async (reason) => {
         try {
-          const res = await fetch(`${API_BASE_URL}/api/users/request-profile-unlock`, {
+          const requestedChanges = {
+            name: draft.name,
+            branch: draft.branch,
+            year: draft.year,
+            familyIncome: draft.familyIncome,
+            isFeeWaiver: draft.isFeeWaiver,
+            domicileState: draft.domicileState,
+            hasIncomeCertificate: draft.hasIncomeCertificate,
+            course: draft.course,
+            mobileNumber: draft.mobileNumber,
+            email: draft.email
+          };
+          const res = await fetch(`${API_BASE_URL}/api/users/request-profile-edit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rollNo: user.rollNo })
+            body: JSON.stringify({ rollNo: user.rollNo, requestedChanges, reason })
           });
           const data = await res.json();
           if (data.success) {
-            // Update local state and storage immediately
             updateUser({ profileEditRequested: true });
-            addToast("Request Sent", "Admin will review your request to unlock profile.", <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>check_circle</span>, T.indigo);
+            addToast("Request Sent", "Admin will review your profile edit request.", <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>check_circle</span>, T.indigo);
+            onClose();
           } else {
             addToast("Request Failed", data.error || "Could not send request.", "⚠️", T.rose);
           }
@@ -2377,7 +2561,7 @@
       };
 
       const inp = { width: "100%", padding: "11px 14px", background: T.gray, color: T.text, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: 14, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', marginTop: 6 };
-      const inpLocked = { ...inp, background: "#F0F0F0", color: "#999", cursor: "not-allowed", pointerEvents: "none" };
+      const inpLocked = { ...inp, background: "#FFF9E6", border: `1px solid ${T.orange}` };
       const lbl = { color: T.muted, fontSize: 11, fontWeight: 700, letterSpacing: .8, textTransform: "uppercase" };
 
       const currentPhoto = draft.profilePhoto || user.profilePhoto;
@@ -2558,6 +2742,11 @@
                 <div>
                   <label style={lbl}>Roll Number</label>
                   <input style={fieldStyle} value={draft.rollNo || ""} disabled={isLocked} onChange={e => setDraft(p => ({ ...p, rollNo: e.target.value }))} placeholder="e.g. 210027010001" />
+                </div>
+
+                <div>
+                  <label style={lbl}>Email Address</label>
+                  <input type="email" style={fieldStyle} value={draft.email || ""} disabled={isLocked} onChange={e => setDraft(p => ({ ...p, email: e.target.value }))} placeholder="e.g. you@aktu.ac.in" />
                 </div>
 
                 <div className="grid-2">
@@ -2791,7 +2980,127 @@
               </div>
             )} {/* end !isLocked edit form */}
 
-            {/* ── PASSWORD VERIFICATION FIELD ── */}
+                        {/* ── LINKS & RESUME INTELLIGENCE (ALWAYS VISIBLE) ── */}
+            <div style={{ marginTop: 8, padding: "16px", background: "#FDFDFD", border: "1px solid #E2E8F0", borderRadius: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                <span className="material-symbols-outlined" style={{ color: T.orange, fontSize: 20 }}>description</span>
+                <div style={{ fontWeight: 800, fontSize: 13, color: "#1E293B", letterSpacing: 0.5, textTransform: "uppercase" }}>Links & Resume Intelligence</div>
+              </div>
+
+              {/* Links Management */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                {(user.links || []).map((link, idx) => (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "#fff", border: "1px solid #E2E8F0", borderRadius: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontWeight: 800, fontSize: 12, color: T.text, background: "#F1F5F9", padding: "4px 8px", borderRadius: 6 }}>{link.type}</span>
+                      <a href={link.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: T.orange, textDecoration: "none", fontWeight: 600 }}>{link.url}</a>
+                    </div>
+                    <button onClick={() => handleDeleteLink(idx)} style={{ background: "none", border: "none", color: T.rose, cursor: "pointer", display: "flex", alignItems: "center" }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>delete</span>
+                    </button>
+                  </div>
+                ))}
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <select style={{ ...inp, width: "130px", marginTop: 0 }} value={newLink.type} onChange={e => setNewLink(p => ({...p, type: e.target.value}))}>
+                    <option value="LinkedIn">LinkedIn</option>
+                    <option value="GitHub">GitHub</option>
+                    <option value="Portfolio">Portfolio</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <input style={{ ...inp, flex: 1, marginTop: 0 }} placeholder="https://" value={newLink.url} onChange={e => setNewLink(p => ({...p, url: e.target.value}))} />
+                  <button onClick={handleAddLink} style={{ padding: "0 16px", background: T.text, color: "#fff", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer", height: 38 }}>Add</button>
+                </div>
+              </div>
+
+              {/* Resume Section */}
+              <div style={{ borderTop: "1px dashed #E2E8F0", paddingTop: 16 }}>
+                {user.resume && user.resume.url ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px", background: "#fff", border: "1px solid #E2E8F0", borderRadius: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 8, background: "#FEF2F2", color: T.rose, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 24 }}>picture_as_pdf</span>
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 800, fontSize: 13, color: T.text }}>{user.resume.filename}</div>
+                          <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>Uploaded on {new Date(user.resume.uploadDate).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {!user.resumeAnalysis && (
+                          <button onClick={handleAnalyzeResume} disabled={resumeAnalyzing} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "linear-gradient(135deg, #FF6B00, #FF9900)", color: "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: resumeAnalyzing ? "not-allowed" : "pointer" }}>
+                            {resumeAnalyzing ? (<><div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /> Analyzing...</>) : (<><span className="material-symbols-outlined" style={{ fontSize: 16 }}>auto_awesome</span> Analyze with AI</>)}
+                          </button>
+                        )}
+                        <button onClick={handleDeleteResume} style={{ background: "#FEE2E2", color: T.rose, border: "none", borderRadius: 8, padding: "0 10px", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>delete</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {user.resumeAnalysis && (
+                      <div style={{ padding: "18px", background: "linear-gradient(to bottom right, #fff, #F8FAFC)", border: "1px solid #E2E8F0", borderRadius: 12, animation: "fadeIn 0.4s ease" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+                          <div style={{ width: 56, height: 56, borderRadius: 14, background: "linear-gradient(135deg, #10B981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 22, fontWeight: 800, boxShadow: "0 4px 12px rgba(16,185,129,0.25)" }}>{user.resumeAnalysis.score}</div>
+                          <div>
+                            <div style={{ fontWeight: 800, fontSize: 16, color: T.text }}>Resume Strength Score</div>
+                            <div style={{ fontSize: 12, color: T.muted, marginTop: 2, background: "#F1F5F9", padding: "4px 8px", borderRadius: 6, display: "inline-block", fontWeight: 600 }}>Target: {user.resumeAnalysis.targetDomain}</div>
+                          </div>
+                        </div>
+                        <div className="grid-2">
+                          <div style={{ padding: "14px", background: "#F0FDF4", borderRadius: 10, border: "1px solid #BBF7D0" }}>
+                            <div style={{ fontSize: 11, fontWeight: 800, color: "#166534", textTransform: "uppercase", marginBottom: 10, display: "flex", alignItems: "center", gap: 4 }}><span className="material-symbols-outlined" style={{fontSize:16}}>check_circle</span> Top Strengths</div>
+                            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "#15803D", lineHeight: 1.6 }}>{(user.resumeAnalysis.strengths || []).map((s, i) => <li key={i}>{s}</li>)}</ul>
+                          </div>
+                          <div style={{ padding: "14px", background: "#FEF2F2", borderRadius: 10, border: "1px solid #FECACA" }}>
+                            <div style={{ fontSize: 11, fontWeight: 800, color: "#991B1B", textTransform: "uppercase", marginBottom: 10, display: "flex", alignItems: "center", gap: 4 }}><span className="material-symbols-outlined" style={{fontSize:16}}>warning</span> Missing Evidence</div>
+                            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "#B91C1C", lineHeight: 1.6 }}>{(user.resumeAnalysis.gaps || []).map((g, i) => <li key={i}>{g}</li>)}</ul>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 20 }}>
+                          <div style={{ fontSize: 11, fontWeight: 800, color: T.orange, textTransform: "uppercase", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}><span className="material-symbols-outlined" style={{fontSize:16}}>route</span> Personalized Skill Roadmap</div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            {(user.resumeAnalysis.skillsToLearn || []).map((st, i) => (
+                              <div key={i} style={{ padding: "12px 14px", background: "#FFFBF5", border: "1px solid #FDE68A", borderRadius: 10 }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                                  <div style={{ fontWeight: 800, fontSize: 13, color: "#92400E" }}>{st.skill}</div>
+                                  <div style={{ fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 6, background: st.priority === "High" ? "#FEE2E2" : (st.priority === "Medium" ? "#FEF3C7" : "#F3F4F6"), color: st.priority === "High" ? "#991B1B" : (st.priority === "Medium" ? "#92400E" : "#4B5563") }}>{st.priority} Priority</div>
+                                </div>
+                                <div style={{ fontSize: 12, color: "#92400E", marginBottom: 8, lineHeight: 1.4 }}>{st.reason}</div>
+                                <div style={{ fontSize: 11, color: T.orange, fontWeight: 700, display: "flex", alignItems: "center", gap: 4, background: "#fff", padding: "6px 10px", borderRadius: 6, border: "1px dashed #FCD34D" }}><span className="material-symbols-outlined" style={{fontSize:14}}>lightbulb</span> Build: {st.suggestedProject}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 20 }}>
+                          <div style={{ fontSize: 11, fontWeight: 800, color: "#475569", textTransform: "uppercase", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}><span className="material-symbols-outlined" style={{fontSize:16}}>edit_document</span> Resume Improvements</div>
+                          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "#334155", lineHeight: 1.6 }}>{(user.resumeAnalysis.resumeImprovements || []).map((ri, i) => <li key={i}>{ri}</li>)}</ul>
+                        </div>
+                        {user.resumeAnalysis.priorityActions && user.resumeAnalysis.priorityActions.length > 0 && (
+                          <div style={{ marginTop: 20, padding: "14px", background: "linear-gradient(135deg, rgba(255,107,0,0.06), rgba(255,153,0,0.04))", border: "1px solid rgba(255,107,0,0.2)", borderRadius: 10 }}>
+                            <div style={{ fontSize: 11, fontWeight: 800, color: T.orange, textTransform: "uppercase", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}><span className="material-symbols-outlined" style={{fontSize:16}}>priority_high</span> Top Priority Actions</div>
+                            <ol style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "#92400E", lineHeight: 1.6 }}>{(user.resumeAnalysis.priorityActions || []).map((pa, i) => <li key={i} style={{ marginBottom: 4, fontWeight: 600 }}>{pa}</li>)}</ol>
+                          </div>
+                        )}
+                        <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
+                          <button onClick={() => { updateUser({ ...user, resumeAnalysis: null }); handleAnalyzeResume(); }} style={{ flex: 1, padding: "10px", background: "#F1F5F9", color: T.text, border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer", fontSize: 12 }}>Re-analyze</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div onClick={() => !resumeUploading && resumeInputRef.current && resumeInputRef.current.click()} style={{ padding: "28px 20px", border: "2px dashed #CBD5E1", borderRadius: 12, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#F8FAFC", cursor: resumeUploading ? "not-allowed" : "pointer", transition: "all .2s" }} onMouseEnter={e => e.currentTarget.style.background = "#F1F5F9"} onMouseLeave={e => e.currentTarget.style.background = "#F8FAFC"}>
+                    {resumeUploading ? (
+                      <><div style={{ width: 28, height: 28, border: "3px solid #E2E8F0", borderTop: "3px solid " + T.orange, borderRadius: "50%", animation: "spin 0.8s linear infinite", marginBottom: 12 }} /><div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Uploading Securely...</div></>
+                    ) : (
+                      <><div style={{ width: 48, height: 48, borderRadius: 12, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", marginBottom: 12 }}><span className="material-symbols-outlined" style={{ fontSize: 24, color: T.orange }}>upload_file</span></div><div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>Upload PDF Resume</div><div style={{ fontSize: 12, color: T.muted, marginTop: 6, textAlign: "center", lineHeight: 1.4 }}>Get an AI-powered score, gap analysis, and<br/>personalized skill roadmap instantly.</div></>
+                    )}
+                  </div>
+                )}
+                <input ref={resumeInputRef} type="file" accept="application/pdf" style={{ display: "none" }} onChange={handleResumeUpload} />
+              </div>
+            </div>
+{/* ── PASSWORD VERIFICATION FIELD ── */}
             {!isLocked && (
               <div style={{ marginTop: 8, padding: "14px", background: "#FDF2F2", border: "1px solid #FEE2E2", borderRadius: 12 }}>
                 <label style={{ ...lbl, color: T.rose }}>Verify Password to Save</label>
@@ -2816,81 +3125,20 @@
             )}
 
             {/* ACTION BUTTONS */}
-            {!isLocked ? (
-              <>
-                <button 
-                  onClick={saveProfile} 
-                  disabled={draft.isFeeWaiver && !tfwEligible} 
-                  style={{ 
-                    width: "100%", padding: "10px 16px", fontSize: 14, 
-                    background: (draft.isFeeWaiver && !tfwEligible) ? "#D1D5DB" : T.orange, 
-                    color: "#fff", border: "none", borderRadius: 8, fontWeight: 500, cursor: (draft.isFeeWaiver && !tfwEligible) ? "not-allowed" : "pointer",
-                    height: 42
-                  }}
-                >
-                  {saved ? "✓ Saved & Locked" : (draft.isFeeWaiver && !tfwEligible) ? "⚠ Fix TFW Eligibility First" : "Save Profile"}
-                </button>
-              </>
-            ) : (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px", borderRadius: 8, background: "#F9FAFB", border: "1px solid #E5E7EB", marginBottom: 12 }}>
-                  <span className="material-symbols-outlined" style={{ color: "#6B7280", fontSize: 16 }}>info</span>
-                  <span style={{ fontSize: 13, color: "#4B5563" }}>Profile editing is disabled.</span>
-                </div>
-
-                {user.role === 'student' && (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      onClick={requestUnlock}
-                      disabled={user.profileEditRequested}
-                      style={{
-                        flex: 1,
-                        background: user.profileEditRequested ? "#F3F4F6" : T.orange,
-                        color: user.profileEditRequested ? "#9CA3AF" : "#fff",
-                        border: "none",
-                        borderRadius: 8,
-                        padding: "10px 16px",
-                        fontSize: 14,
-                        fontWeight: 500,
-                        cursor: user.profileEditRequested ? "not-allowed" : "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 8,
-                        height: 42
-                      }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-                        {user.profileEditRequested ? "pending_actions" : "lock_open"}
-                      </span>
-                      {user.profileEditRequested ? "Unlock Request Pending" : "Request Admin to Re-edit Profile"}
-                    </button>
-
-                    {user.profileEditRequested && (
-                      <button
-                        onClick={handleRefreshStatus}
-                        style={{
-                          background: "#fff",
-                          color: "#374151",
-                          border: "1px solid #D1D5DB",
-                          borderRadius: 8,
-                          padding: "0 12px",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          height: 42
-                        }}
-                        title="Refresh Status"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>refresh</span>
-                      </button>
-                    )}
-                  </div>
-                )}
-
-              </div>
-            )}
+            <div style={{ marginTop: 16 }}>
+              <button 
+                onClick={saveProfile} 
+                disabled={(draft.isFeeWaiver && !tfwEligible) || (isLocked && user.profileEditRequested)} 
+                style={{ 
+                  width: "100%", padding: "10px 16px", fontSize: 14, 
+                  background: (draft.isFeeWaiver && !tfwEligible) || (isLocked && user.profileEditRequested) ? "#D1D5DB" : T.orange, 
+                  color: "#fff", border: "none", borderRadius: 8, fontWeight: 500, cursor: (draft.isFeeWaiver && !tfwEligible) || (isLocked && user.profileEditRequested) ? "not-allowed" : "pointer",
+                  height: 42
+                }}
+              >
+                {saved ? "✓ Saved & Locked" : (isLocked && user.profileEditRequested) ? "Edit Request Pending" : isLocked ? "Submit Edit Request" : (draft.isFeeWaiver && !tfwEligible) ? "⚠ Fix TFW Eligibility First" : "Save Profile"}
+              </button>
+            </div>
             
             <button 
               onClick={onLogout} 
@@ -3822,7 +4070,7 @@
                     <div style={{ flex: 1, overflowY: "auto", paddingRight: 8, marginBottom: 16 }}>
                       {aiModalContent ? (
                         <div style={{ fontSize: 14, lineHeight: 1.6, color: T.text, whiteSpace: "pre-wrap" }}>
-                          {aiModalContent}
+                          {safeRenderMarkdown(aiModalContent)}
                         </div>
                       ) : null}
                     </div>
@@ -3886,6 +4134,8 @@
                 ok: d.verified, cond: d.cond, cat: d.cat,
                 photoUrl: d.photoUrl || null,
                 sellerPhoto: d.sellerPhoto || null,
+                sellerContact: d.sellerContact || null,
+                sellerEmail: d.sellerEmail || null,
                 img: d.photoUrl ? <img src={d.photoUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }} alt={d.title} /> : d.cat && d.cat.includes("Books") ? <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>library_books</span> : d.cat && d.cat.includes("Electronics") ? <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>build</span> : <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>package</span>,
                 desc: d.desc, time: "Recently"
               }));
@@ -4225,16 +4475,18 @@
                 <div style={{ color: T.muted, fontSize: 11, marginTop: 10, padding: "10px 14px", background: "rgba(255,79,31,0.04)", borderRadius: 10, border: "1px solid rgba(255,79,31,0.14)", lineHeight: 1.5 }}>💡 Meet in a public campus location. Never share bank OTPs.</div>
                 <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
                   {con.sellerContact ? (
-                    <Btn variant="teal" style={{ flex: 1 }} onClick={() => {
-                      addToast("Opening WhatsApp", "Connecting you with " + con.seller, <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>chat</span>, T.teal);
-                      window.open(`https://wa.me/${con.sellerContact.replace(/[^0-9]/g, '')}?text=Hi%20${encodeURIComponent(con.seller)},%20I'm%20interested%20in%20your%20${encodeURIComponent(con.title)}%20listed%20for%20%E2%82%B9${con.price}%20on%20TechBazaar!`, '_blank');
-                    }}>💬 WhatsApp</Btn>
+                    <a href={`https://wa.me/${(con.sellerContact.replace(/[^0-9]/g, '').startsWith('91') && con.sellerContact.replace(/[^0-9]/g, '').length === 12) ? con.sellerContact.replace(/[^0-9]/g, '') : (con.sellerContact.replace(/[^0-9]/g, '').length === 10 ? '91' + con.sellerContact.replace(/[^0-9]/g, '') : con.sellerContact.replace(/[^0-9]/g, ''))}?text=Hi%20${encodeURIComponent(con.sellerName || con.seller)},%20I'm%20interested%20in%20your%20${encodeURIComponent(con.title)}%20listed%20for%20%E2%82%B9${con.price}%20on%20TechBazaar!`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, textDecoration: 'none' }}>
+                      <Btn variant="teal" style={{ width: "100%" }} onClick={() => {
+                        addToast("Opening WhatsApp", "Connecting you with " + (con.sellerName || con.seller), <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>chat</span>, T.teal);
+                      }}>💬 Open WhatsApp</Btn>
+                    </a>
                   ) : null}
                   {con.sellerEmail ? (
-                    <Btn variant="secondary" style={{ flex: 1 }} onClick={() => {
-                      addToast("Opening Email", "Composing email to " + con.seller, <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>email</span>, T.muted);
-                      window.location.href = `mailto:${con.sellerEmail}?subject=TechBazaar:%20${encodeURIComponent(con.title)}`;
-                    }}>📧 Email</Btn>
+                    <a href={`mailto:${con.sellerEmail}?subject=TechBazaar:%20${encodeURIComponent(con.title)}`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, textDecoration: 'none' }}>
+                      <Btn variant="secondary" style={{ width: "100%" }} onClick={() => {
+                        addToast("Opening Email", "Composing email to " + (con.sellerName || con.seller), <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>email</span>, T.muted);
+                      }}>📧 Send Email</Btn>
+                    </a>
                   ) : null}
                   {(!con.sellerContact && !con.sellerEmail) && (
                     <div style={{ color: T.rose, fontSize: 13, fontWeight: 600, textAlign: "center", width: "100%", padding: 10 }}>Contact information unavailable</div>
@@ -5072,8 +5324,8 @@
                            <div style={{ padding: 20, borderRadius: 6, background: "#F9FAFB", border: "1px solid #E5E7EB", marginTop: 16 }}>
                               {aiResponse.loading && <div style={{ color: "#6B7280", fontSize: 14, textAlign: "center" }}>Generating insights...</div>}
                               {aiResponse.error && <div style={{ color: "#DC2626", fontSize: 14 }}>{aiResponse.error}</div>}
-                              {aiResponse.gap && !aiResponse.loading && <div><div style={{ fontWeight: 600, fontSize: 15, marginBottom: 12, color: "#1F2937" }}>Skill Gap Analysis</div><div>{renderAiText(aiResponse.gap)}</div></div>}
-                              {aiResponse.roadmap && !aiResponse.loading && <div><div style={{ fontWeight: 600, fontSize: 15, marginBottom: 12, color: "#1F2937" }}>30-Day Action Plan</div><div>{renderAiText(aiResponse.roadmap)}</div></div>}
+                              {aiResponse.gap && !aiResponse.loading && <div><div style={{ fontWeight: 600, fontSize: 15, marginBottom: 12, color: "#1F2937" }}>Skill Gap Analysis</div><div>{safeRenderMarkdown(aiResponse.gap)}</div></div>}
+                              {aiResponse.roadmap && !aiResponse.loading && <div><div style={{ fontWeight: 600, fontSize: 15, marginBottom: 12, color: "#1F2937" }}>30-Day Action Plan</div><div>{safeRenderMarkdown(aiResponse.roadmap)}</div></div>}
                            </div>
                         )}
                      </div>
@@ -5086,7 +5338,7 @@
                         </div>
                         
                         {aiResponse.projects ? (
-                           <div style={{ padding: 16, background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 6 }}>{renderAiText(aiResponse.projects)}</div>
+                           <div style={{ padding: 16, background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 6 }}>{safeRenderMarkdown(aiResponse.projects)}</div>
                         ) : (
                            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                               {(res.projs || []).map((p, i) => (
@@ -5981,7 +6233,7 @@
 
     /* ── SOURCE CHIP ── */
     function SourceChip({ source }) {
-      const labels = { remotive: 'Remotive', arbeitnow: 'Arbeitnow', himalayas: 'Himalayas', govtRss: 'Govt Portal', hackathon: 'Hackathon', manual: 'Manual', web: 'Web' };
+      const labels = { remotive: 'Remotive', himalayas: 'Himalayas', govtRss: 'Govt Portal', hackathon: 'Hackathon', manual: 'Manual', web: 'Web' };
       return <span style={{ fontSize: 12, color: '#6B7280', background: '#F3F4F6', borderRadius: 6, padding: '2px 7px' }}>{labels[source] || source}</span>;
     }
 
@@ -6006,7 +6258,7 @@
           ? (() => { const d = new Date(j.createdAt); const diff = Math.floor((Date.now() - d) / 86400000); return diff === 0 ? 'Today' : `${diff}d ago`; })()
           : null;
 
-      const hasValidUrl = j.applyUrl && (j.applyUrl.startsWith('http://') || j.applyUrl.startsWith('https://'));
+      const hasValidUrl = (j.sourceUrl || j.applyUrl) && ((j.sourceUrl || j.applyUrl).startsWith('http://') || (j.sourceUrl || j.applyUrl).startsWith('https://'));
 
       return (
         <div style={{ background: '#FFFFFF', borderRadius: 8, border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: '20px 20px 16px', display: 'flex', flexDirection: 'column', gap: 0, transition: 'box-shadow .2s ease', position: 'relative', overflow: 'hidden' }}
@@ -6044,7 +6296,7 @@
             {isGovt && <span style={{ background: '#4F46E510', color: '#4F46E5', border: '1px solid #4F46E530', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>🏛️ {j.govtCategory !== 'Unknown' ? j.govtCategory : 'Govt'}</span>}
             {compLabel && !isGovt && <span style={{ background: compColor + '10', color: compColor, border: `1px solid ${compColor}30`, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>{compLabel}</span>}
             {internTag && <span style={{ background: '#F3F4F6', color: T.muted, border: `1px solid ${T.border}`, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 }}>{internTag}</span>}
-            <span style={{ background: '#F3F4F6', color: T.muted, border: `1px solid ${T.border}`, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 }}>{j.branch}</span>
+            <span style={{ background: '#F3F4F6', color: T.muted, border: `1px solid ${T.border}`, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 }}>{j.domain || 'All Domains'}</span>
             <ExpBadge level={j.experienceLevel} />
           </div>
 
@@ -6075,7 +6327,7 @@
               {j.salary || 'Salary N/A'}
             </div>
             {hasValidUrl ? (
-              <a href={j.applyUrl} target="_blank" rel="noopener noreferrer"
+              <a href={j.sourceUrl || j.applyUrl} target="_blank" rel="noopener noreferrer"
                 style={{ background: '#FF4F1F', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 13px', fontSize: 13, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, transition: 'background .15s ease' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#E04419'}
                 onMouseLeave={e => e.currentTarget.style.background = '#FF4F1F'}>
@@ -6091,7 +6343,8 @@
 
     /* ── HACKATHON CARD COMPONENT ── */
     function HackathonCard({ h }) {
-      const hasUrl = h.applyUrl && (h.applyUrl.startsWith('http://') || h.applyUrl.startsWith('https://'));
+      const urlToUse = h.sourceUrl || h.applyUrl;
+      const hasUrl = urlToUse && (urlToUse.startsWith('http://') || urlToUse.startsWith('https://'));
       return (
         <div style={{ background: '#FFFFFF', borderRadius: 8, border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: '16px', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: T.rose, borderRadius: '8px 8px 0 0' }} />
@@ -6111,7 +6364,7 @@
           {h.hackathonEligibility && <div style={{ fontSize: 13, color: T.muted, marginBottom: 10 }}>👥 {h.hackathonEligibility}</div>}
           {h.desc && <p style={{ fontSize: 14, color: T.muted, lineHeight: 1.6, marginBottom: 12 }}>{h.desc.substring(0, 150)}</p>}
           {hasUrl && (
-            <a href={h.applyUrl} target="_blank" rel="noopener noreferrer"
+            <a href={urlToUse} target="_blank" rel="noopener noreferrer"
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#FF4F1F', color: '#fff', borderRadius: 6, padding: '8px 16px', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
               <span className="material-symbols-outlined" style={{ fontSize: 15 }}>emoji_events</span> Register Now ↗
             </a>
@@ -6129,7 +6382,7 @@
           <div style={{ fontSize: 13, marginBottom: 20, lineHeight: 1.5 }}>{subtitle}</div>
           {onRefresh && (
             <button onClick={onRefresh} style={{ background: `linear-gradient(135deg,${T.teal},#0EA5E9)`, color: '#fff', border: 'none', borderRadius: 12, padding: '10px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-
+              Refresh
             </button>
           )}
         </div>
@@ -6148,46 +6401,98 @@
     }
 
     /* ── MAIN COMPONENT ── */
+    /* ── MAIN COMPONENT ── */
     function InternshipJobs({ search = '' }) {
       const addToast = useToast();
-      const [allJobs, setAllJobs] = useState([]);
+      const [jobs, setJobs] = useState([]);
       const [stats, setStats] = useState(null);
       const [loading, setLoading] = useState(true);
       const [refreshing, setRefreshing] = useState(false);
       const [lastUpdated, setLastUpdated] = useState(null);
-      const [activeTab, setActiveTab] = useState('all');
+      const [activeTab, setActiveTab] = useState('jobs');
       const [lastRefreshResult, setLastRefreshResult] = useState(null);
       const [showRefreshDetails, setShowRefreshDetails] = useState(false);
 
+      // Pagination state
+      const [currentPage, setCurrentPage] = useState(1);
+      const [totalPages, setTotalPages] = useState(1);
+      const [totalCount, setTotalCount] = useState(0);
+
       // Filters
-      const [branchFilter, setBranchFilter] = useState('All');
+      const [domainFilter, setDomainFilter] = useState('All Domains');
+      const [sourceFilter, setSourceFilter] = useState('all');
       const [locationFilter, setLocationFilter] = useState('All India');
+      const [workModeFilter, setWorkModeFilter] = useState('All');
       const [companyTypeFilter, setCompanyTypeFilter] = useState('All');
       const [expLevelFilter, setExpLevelFilter] = useState('All');
       const [internCompFilter, setInternCompFilter] = useState('All');
 
+      // Update page to 1 when filters change
+      React.useEffect(() => {
+        setCurrentPage(1);
+      }, [activeTab, domainFilter, sourceFilter, locationFilter, workModeFilter, companyTypeFilter, expLevelFilter, internCompFilter, search]);
+
+      const buildJobsQuery = () => {
+        const params = new URLSearchParams();
+        params.append('limit', '20');
+        params.append('page', currentPage.toString());
+        
+        if (search) params.append('search', search);
+        if (domainFilter && domainFilter !== 'All Domains') params.append('domain', domainFilter);
+        if (sourceFilter && sourceFilter !== 'all') params.append('source', sourceFilter);
+        if (locationFilter && locationFilter !== 'All India') params.append('location', locationFilter);
+        if (workModeFilter && workModeFilter !== 'All') params.append('workMode', workModeFilter);
+        if (companyTypeFilter && companyTypeFilter !== 'All') params.append('companyType', companyTypeFilter);
+        if (expLevelFilter && expLevelFilter !== 'All') params.append('experienceLevel', expLevelFilter);
+        
+        // Tab specific filters
+        if (activeTab === 'internships') {
+          params.append('primaryType', 'Internship');
+          if (internCompFilter && internCompFilter !== 'All') params.append('secondaryType', internCompFilter);
+        } else if (activeTab === 'hackathons') {
+          params.append('primaryType', 'Hackathon');
+        } else if (activeTab === 'jobs') {
+          params.append('primaryType', 'Job');
+        }
+
+        console.log(`[JOBS FILTER QUERY] ${params.toString()}`);
+        return params;
+      };
+
       const loadJobs = async (silent = false) => {
         if (!silent) setLoading(true);
         try {
+          const params = buildJobsQuery();
+          
+          const statsParams = new URLSearchParams(params);
+          statsParams.delete('limit');
+          statsParams.delete('page');
+          statsParams.delete('primaryType');
+          statsParams.delete('secondaryType');
+          statsParams.delete('category');
+          statsParams.delete('excludeGovt');
+
           const [jobsRes, statsRes] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/jobs?limit=300`),
-            fetch(`${API_BASE_URL}/api/jobs/stats`)
+            fetch(`${API_BASE_URL}/api/jobs?${params.toString()}`),
+            fetch(`${API_BASE_URL}/api/jobs/stats?${statsParams.toString()}`)
           ]);
+          
           const jobsData = await jobsRes.json();
           const statsData = await statsRes.json();
 
-          if (jobsData.jobs && Array.isArray(jobsData.jobs)) {
-            const uniqueJobsMap = new Map();
-            jobsData.jobs.forEach(job => {
-              const key = job.deduplicationKey || (job.source + '_' + job.sourceId) || job.applyUrl || job._id;
-              if (!uniqueJobsMap.has(key)) {
-                uniqueJobsMap.set(key, job);
-              }
-            });
-            setAllJobs(Array.from(uniqueJobsMap.values()));
+          if (jobsData.success) {
+            setJobs(Array.isArray(jobsData.jobs) ? jobsData.jobs : []);
+            setCurrentPage(Number(jobsData.page) || 1);
+            setTotalPages(Number(jobsData.totalPages) || 1);
+            setTotalCount(Number(jobsData.total) || 0);
+          } else {
+            setJobs([]);
           }
-          if (statsData.total !== undefined) {
+          
+          if (statsData.success) {
             setStats(statsData);
+          } else {
+            setStats(null);
           }
           setLastUpdated(new Date());
         } catch (err) {
@@ -6198,11 +6503,12 @@
         }
       };
 
-      React.useEffect(() => { loadJobs(); }, []);
+      React.useEffect(() => { loadJobs(); }, [currentPage, activeTab, domainFilter, sourceFilter, locationFilter, workModeFilter, companyTypeFilter, expLevelFilter, internCompFilter, search]);
+      
       React.useEffect(() => {
-        const interval = setInterval(() => loadJobs(true), 90000);
+        const interval = setInterval(() => loadJobs(true), 3600000); // 60 minutes
         return () => clearInterval(interval);
-      }, []);
+      }, [currentPage, activeTab, domainFilter, sourceFilter, locationFilter, workModeFilter, companyTypeFilter, expLevelFilter, internCompFilter, search]);
 
       const handleRefresh = async () => {
         setRefreshing(true);
@@ -6224,74 +6530,33 @@
         }
       };
 
-      // ── Apply all filters ──────────────────────────────────────────────────
-      const searchLower = search.toLowerCase().trim();
-
-      const filtered = allJobs.filter(j => {
-        // Global search
-        if (searchLower) {
-          const hay = `${j.title} ${j.company} ${j.location} ${j.desc} ${j.branch} ${(j.tags || []).join(' ')}`.toLowerCase();
-          if (!hay.includes(searchLower)) return false;
-        }
-        // Branch filter
-        if (branchFilter !== 'All' && j.branch !== branchFilter) return false;
-        // Company type filter
-        if (companyTypeFilter !== 'All' && j.companyType !== companyTypeFilter) return false;
-        // Experience level filter
-        if (expLevelFilter !== 'All' && j.experienceLevel !== expLevelFilter) return false;
-        // Location filter
-        if (locationFilter !== 'All India') {
-          if (locationFilter === 'Remote') { if (!j.location.toLowerCase().includes('remote')) return false; }
-          else { if (!j.location.toLowerCase().includes(locationFilter.toLowerCase())) return false; }
-        }
-        return true;
-      });
-
-      // Tab-specific filtered views
-      const tabJobs = {
-        all: filtered,
-        govt: filtered.filter(j => j.category === 'Government' || j.companyType === 'government'),
-        private: filtered.filter(j => j.primaryType === 'Job' && j.category !== 'Government' && j.companyType !== 'government'),
-        it: filtered.filter(j => j.category === 'IT' || ['CSE', 'IT', 'AI/ML', 'Data Science'].includes(j.branch)),
-        engineering: filtered.filter(j => j.primaryType === 'Job' && !['CSE', 'IT', 'AI/ML', 'Data Science'].includes(j.branch) && j.category !== 'Government'),
-        internships: filtered.filter(j => {
-          if (j.primaryType !== 'Internship') return false;
-          if (internCompFilter === 'All') return true;
-          if (internCompFilter === 'Paid') return j.secondaryType === 'Paid';
-          if (internCompFilter === 'Free') return j.secondaryType === 'Free';
-          if (internCompFilter === 'Unknown') return j.secondaryType === 'Unknown';
-          return true;
-        }),
-        hackathons: filtered.filter(j => j.primaryType === 'Hackathon'),
-        fresher: filtered.filter(j => ['Fresher', 'Entry-Level'].includes(j.experienceLevel))
-      };
-
-      // Stat counters — from DB when available, fallback to filtered
-      const dbTotal = stats ? stats.total : allJobs.length;
-      const dbGovt = stats ? stats.govtJobs : tabJobs.govt.length;
-      const dbInternships = stats ? stats.internships : tabJobs.internships.length;
-      const dbPaid = stats ? stats.paidInternships : filtered.filter(j => j.primaryType === 'Internship' && j.secondaryType === 'Paid').length;
-      const dbFree = stats ? stats.freeInternships : filtered.filter(j => j.primaryType === 'Internship' && j.secondaryType === 'Free').length;
-      const dbUnknownIntern = stats ? stats.unknownInternships : filtered.filter(j => j.primaryType === 'Internship' && j.secondaryType === 'Unknown').length;
-      const dbHackathons = stats ? stats.hackathons : tabJobs.hackathons.length;
-      const dbFresher = stats ? stats.fresherJobs : tabJobs.fresher.length;
-
-      // Tab definitions
+      // Tab definitions driven by API stats
       const TABS = [
-        { id: 'all', icon: 'list_alt', label: 'All', count: dbTotal, color: T.indigo },
-        { id: 'govt', icon: 'account_balance', label: 'Government', count: dbGovt, color: '#4F46E5' },
-        { id: 'private', icon: 'business', label: 'Private', count: stats ? stats.privateJobs : tabJobs.private.length, color: T.orange },
-        { id: 'it', icon: 'code', label: 'IT / Software', count: stats ? stats.itJobs : tabJobs.it.length, color: T.teal },
-        { id: 'engineering', icon: 'engineering', label: 'Engineering', count: stats ? stats.engineeringJobs : tabJobs.engineering.length, color: '#F59E0B' },
-        { id: 'internships', icon: 'school', label: 'Internships', count: dbInternships, color: T.success },
-        { id: 'hackathons', icon: 'emoji_events', label: 'Hackathons', count: dbHackathons, color: T.rose },
-        { id: 'fresher', icon: 'star', label: 'Fresher', count: dbFresher, color: '#8B5CF6' },
+        { id: 'jobs', icon: 'work', label: 'Jobs', count: stats?.jobs || 0, color: T.orange },
+        { id: 'internships', icon: 'school', label: 'Internships', count: stats?.internships || 0, color: T.success },
+        { id: 'hackathons', icon: 'emoji_events', label: 'Hackathons', count: stats?.hackathons || 0, color: T.rose },
       ];
 
-      const currentTabJobs = tabJobs[activeTab] || [];
+      // Safe array assignment for rendering
+      const visibleJobs = Array.isArray(jobs) ? jobs : [];
       const currentTab = TABS.find(t => t.id === activeTab);
+      const searchLower = (search || '').toLowerCase().trim();
 
-      const BRANCHES = ['All', 'CSE', 'IT', 'AI/ML', 'Data Science', 'ECE', 'EEE', 'EE', 'Mechanical', 'Civil', 'Chemical', 'Automobile', 'Aerospace', 'Biotechnology', 'Biomedical', 'Mechatronics', 'Robotics', 'Instrumentation', 'Environmental', 'Production', 'Metallurgy', 'General Engineering'];
+      const DOMAINS = ['All Domains', 'Software Development', 'Web Development', 'App Development', 'AI/ML', 'Data Science', 'Cyber Security', 'Cloud Computing', 'DevOps', 'Database', 'Electronics', 'Embedded Systems', 'Mechanical Engineering', 'Civil Engineering', 'Electrical Engineering', 'Finance', 'Marketing', 'Human Resources', 'UI/UX Design', 'Graphic Design', 'Product Management', 'Business Analytics'];
+      const SOURCE_OPTIONS = [
+        { label: 'All', value: 'all' },
+        { label: 'Internshala', value: 'internshala' },
+        { label: 'LinkedIn', value: 'linkedin' },
+        { label: 'Unstop', value: 'unstop' },
+        { label: 'Indeed', value: 'indeed' },
+        { label: 'Naukri', value: 'Naukri' },
+        { label: 'Wellfound', value: 'wellfound' },
+        { label: 'AICTE', value: 'aicte' },
+        { label: 'Remotive', value: 'remotive' },
+        { label: 'Himalayas', value: 'himalayas' },
+        { label: 'Jobicy', value: 'jobicy' },
+        { label: 'The Muse', value: 'themuse' }
+      ];
       const LOCATIONS = ['All India', 'Remote', 'Bangalore', 'Hyderabad', 'Pune', 'Mumbai', 'Delhi', 'Noida', 'Gurugram', 'Chennai', 'Kolkata', 'Ahmedabad', 'Jaipur', 'Lucknow', 'Indore', 'Kochi', 'Chandigarh'];
       const COMPANY_TYPES = ['All', 'product', 'service', 'government', 'unknown'];
       const EXP_LEVELS = ['All', 'Fresher', 'Entry-Level', 'Junior', 'Experienced'];
@@ -6316,27 +6581,26 @@
           <div className="screen-body">
 
             {/* ── LIVE COUNTER STRIP ── */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
               {[
-                { label: 'Total', val: loading ? '…' : dbTotal, c: '#374151' },
-                { label: 'Government', val: loading ? '…' : dbGovt, c: '#374151' },
-                { label: 'Internships', val: loading ? '…' : dbInternships, c: '#374151' },
-                { label: 'Paid Internships', val: loading ? '…' : dbPaid, c: '#374151' },
-                { label: 'Free Internships', val: loading ? '…' : dbFree, c: '#374151' },
-                { label: 'Hackathons', val: loading ? '…' : dbHackathons, c: '#374151' },
-                { label: 'Fresher Jobs', val: loading ? '…' : dbFresher, c: '#374151' },
-              ].map(s => (
-                <div key={s.label} style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8, padding: '7px 13px', display: 'flex', alignItems: 'baseline', gap: 5 }}>
-                  <span style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontWeight: 700, color: '#111827', fontSize: 19, lineHeight: 1 }}>{s.val}</span>
-                  <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 500 }}>{s.label}</span>
-                </div>
-              ))}
+                { label: 'Jobs', val: loading ? '…' : (stats?.jobs || 0), icon: 'work', c: T.orange, tabId: 'jobs' },
+                { label: 'Internships', val: loading ? '…' : (stats?.internships || 0), icon: 'school', c: T.success, tabId: 'internships' },
+                { label: 'Hackathons', val: loading ? '…' : (stats?.hackathons || 0), icon: 'emoji_events', c: T.rose, tabId: 'hackathons' },
+              ].map(s => {
+                const isActive = activeTab === s.tabId;
+                return (
+                  <div key={s.label} onClick={() => setActiveTab(s.tabId)} style={{ background: isActive ? s.c + '08' : '#FFFFFF', border: isActive ? `2px solid ${s.c}` : '1px solid #E5E7EB', borderRadius: 12, padding: '14px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'pointer', transition: 'all .2s ease', minWidth: 120, flex: '1 1 120px', maxWidth: 200 }}>
+                    <span style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontWeight: 800, color: isActive ? s.c : '#111827', fontSize: 26, lineHeight: 1 }}>{s.val}</span>
+                    <span style={{ fontSize: 13, color: isActive ? s.c : '#6B7280', fontWeight: 600 }}>{s.label}</span>
+                  </div>
+                );
+              })}
             </div>
 
             {/* ── ACTION BAR ── */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
               <div style={{ fontSize: 13, color: '#6B7280' }}>
-                {lastUpdated && <span>Last updated: {lastUpdated.toLocaleTimeString()} • Auto-refreshes every 90s</span>}
+                {lastUpdated && <span>Last updated: {lastUpdated.toLocaleTimeString()} • Auto-refreshes every 60 minutes</span>}
               </div>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 {lastRefreshResult && (
@@ -6391,12 +6655,20 @@
 
             {/* ── FILTER BAR ── */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14, padding: '10px 12px', background: '#FFFFFF', borderRadius: 8, border: '1px solid #E5E7EB' }}>
-              {/* Branch */}
+              {/* Domain */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: '1 1 140px' }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Branch</label>
-                <select value={branchFilter} onChange={e => setBranchFilter(e.target.value)}
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Domain</label>
+                <select value={domainFilter} onChange={e => setDomainFilter(e.target.value)}
                   style={{ border: '1px solid #E5E7EB', borderRadius: 6, padding: '5px 8px', fontSize: 13, background: '#fff', color: '#111827', cursor: 'pointer', height: 32 }}>
-                  {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+                  {DOMAINS.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+              {/* Source */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: '1 1 140px' }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Source</label>
+                <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}
+                  style={{ border: '1px solid #E5E7EB', borderRadius: 6, padding: '5px 8px', fontSize: 13, background: '#fff', color: '#111827', cursor: 'pointer', height: 32 }}>
+                  {SOURCE_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
               {/* Location */}
@@ -6405,6 +6677,17 @@
                 <select value={locationFilter} onChange={e => setLocationFilter(e.target.value)}
                   style={{ border: '1px solid #E5E7EB', borderRadius: 6, padding: '5px 8px', fontSize: 13, background: '#fff', color: '#111827', cursor: 'pointer', height: 32 }}>
                   {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+              </div>
+              {/* Work Mode */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: '1 1 140px' }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Work Mode</label>
+                <select value={workModeFilter} onChange={e => setWorkModeFilter(e.target.value)}
+                  style={{ border: '1px solid #E5E7EB', borderRadius: 6, padding: '5px 8px', fontSize: 13, background: '#fff', color: '#111827', cursor: 'pointer', height: 32 }}>
+                  <option value="All">All Modes</option>
+                  <option value="Remote">Remote</option>
+                  <option value="Hybrid">Hybrid</option>
+                  <option value="On-site">On-site</option>
                 </select>
               </div>
               {/* Company Type */}
@@ -6424,10 +6707,10 @@
                 </select>
               </div>
               {/* Reset */}
-              {(branchFilter !== 'All' || locationFilter !== 'All India' || companyTypeFilter !== 'All' || expLevelFilter !== 'All') && (
+              {(domainFilter !== 'All Domains' || sourceFilter !== 'all' || locationFilter !== 'All India' || workModeFilter !== 'All' || companyTypeFilter !== 'All' || expLevelFilter !== 'All') && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2, justifyContent: 'flex-end' }}>
                   <label style={{ fontSize: 11, color: 'transparent' }}>_</label>
-                  <button onClick={() => { setBranchFilter('All'); setLocationFilter('All India'); setCompanyTypeFilter('All'); setExpLevelFilter('All'); }}
+                  <button onClick={() => { setDomainFilter('All Domains'); setSourceFilter('all'); setLocationFilter('All India'); setWorkModeFilter('All'); setCompanyTypeFilter('All'); setExpLevelFilter('All'); }}
                     style={{ border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#EF4444', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', height: 32 }}>
                     ✕ Reset
                   </button>
@@ -6452,10 +6735,10 @@
             {activeTab === 'internships' && (
               <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
                 {[
-                  { key: 'All', label: 'All Internships', icon: 'list_alt', count: dbInternships },
-                  { key: 'Paid', label: 'Paid', icon: 'payments', count: dbPaid, c: T.success },
-                  { key: 'Free', label: 'Free', icon: 'volunteer_activism', count: dbFree, c: T.teal },
-                  { key: 'Unknown', label: 'Unspecified', icon: 'help_outline', count: dbUnknownIntern, c: T.muted }
+                  { key: 'All', label: 'All Internships', icon: 'list_alt', count: stats?.internships || 0 },
+                  { key: 'Paid', label: 'Paid', icon: 'payments', count: stats?.paidInternships || 0, c: T.success },
+                  { key: 'Free', label: 'Free', icon: 'volunteer_activism', count: stats?.freeInternships || 0, c: T.teal },
+                  { key: 'Unknown', label: 'Unspecified', icon: 'help_outline', count: stats?.unknownInternships || 0, c: T.muted }
                 ].map(f => {
                   const isActive = internCompFilter === f.key;
                   const c = f.c || T.indigo;
@@ -6472,7 +6755,7 @@
             )}
 
             {/* ── HACKATHONS TAB SPECIAL CONTENT ── */}
-            {activeTab === 'hackathons' && !loading && currentTabJobs.length === 0 && (
+            {activeTab === 'hackathons' && !loading && visibleJobs.length === 0 && (
               <div style={{ background: 'linear-gradient(135deg,rgba(244,63,94,0.05),rgba(239,68,68,0.03))', border: `1px solid ${T.rose}25`, borderRadius: 18, padding: '28px 24px', marginBottom: 20, textAlign: 'center' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 48, color: T.rose, display: 'block', marginBottom: 14 }}>emoji_events</span>
                 <div style={{ fontWeight: 800, fontSize: 17, color: T.text, marginBottom: 8 }}>No Verified Hackathons Available Right Now</div>
@@ -6499,26 +6782,26 @@
             {/* ── JOBS GRID ── */}
             {loading ? (
               <div className="grid-2">{[1, 2, 3, 4, 5, 6].map(i => <SkeletonCard key={i} />)}</div>
-            ) : currentTabJobs.length === 0 && activeTab !== 'hackathons' ? (
+            ) : visibleJobs.length === 0 && activeTab !== 'hackathons' ? (
               <EmptyState
-                icon={activeTab === 'govt' ? 'account_balance' : activeTab === 'internships' ? 'school' : 'search_off'}
+                icon={activeTab === 'internships' ? 'school' : activeTab === 'hackathons' ? 'emoji_events' : 'work'}
                 title={`No ${currentTab?.label || ''} listings found`}
                 subtitle={searchLower
                   ? `No results for "${search}". Try different search terms or clear filters.`
                   : activeTab === 'internships' && internCompFilter === 'Free'
-                    ? 'Free internships: 0 — no qualifying real public listings currently available.'
+                    ? 'Free internships: 0 — no qualifying real listings currently available.'
                     : undefined}
                 onRefresh={handleRefresh}
               />
-            ) : currentTabJobs.length > 0 ? (
+            ) : visibleJobs.length > 0 ? (
               <div>
                 <div style={{ fontSize: 12, color: T.muted, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 14, color: T.success }}>circle</span>
-                  Showing {currentTabJobs.length} real {currentTab?.label} opportunity{currentTabJobs.length !== 1 ? 'ies' : 'y'} • India only
+                  Showing {visibleJobs.length} of {totalCount} real {currentTab?.label} opportunity{totalCount !== 1 ? 'ies' : 'y'} • India only
                   {searchLower && ` • Filtered by: "${search}"`}
                 </div>
                 <div className="grid-2">
-                  {currentTabJobs.map(j =>
+                  {visibleJobs.map(j =>
                     j.primaryType === 'Hackathon'
                       ? <HackathonCard key={j._id} h={j} />
                       : <JobCard key={j._id} j={j} />
@@ -6527,9 +6810,30 @@
               </div>
             ) : null}
 
+            {/* ── PAGINATION CONTROLS ── */}
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, padding: '16px', background: '#FFFFFF', borderRadius: 12, border: `1px solid ${T.border}` }}>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                  disabled={currentPage === 1 || loading}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: currentPage === 1 ? '#F3F4F6' : '#E0E7FF', color: currentPage === 1 ? T.muted : T.indigo, border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 14, fontWeight: 700, cursor: currentPage === 1 ? 'not-allowed' : 'pointer', transition: 'all .2s' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>chevron_left</span> Previous
+                </button>
+                <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>
+                  Page {currentPage} of {totalPages}
+                </div>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                  disabled={currentPage === totalPages || loading}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: currentPage === totalPages ? '#F3F4F6' : '#E0E7FF', color: currentPage === totalPages ? T.muted : T.indigo, border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 14, fontWeight: 700, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', transition: 'all .2s' }}>
+                  Next <span className="material-symbols-outlined" style={{ fontSize: 18 }}>chevron_right</span>
+                </button>
+              </div>
+            )}
+
             {/* ── FOOTER NOTE ── */}
             <div style={{ marginTop: 28, padding: '14px 18px', background: '#F8FAFC', borderRadius: 14, border: `1px solid ${T.border}`, fontSize: 12, color: T.muted, lineHeight: 1.6 }}>
-              <span style={{ fontWeight: 700, color: T.text }}>📌 About This Feed:</span> All listings are fetched from real public APIs (Remotive, Arbeitnow, Himalayas.app) and official Indian government RSS feeds. Every Apply Now link points to the actual source URL. No fake, fabricated, or demo data is used. Counters reflect live database values.
+              <span style={{ fontWeight: 700, color: T.text }}>📌 About This Feed:</span> All listings are fetched from real public APIs (Remotive, Himalayas.app) and official Indian government RSS feeds. Every Apply Now link points to the actual source URL. No fake, fabricated, or demo data is used. Counters reflect live database values.
             </div>
 
           </div>
@@ -7279,6 +7583,7 @@
       // ── LIVE DATA STATE ──
       const [students, setStudents] = useState([]);
       const [adminScholarships, setAdminScholarships] = useState([]);
+      const [profileEditRequests, setProfileEditRequests] = useState([]);
       const [adminStats, setAdminStats] = useState(null);
       const [loading, setLoading] = useState(true);
       const addToast = useToast();
@@ -7298,7 +7603,6 @@
       const ADMIN_NAV = [
         { id: "overview", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>bar_chart</span>, label: "System Overview" },
         { id: "students", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>school</span>, label: "Student Database" },
-        { id: "approvals", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>verified</span>, label: "Scholarships" },
 
         { id: "marketplace", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>storefront</span>, label: "Marketplace" },
         { id: "community", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>forum</span>, label: "Community Hub" },
@@ -7306,24 +7610,41 @@
         { id: "unlocks", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>lock_open</span>, label: "Profile Unlocks" },
       ];
 
-      // ── FETCH DATA FROM MONGODB ──
+      // ── FETCH DATA FROM MONGODB (with timeout resilience) ──
+      const fetchWithTimeout = (url, timeoutMs = 12000) => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        return fetch(url, { signal: controller.signal })
+          .then(res => { clearTimeout(timer); return res; })
+          .catch(err => { clearTimeout(timer); throw err; });
+      };
+
       const fetchRealData = async () => {
         try {
-          const [resStudents, resApps, resMarket, resPosts, resAdminStats] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/users/all`),
-            fetch(`${API_BASE_URL}/api/scholarships/admin/all`),
-            fetch(`${API_BASE_URL}/api/marketplace/admin/all`),
-            fetch(`${API_BASE_URL}/api/community`),
-            fetch(`${API_BASE_URL}/api/users/admin/stats`)
+          const results = await Promise.allSettled([
+            fetchWithTimeout(`${API_BASE_URL}/api/users/all`),
+            fetchWithTimeout(`${API_BASE_URL}/api/scholarships/admin/all`),
+            fetchWithTimeout(`${API_BASE_URL}/api/marketplace/admin/all`),
+            fetchWithTimeout(`${API_BASE_URL}/api/community`),
+            fetchWithTimeout(`${API_BASE_URL}/api/users/admin/stats`),
+            fetchWithTimeout(`${API_BASE_URL}/api/users/admin/profile-edit-requests`)
           ]);
-          if (resStudents.ok) {
-            const data = await resStudents.json();
+
+          const [resStudents, resApps, resMarket, resPosts, resAdminStats, resEditRequests] = results;
+
+          if (resStudents.status === 'fulfilled' && resStudents.value.ok) {
+            const data = await resStudents.value.json();
             setStudents((data || []).filter(s => (s.email || "").toLowerCase() !== "vidyasetu@aktu.ac.in"));
           }
-          if (resApps.ok) setAdminScholarships(await resApps.json() || []);
-          if (resMarket.ok) setAdminMarketplace(await resMarket.json() || []);
-          if (resPosts.ok) setAdminCommunity(await resPosts.json() || []);
-          if (resAdminStats && resAdminStats.ok) setAdminStats(await resAdminStats.json());
+          if (resApps.status === 'fulfilled' && resApps.value.ok) setAdminScholarships(await resApps.value.json() || []);
+          if (resMarket.status === 'fulfilled' && resMarket.value.ok) setAdminMarketplace(await resMarket.value.json() || []);
+          if (resPosts.status === 'fulfilled' && resPosts.value.ok) setAdminCommunity(await resPosts.value.json() || []);
+          if (resAdminStats.status === 'fulfilled' && resAdminStats.value.ok) setAdminStats(await resAdminStats.value.json());
+          if (resEditRequests.status === 'fulfilled' && resEditRequests.value.ok) setProfileEditRequests(await resEditRequests.value.json() || []);
+
+          // Report any failures
+          const failed = results.filter(r => r.status === 'rejected').length;
+          if (failed > 0) console.warn(`Admin data: ${failed} of ${results.length} API calls failed or timed out.`);
         } catch (err) {
           console.error("Database connection error:", err);
         } finally {
@@ -7339,12 +7660,15 @@
       const loadAdminJobs = async () => {
         setJobsLoading(true);
         try {
-          const [jobsRes, statsRes] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/jobs`),
-            fetch(`${API_BASE_URL}/api/jobs/stats/summary`)
+          const [jobsResult, statsResult] = await Promise.allSettled([
+            fetchWithTimeout(`${API_BASE_URL}/api/jobs`),
+            fetchWithTimeout(`${API_BASE_URL}/api/jobs/stats/summary`)
           ]);
-          if (jobsRes.ok) setAllJobsAdmin(await jobsRes.json());
-          if (statsRes.ok) setJobStats(await statsRes.json());
+          if (jobsResult.status === 'fulfilled' && jobsResult.value.ok) {
+            const data = await jobsResult.value.json();
+            setAllJobsAdmin(data.jobs || data || []);
+          }
+          if (statsResult.status === 'fulfilled' && statsResult.value.ok) setJobStats(await statsResult.value.json());
         } catch (err) { console.error("Jobs fetch error:", err); }
         finally { setJobsLoading(false); }
       };
@@ -7466,28 +7790,65 @@
         }
       };
 
-      const handleApproveUnlock = async (rollNo) => {
+      const handleApproveUnlock = async (requestId) => {
         try {
-          const res = await fetch(`${API_BASE_URL}/api/users/approve-profile-unlock`, {
+          const res = await fetch(`${API_BASE_URL}/api/users/admin/approve-profile-edit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rollNo })
+            body: JSON.stringify({ requestId })
           });
           if (res.ok) {
-            addToast("Unlocked ✅", `Student ${rollNo} can now edit profile again.`, "🔓", T.success);
+            addToast("Approved ✅", `Profile edit request approved.`, "🔓", T.success);
             fetchRealData();
+          } else {
+            const data = await res.json();
+            addToast("Error", data.error || "Failed to approve profile edit", "❌", T.rose);
           }
         } catch (e) {
-          addToast("Error", "Failed to unlock profile", "❌", T.rose);
+          addToast("Error", "Failed to approve profile edit", "❌", T.rose);
+        }
+      };
+
+      const handleRejectUnlock = async (requestId) => {
+        const rejectionReason = window.prompt("Reason for rejection:");
+        if (rejectionReason === null) return; // User cancelled
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/users/admin/reject-profile-edit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requestId, rejectionReason })
+          });
+          if (res.ok) {
+            addToast("Rejected ✕", `Profile edit request rejected.`, "❌", T.orange);
+            fetchRealData();
+          } else {
+            const data = await res.json();
+            addToast("Error", data.error || "Failed to reject profile edit", "❌", T.rose);
+          }
+        } catch (e) {
+          addToast("Error", "Failed to reject profile edit", "❌", T.rose);
         }
       };
 
       const thStyle = { padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.8, textTransform: "uppercase", whiteSpace: "nowrap" };
 
+      // Auto-dismiss loading after 15 seconds as a safety net
+      useEffect(() => {
+        if (!loading) return;
+        const fallback = setTimeout(() => {
+          setLoading(false);
+          console.warn('Admin loading forced-dismissed after 15s timeout.');
+        }, 15000);
+        return () => clearTimeout(fallback);
+      }, [loading]);
+
+      const dbConnected = students.length > 0 || adminStats !== null;
+
       if (loading) {
         return (
-          <div style={{ display: 'flex', width: '100%', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#FAFAFA' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#FAFAFA' }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: T.orange }} className="dots">Syncing with MongoDB</div>
+            <div style={{ fontSize: 12, color: T.muted, marginTop: 12 }}>This may take a few seconds…</div>
           </div>
         );
       }
@@ -7601,13 +7962,13 @@
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr style={{ background: "#F8F8F8" }}>
-                        {["Name", "Roll No.", "Branch", "Income (Annual)", "FW", "Category", "Scholarship"].map(h => <th key={h} style={thStyle}>{h}</th>)}
+                        {["Name", "Roll No.", "Branch", "Income (Annual)", "FW", "Category"].map(h => <th key={h} style={thStyle}>{h}</th>)}
                       </tr>
                     </thead>
                     <tbody>
                       {filteredStudents.length === 0 ? (
                         <tr>
-                          <td colSpan="8" style={{ padding: "40px 20px", textAlign: "center", color: T.muted, fontSize: 14 }}>
+                          <td colSpan="6" style={{ padding: "40px 20px", textAlign: "center", color: T.muted, fontSize: 14 }}>
                             No students match "{studentSearch}"
                           </td>
                         </tr>
@@ -7620,8 +7981,7 @@
                             <td style={{ padding: "13px 16px", fontSize: 13, fontWeight: 700, color: T.success }}>₹{(s.familyIncome || 0).toLocaleString()}</td>
                             <td style={{ padding: "13px 16px", fontSize: 13 }}>{s.isFeeWaiver ? <span style={{ color: T.rose, fontWeight: 800 }}>YES</span> : "No"}</td>
                             <td style={{ padding: "13px 16px", fontSize: 13 }}><Badge color={T.indigo}>{s.casteCategory || "Gen"}</Badge></td>
-                            <td style={{ padding: "13px 16px", fontSize: 12 }}>{s.scholarship || "UP Post-Matric"}</td>
-                          </tr>
+                            </tr>
                         );
                       })}
                     </tbody>
@@ -7633,57 +7993,59 @@
         );
       })();
 
-      const approvalsContent = (() => {
-        const pending = students.filter(s => (s.scholarshipStage || 0) < 3);
-        return (
-          <div className="fade-up">
-            <div className="screen-hero">
-              <div className="screen-hero-inner">
-                <Badge color={T.warn}>✅ Approvals Queue</Badge>
-                <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, color: T.text, marginTop: 12 }}>Pending Approvals</h1>
-                <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>{pending.length} applications awaiting your review.</p>
-              </div>
-            </div>
-            <div className="screen-body">
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {pending.map((s) => (
-                  <Card key={s.rollNo} style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px 20px" }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 11, background: `linear-gradient(135deg,${T.orange},${T.yellow})`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 18, color: "#111", flexShrink: 0 }}>{s.name ? s.name[0] : ""}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: T.text }}>{s.name}</div>
-                      <div style={{ color: T.muted, fontSize: 12, marginTop: 2 }}>{s.rollNo} · {s.branch || "CSE"} · {s.year || "3rd Year"}</div>
-                    </div>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: statusColor(getStatus(s.scholarshipStage)) + "18", color: statusColor(getStatus(s.scholarshipStage)), border: `1px solid ${statusColor(getStatus(s.scholarshipStage))}38`, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{getStatus(s.scholarshipStage)}</span>
-                    <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                      <button onClick={() => handleApprove(s.rollNo)} style={{ background: T.success + "18", color: T.success, border: `1px solid ${T.success}38`, borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all .15s ease" }}>Approve ✓</button>
-                      <button onClick={() => handleReject(s.rollNo)} style={{ background: T.rose + "18", color: T.rose, border: `1px solid ${T.rose}38`, borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all .15s ease" }}>Reject ✕</button>
-                    </div>
-                  </Card>
-                ))}
-                {pending.length === 0 && (
-                  <div style={{ padding: 40, textAlign: 'center', color: T.muted, fontSize: 16 }}>No pending approvals.</div>
-                )}
-              </div>
+      const approvalsContent = (
+        <div className="fade-up">
+          <div className="screen-hero">
+            <div className="screen-hero-inner">
+              <Badge color={T.indigo}>🎓 Scholarships</Badge>
+              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, color: T.text, marginTop: 12 }}>Scholarship Records</h1>
+              <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>View and manage scholarship applications.</p>
             </div>
           </div>
-        );
-      })();
+          <div className="screen-body">
+            <Card style={{ padding: 0, overflow: "hidden" }}>
+              <div style={{ padding: "18px 22px", borderBottom: "1px solid #EBEBEB", fontWeight: 800 }}>All Applications</div>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead><tr style={{ background: "#F8F8F8" }}>{["Reference", "Student Name", "Scholarship", "Category", "Status", "Action"].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {adminScholarships.length === 0 ? (
+                    <tr><td colSpan="6" style={{ padding: "20px", textAlign: "center", color: T.muted }}>No applications found.</td></tr>
+                  ) : adminScholarships.map((s) => (
+                    <tr key={s._id} style={{ borderTop: "1px solid #F0F0F0" }}>
+                      <td style={{ padding: "13px 16px", color: T.indigo, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>#{s._id.slice(-6).toUpperCase()}</td>
+                      <td style={{ padding: "13px 16px", fontWeight: 600 }}>{s.studentId?.name || "Deleted User"}</td>
+                      <td style={{ padding: "13px 16px", color: T.muted }}>{s.scholarshipId?.title || "Unknown"}</td>
+                      <td style={{ padding: "13px 16px" }}>{s.categoryApplied}</td>
+                      <td style={{ padding: "13px 16px" }}>
+                        <Badge color={statusColor(s.status)}>{s.status}</Badge>
+                      </td>
+                      <td style={{ padding: "13px 16px", display: "flex", gap: "6px" }}>
+                        <span style={{ color: T.muted, fontSize: 12 }}>Processed</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          </div>
+        </div>
+      );
 
       const unlockApprovalsContent = (() => {
-        const pendingUnlocks = students.filter(s => s.profileEditRequested);
+        const pendingUnlocks = profileEditRequests.filter(req => req.status === 'Pending');
         return (
           <div className="fade-up">
             <div className="screen-hero">
               <div className="screen-hero-inner">
-                <Badge color={T.indigo}>🔓 Profile Unlock Requests</Badge>
+                <Badge color={T.indigo}>🔓 Profile Edit Requests</Badge>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
-                  <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, color: T.text, margin: 0 }}>Unlock Approvals</h1>
+                  <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, color: T.text, margin: 0 }}>Edit Approvals</h1>
                   <button onClick={fetchRealData} style={{ background: "#F5F5F5", border: "1px solid #E8E8E8", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", color: T.text, display: "flex", alignItems: "center", gap: 6 }}>
                     <span className="material-symbols-outlined" style={{ fontSize: 18 }}>refresh</span>
                     Refresh Requests
                   </button>
                 </div>
-                <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>{pendingUnlocks.length} students requesting to re-edit their profiles.</p>
+                <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>{pendingUnlocks.length} students requesting to edit their profiles.</p>
               </div>
             </div>
             <div className="screen-body">
@@ -7691,20 +8053,52 @@
                 {pendingUnlocks.length === 0 ? (
                   <div style={{ padding: 60, textAlign: 'center', color: T.muted, fontSize: 16 }}>
                     <div style={{ fontSize: 48, marginBottom: 16 }}>🛡️</div>
-                    No pending unlock requests.
+                    No pending edit requests.
                   </div>
-                ) : pendingUnlocks.map((s) => (
-                  <Card key={s.rollNo} style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px 20px" }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 11, background: `linear-gradient(135deg,${T.indigo},${T.teal})`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 18, color: "#fff", flexShrink: 0 }}>{s.name ? s.name[0] : "S"}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: T.text }}>{s.name}</div>
-                      <div style={{ color: T.muted, fontSize: 12, marginTop: 2 }}>{s.rollNo} · {s.branch || "CSE"} · {s.year || "N/A"}</div>
-                    </div>
-                    <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                      <button onClick={() => handleApproveUnlock(s.rollNo)} style={{ background: T.indigo + "12", color: T.indigo, border: `1px solid ${T.indigo}30`, borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>lock_open</span>
-                        Approve Unlock
-                      </button>
+                ) : pendingUnlocks.map((req) => (
+                  <Card key={req._id} style={{ padding: "16px 20px" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+                      <div style={{ width: 44, height: 44, borderRadius: 11, background: `linear-gradient(135deg,${T.indigo},${T.teal})`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 18, color: "#fff", flexShrink: 0 }}>{req.userId?.name ? req.userId.name[0] : "S"}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 16, color: T.text }}>{req.userId?.name} <span style={{ color: T.muted, fontWeight: 400 }}>({req.userId?.rollNo})</span></div>
+                        <div style={{ color: T.muted, fontSize: 13, marginTop: 2 }}>{req.userId?.branch} · {req.userId?.year} Year</div>
+                        
+                        {req.reason && (
+                          <div style={{ marginTop: 12, padding: "8px 12px", background: "#F9FAFB", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 13 }}>
+                            <strong style={{ color: T.text }}>Reason: </strong>
+                            <span style={{ color: T.muted }}>{req.reason}</span>
+                          </div>
+                        )}
+
+                        <div style={{ marginTop: 12 }}>
+                          <strong style={{ fontSize: 12, color: T.text, textTransform: "uppercase", letterSpacing: 0.5 }}>Requested Changes:</strong>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                            {Object.entries(req.requestedChanges).map(([field, newValue]) => {
+                              const currValue = req.userId[field];
+                              if (String(currValue) === String(newValue)) return null;
+                              return (
+                                <div key={field} style={{ background: "#F3F4F6", padding: "6px 10px", borderRadius: 6, fontSize: 12, display: "flex", gap: 6, alignItems: "center", border: "1px solid #E5E7EB" }}>
+                                  <span style={{ fontWeight: 600, color: "#4B5563" }}>{field}:</span>
+                                  <span style={{ color: T.rose, textDecoration: "line-through" }}>{currValue || "Empty"}</span>
+                                  <span className="material-symbols-outlined" style={{ fontSize: 14, color: T.muted }}>arrow_forward</span>
+                                  <span style={{ color: T.success, fontWeight: 600 }}>{newValue || "Empty"}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
+                        <button onClick={() => handleApproveUnlock(req._id)} style={{ background: T.indigo + "12", color: T.indigo, border: `1px solid ${T.indigo}30`, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, width: "100%", justifyContent: "center" }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>check</span>
+                          Approve
+                        </button>
+                        <button onClick={() => handleRejectUnlock(req._id)} style={{ background: T.rose + "12", color: T.rose, border: `1px solid ${T.rose}30`, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, width: "100%", justifyContent: "center" }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+                          Reject
+                        </button>
+                      </div>
                     </div>
                   </Card>
                 ))}
@@ -8052,7 +8446,7 @@
               </div>
               <div className="header-actions" style={{ marginLeft: "auto" }}>
                 <Badge color={T.indigo}>🛡️ Super Admin</Badge>
-                <Badge color={T.success}>Database: Live ✨</Badge>
+                <Badge color={dbConnected ? T.success : T.warn}>{dbConnected ? "Database: Live ✨" : "⚠️ Database: Offline"}</Badge>
               </div>
             </header>
             <div className="vs-content">
