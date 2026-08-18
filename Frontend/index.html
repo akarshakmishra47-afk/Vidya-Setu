@@ -13,6 +13,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     *,
     *::before,
@@ -51,6 +52,21 @@
 
     ::-webkit-scrollbar-thumb:hover {
       background: #BDBDBD;
+    }
+
+    /* Markdown content styles */
+    .md-content p {
+      margin-bottom: 0.5em;
+    }
+    .md-content p:last-child {
+      margin-bottom: 0;
+    }
+    .md-content ul, .md-content ol {
+      margin-left: 1.5em;
+      margin-bottom: 0.5em;
+    }
+    .md-content strong {
+      font-weight: 700;
     }
 
     /* ══════════════════════════════════
@@ -2003,6 +2019,8 @@
     /* ─── THEME ─── */
     const parseInlineMarkdown = (text) => {
   if (typeof text !== 'string') return text;
+  // Strip literal <br> and <br/> tags — replace with a space
+  text = text.replace(/<br\s*\/?>/gi, ' ');
   const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
@@ -2026,36 +2044,106 @@
 
 const safeRenderMarkdown = (text) => {
   if (!text) return null;
+  // Pre-process: replace <br> with newlines
+  text = text.replace(/<br\s*\/?>/gi, '\n');
   const lines = text.split('\n');
-  return lines.map((line, i) => {
+  const elements = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
     const trimmed = line.trim();
+
+    // Horizontal rule
+    if (/^(-{3,}|_{3,}|\*{3,})$/.test(trimmed)) {
+      elements.push(React.createElement('hr', { key: i, style: { border: 'none', borderTop: '1px solid #E5E7EB', margin: '14px 0' } }));
+      i++; continue;
+    }
+
+    // Headings
     if (trimmed.startsWith('### ')) {
-      return React.createElement('h4', { key: i, style: { fontSize: 16, fontWeight: 700, margin: '16px 0 8px', color: 'inherit' } }, parseInlineMarkdown(trimmed.slice(4)));
+      elements.push(React.createElement('h4', { key: i, style: { fontSize: 15, fontWeight: 700, margin: '16px 0 6px', color: 'inherit' } }, parseInlineMarkdown(trimmed.slice(4))));
+      i++; continue;
     }
     if (trimmed.startsWith('## ')) {
-      return React.createElement('h3', { key: i, style: { fontSize: 18, fontWeight: 700, margin: '20px 0 10px', color: 'inherit' } }, parseInlineMarkdown(trimmed.slice(3)));
+      elements.push(React.createElement('h3', { key: i, style: { fontSize: 17, fontWeight: 700, margin: '20px 0 8px', color: 'inherit' } }, parseInlineMarkdown(trimmed.slice(3))));
+      i++; continue;
     }
     if (trimmed.startsWith('# ')) {
-      return React.createElement('h2', { key: i, style: { fontSize: 20, fontWeight: 800, margin: '24px 0 12px', color: 'inherit' } }, parseInlineMarkdown(trimmed.slice(2)));
+      elements.push(React.createElement('h2', { key: i, style: { fontSize: 19, fontWeight: 800, margin: '22px 0 10px', color: 'inherit' } }, parseInlineMarkdown(trimmed.slice(2))));
+      i++; continue;
     }
+
+    // Blockquote
+    if (trimmed.startsWith('> ')) {
+      elements.push(React.createElement('div', { key: i, style: { borderLeft: '3px solid #6366F1', paddingLeft: 12, margin: '8px 0', color: '#555', fontStyle: 'italic' } }, parseInlineMarkdown(trimmed.slice(2))));
+      i++; continue;
+    }
+
+    // Pipe table — collect all consecutive table rows
+    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      const tableLines = [];
+      while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+      // Parse rows, skip separator rows (only - | :)
+      const rows = tableLines
+        .filter(r => !/^\|[\s:\-|]+\|$/.test(r))
+        .map(r => r.slice(1, -1).split('|').map(c => c.trim()));
+      if (rows.length > 0) {
+        const [header, ...body] = rows;
+        elements.push(
+          React.createElement('div', { key: 'tbl-' + i, style: { overflowX: 'auto', margin: '12px 0' } },
+            React.createElement('table', { style: { width: '100%', borderCollapse: 'collapse', fontSize: 13 } },
+              React.createElement('thead', null,
+                React.createElement('tr', null,
+                  header.map((h, hi) => React.createElement('th', { key: hi, style: { background: '#F3F4F6', padding: '8px 12px', textAlign: 'left', fontWeight: 700, borderBottom: '2px solid #E5E7EB', whiteSpace: 'nowrap' } }, parseInlineMarkdown(h)))
+                )
+              ),
+              React.createElement('tbody', null,
+                body.map((row, ri) =>
+                  React.createElement('tr', { key: ri, style: { background: ri % 2 === 0 ? '#fff' : '#F9FAFB' } },
+                    row.map((cell, ci) => React.createElement('td', { key: ci, style: { padding: '7px 12px', borderBottom: '1px solid #E5E7EB', verticalAlign: 'top' } }, parseInlineMarkdown(cell)))
+                  )
+                )
+              )
+            )
+          )
+        );
+      }
+      continue;
+    }
+
+    // Bullet list
     if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-      return React.createElement('div', { key: i, style: { display: 'flex', marginBottom: 6, lineHeight: 1.5, color: 'inherit' } },
-        React.createElement('span', { style: { marginRight: 8 } }, '•'),
+      elements.push(React.createElement('div', { key: i, style: { display: 'flex', marginBottom: 5, lineHeight: 1.55, color: 'inherit' } },
+        React.createElement('span', { style: { marginRight: 8, flexShrink: 0 } }, '•'),
         React.createElement('div', null, parseInlineMarkdown(trimmed.substring(2)))
-      );
+      ));
+      i++; continue;
     }
+
+    // Numbered list
     const numMatch = trimmed.match(/^(\d+)\.\s/);
     if (numMatch) {
-      return React.createElement('div', { key: i, style: { display: 'flex', marginBottom: 6, lineHeight: 1.5, color: 'inherit' } },
-        React.createElement('span', { style: { marginRight: 8, fontWeight: 600 } }, numMatch[1] + '.'),
+      elements.push(React.createElement('div', { key: i, style: { display: 'flex', marginBottom: 5, lineHeight: 1.55, color: 'inherit' } },
+        React.createElement('span', { style: { marginRight: 8, fontWeight: 600, flexShrink: 0 } }, numMatch[1] + '.'),
         React.createElement('div', null, parseInlineMarkdown(trimmed.substring(numMatch[0].length)))
-      );
+      ));
+      i++; continue;
     }
+
+    // Empty line → spacer
     if (trimmed === '') {
-      return React.createElement('div', { key: i, style: { height: 8 } });
+      elements.push(React.createElement('div', { key: i, style: { height: 6 } }));
+      i++; continue;
     }
-    return React.createElement('p', { key: i, style: { marginBottom: 10, lineHeight: 1.6, color: 'inherit' } }, parseInlineMarkdown(trimmed));
-  });
+
+    // Regular paragraph
+    elements.push(React.createElement('p', { key: i, style: { marginBottom: 8, lineHeight: 1.65, color: 'inherit' } }, parseInlineMarkdown(trimmed)));
+    i++;
+  }
+  return elements;
 };
 
 const T = {
@@ -4234,7 +4322,19 @@ const T = {
             <div className="screen-hero-inner">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
-
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px rgba(255,79,31,0.25)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                    <svg width="24" height="24" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: "drop-shadow(0 0 10px rgba(255,79,31,0.65))" }}>
+                      <defs>
+                        <linearGradient id="storeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#FF4F1F" />
+                          <stop offset="50%" stopColor="#FF7044" />
+                          <stop offset="100%" stopColor="#FFC700" />
+                        </linearGradient>
+                      </defs>
+                      <path d="M22 8 L38 16 L22 24 L6 16 Z" fill="url(#storeGrad)" />
+                      <path d="M11 23 L 11 30 C 11 35 15 39 22 41 C 29 39 33 35 33 30 L 33 23" stroke="url(#storeGrad)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    </svg>
+                  </div>
                   <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, marginTop: 12, lineHeight: 1.15, color: T.text, letterSpacing: '-0.4px' }}>Campus Store</h1>
                   <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>{items.length} items from verified students</p>
                 </div>
@@ -4471,7 +4571,7 @@ const T = {
                   <div style={{ fontWeight: 700, marginBottom: 4, color: T.text }}>{con.title}</div>
                   <div style={{ color: T.success, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 20, fontWeight: 700 }}>₹{con.price}</div>
                 </div>
-                {[[<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>person</span>, "Seller", con.seller], [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>school</span>, "Branch", con.branch + " • " + con.yr + " Year"], [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>timer</span>, "Listed", con.time]].map(([icon, label, val]) => (
+                {[[<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>person</span>, "Seller", con.seller], [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>school</span>, "Branch", con.branch + " • " + con.yr], [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>timer</span>, "Listed", con.time]].map(([icon, label, val]) => (
                   <div key={label} style={{ display: "flex", gap: 10, padding: "10px 14px", borderRadius: 10, background: "#F8F8F8", border: "1px solid #EBEBEB", marginBottom: 8 }}>
                     <span style={{ fontSize: 16 }}>{icon}</span>
                     <div><div style={{ color: T.muted, fontSize: 11 }}>{label}</div><div style={{ fontWeight: 600, fontSize: 13, color: T.text }}>{val}</div></div>
@@ -5506,8 +5606,11 @@ const T = {
             <div style={{ display: "flex", flexDirection: "column", height: "62vh", background: "#F7F7F7", borderRadius: 14, border: "1px solid #E8E8E8", overflow: "hidden", boxShadow: "inset 0 1px 4px rgba(0,0,0,0.04)" }}>
               <div ref={ref} style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
                 {msgs.map((m, i) => (
-                  <div key={i} className="slide-in" style={{ alignSelf: m.sender === "user" ? "flex-end" : "flex-start", background: m.sender === "user" ? `linear-gradient(135deg,${T.orange},${T.orangeLt})` : "#fff", color: m.sender === "user" ? "#fff" : T.text, padding: "10px 14px", borderRadius: 16, borderBottomRightRadius: m.sender === "user" ? 4 : 16, borderBottomLeftRadius: m.sender === "ai" ? 4 : 16, maxWidth: "80%", fontSize: 14, lineHeight: 1.4, whiteSpace: "pre-line", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", border: m.sender === "ai" ? `1px solid ${T.border}` : "none" }}>
-                    {m.txt}
+                  <div key={i} className={`slide-in ${m.sender === "ai" ? "md-content" : ""}`} 
+                       style={{ alignSelf: m.sender === "user" ? "flex-end" : "flex-start", background: m.sender === "user" ? `linear-gradient(135deg,${T.orange},${T.orangeLt})` : "#fff", color: m.sender === "user" ? "#fff" : T.text, padding: "10px 14px", borderRadius: 16, borderBottomRightRadius: m.sender === "user" ? 4 : 16, borderBottomLeftRadius: m.sender === "ai" ? 4 : 16, maxWidth: "80%", fontSize: 14, lineHeight: 1.4, whiteSpace: m.sender === "ai" ? "normal" : "pre-line", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", border: m.sender === "ai" ? `1px solid ${T.border}` : "none" }}
+                       dangerouslySetInnerHTML={m.sender === "ai" && window.marked ? { __html: window.marked.parse(m.txt) } : undefined}
+                  >
+                    {!(m.sender === "ai" && window.marked) ? m.txt : null}
                   </div>
                 ))}
                 {typing && <div className="fade-up" style={{ alignSelf: "flex-start", background: "#fff", padding: "10px 14px", borderRadius: 16, fontSize: 14, color: T.muted, border: `1px solid ${T.border}` }}>AI is typing<span className="dots"></span></div>}
@@ -5682,12 +5785,14 @@ const T = {
       const loadData = async () => {
         setLoading(true);
         try {
-          const [res1, res2] = await Promise.all([
+          const [res1, res2, res3] = await Promise.all([
             fetch(`${API_BASE_URL}/api/scholarships`),
-            fetch(`${API_BASE_URL}/api/scholarships/my-applications/${user.rollNo}`)
+            fetch(`${API_BASE_URL}/api/scholarships/my-applications/${user.rollNo}`),
+            fetch(`${API_BASE_URL}/api/scholarships/issues`)
           ]);
           setAllScholarships(Array.isArray(await res1.clone().json()) ? await res1.json() : []);
           if (res2.ok) setMyApplications(await res2.json());
+          if (res3.ok) setCustomProblems(await res3.json());
         } catch (e) {
           addToast("Offline Mode", "Showing cached data", <span className="material-symbols-outlined" style={{ fontSize: 18 }}>warning</span>, T.warn);
         } finally {
@@ -5846,7 +5951,7 @@ const T = {
 
                   <div className="grid-2" style={{ gap: 16 }}>
                     {[...TROUBLESHOOTING_GUIDES, ...customProblems].map(guide => (
-                      <div key={guide.id} style={{ background: "#fff", borderRadius: 8, border: `1px solid #E5E7EB`, padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div key={guide.id || guide._id} style={{ background: "#fff", borderRadius: 8, border: `1px solid #E5E7EB`, padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <div style={{ width: 32, height: 32, borderRadius: 6, background: T.rose + "10", color: T.rose, display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{guide.icon}</span>
@@ -6133,22 +6238,24 @@ const T = {
                 <label style={{ fontSize: 12, fontWeight: 700, color: T.muted, marginBottom: 4, display: "block" }}>Description</label>
                 <textarea value={newProblem.desc} onChange={e => setNewProblem({ ...newProblem, desc: e.target.value })} placeholder="Explain what went wrong..." rows="3" style={{ width: "100%", padding: "12px 14px", background: "#F9FAFB", color: T.text, border: `1px solid ${T.border}`, borderRadius: 10, fontSize: 14, resize: "vertical" }} />
               </div>
-              <button onClick={() => {
+              <button onClick={async () => {
                 if (!newProblem.title) return addToast("Error", "Please enter a title", <span className="material-symbols-outlined" style={{ fontSize: 18 }}>warning</span>, T.rose);
-                setCustomProblems([...customProblems, {
-                  id: Date.now().toString(),
-                  title: newProblem.title,
-                  desc: newProblem.desc || "Awaiting further details.",
-                  icon: "help_outline",
-                  steps: [
-                    ["1", "Issue Logged", "Your problem has been securely reported to our administrators."],
-                    ["2", "Under Investigation", "The Vidya Setu team is researching a step-by-step fix."],
-                    ["3", "Check Back Soon", "A verified guide will be published here shortly."]
-                  ]
-                }]);
-                setShowReportForm(false);
-                setNewProblem({ title: "", desc: "" });
-                addToast("Problem Reported!", "We will add a guide for this soon.", <span className="material-symbols-outlined" style={{ fontSize: 18 }}>check_circle</span>, T.success);
+                try {
+                  const res = await fetch(`${API_BASE_URL}/api/scholarships/issues`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: newProblem.title, desc: newProblem.desc })
+                  });
+                  if (res.ok) {
+                    const data = await res.json();
+                    setCustomProblems([data.issue, ...customProblems]);
+                    setShowReportForm(false);
+                    setNewProblem({ title: "", desc: "" });
+                    addToast("Problem Reported!", "We will add a guide for this soon.", <span className="material-symbols-outlined" style={{ fontSize: 18 }}>check_circle</span>, T.success);
+                  }
+                } catch(e) {
+                  addToast("Error", "Failed to report problem", <span className="material-symbols-outlined" style={{ fontSize: 18 }}>error</span>, T.rose);
+                }
               }} style={{ background: `linear-gradient(135deg,${T.indigo},#6366F1)`, color: "#fff", border: "none", borderRadius: 12, padding: "12px", fontSize: 13, fontWeight: 800, cursor: "pointer", marginTop: 8, transition: "all .2s ease" }}>
                 Submit Problem
               </button>
@@ -6958,13 +7065,8 @@ const T = {
                         <stop offset="100%" stopColor="#FFC700" />
                       </linearGradient>
                     </defs>
-                    <path d="M6 30 Q22 4 38 30" stroke="url(#heroGrad)" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.45" />
-                    <path d="M10 12 L22 32 L34 12" stroke="url(#heroGrad)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                    <circle cx="10" cy="12" r="2.5" fill="#FF4F1F" />
-                    <circle cx="34" cy="12" r="2.5" fill="#FFC700" />
-                    <circle cx="22" cy="32" r="3" fill="#FF7044" />
-                    <line x1="10" y1="12" x2="34" y2="12" stroke="url(#heroGrad)" strokeWidth="1.5" strokeLinecap="round" opacity="0.3" />
-                    <circle cx="22" cy="12" r="1.5" fill="#FFC700" opacity="0.55" />
+                    <path d="M22 8 L38 16 L22 24 L6 16 Z" fill="url(#heroGrad)" />
+                    <path d="M11 23 L 11 30 C 11 35 15 39 22 41 C 29 39 33 35 33 30 L 33 23" stroke="url(#heroGrad)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
                   </svg>
                 </div>
                 <div>
@@ -6972,7 +7074,7 @@ const T = {
                   <div style={{ color: T.muted, fontSize: 10, letterSpacing: .5 }}>Student Web Portal • AKTU Ecosystem</div>
                 </div>
               </div>
-              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 36, fontWeight: 900, lineHeight: 1.2, marginBottom: 4, color: T.text, letterSpacing: "-0.5px" }}>Hello, {user.name ? user.name.split(" ")[0] : "Dev"} </h1>
+              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 36, fontWeight: 900, lineHeight: 1.2, marginBottom: 4, color: T.text, letterSpacing: "-0.5px" }}>Hi, {user.name ? user.name.split(" ")[0] : "Dev"} </h1>
 
               <p style={{ color: T.muted, fontSize: 15 }}>{user.branch || "CSE"} • {user.year || "1st Year"} • AKTU Lucknow</p>
               <div className="home-stats">
@@ -7117,13 +7219,8 @@ const T = {
                       <stop offset="100%" stopColor="#FFC700" />
                     </linearGradient>
                   </defs>
-                  <path d="M6 30 Q22 4 38 30" stroke="url(#sideGrad)" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.45" />
-                  <path d="M10 12 L22 32 L34 12" stroke="url(#sideGrad)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                  <circle cx="10" cy="12" r="2.5" fill="#FF4F1F" />
-                  <circle cx="34" cy="12" r="2.5" fill="#FFC700" />
-                  <circle cx="22" cy="32" r="3" fill="#FF7044" />
-                  <line x1="10" y1="12" x2="34" y2="12" stroke="url(#sideGrad)" strokeWidth="1.5" strokeLinecap="round" opacity="0.3" />
-                  <circle cx="22" cy="12" r="1.5" fill="#FFC700" opacity="0.55" />
+                  <path d="M22 8 L38 16 L22 24 L6 16 Z" fill="url(#sideGrad)" />
+                  <path d="M11 23 L 11 30 C 11 35 15 39 22 41 C 29 39 33 35 33 30 L 33 23" stroke="url(#sideGrad)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
                 </svg>
               </div>
               <div>

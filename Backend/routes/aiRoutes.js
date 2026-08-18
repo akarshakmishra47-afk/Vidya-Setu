@@ -47,7 +47,7 @@ User Context:
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: "llama-3.3-70b-versatile",
+                model: "openai/gpt-oss-120b",
                 messages: [
                     { role: "system", content: systemPrompt },
                     { role: "user", content: message }
@@ -128,7 +128,7 @@ Task: ${taskPrompt}
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: "llama-3.3-70b-versatile",
+                model: "openai/gpt-oss-120b",
                 messages: [
                     { role: "system", content: systemPrompt },
                     { role: "user", content: "Please generate the requested career analysis." }
@@ -237,7 +237,7 @@ Task: ${taskPrompt}
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: "llama-3.3-70b-versatile",
+                model: "openai/gpt-oss-120b",
                 messages: [
                     { role: "system", content: systemPrompt },
                     { role: "user", content: "Please generate the requested exam analysis." }
@@ -326,7 +326,7 @@ Required JSON Structure:
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: "llama-3.3-70b-versatile",
+                model: "openai/gpt-oss-120b",
                 response_format: { type: "json_object" },
                 messages: [
                     { role: "system", content: systemPrompt },
