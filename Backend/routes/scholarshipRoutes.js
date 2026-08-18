@@ -112,6 +112,34 @@ router.get('/status', async (req, res) => {
   }
 });
 
+// GET all user-reported issues
+router.get('/issues', async (req, res) => {
+  try {
+    const ScholarshipIssue = require('../models/ScholarshipIssue');
+    const issues = await ScholarshipIssue.find().sort({ createdAt: -1 });
+    res.json(issues);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch issues" });
+  }
+});
+
+// POST new user-reported issue
+router.post('/issues', async (req, res) => {
+  try {
+    const ScholarshipIssue = require('../models/ScholarshipIssue');
+    const { title, desc } = req.body;
+    if (!title) return res.status(400).json({ error: "Title is required" });
+    const newIssue = new ScholarshipIssue({ 
+      title, 
+      desc: desc || "Awaiting further details."
+    });
+    await newIssue.save();
+    res.status(201).json({ success: true, issue: newIssue });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to save issue" });
+  }
+});
+
 // POST trigger manual fetch
 router.post('/fetch-latest', async (req, res) => {
   if (refreshInProgress) {
