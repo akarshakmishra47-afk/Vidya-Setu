@@ -8,7 +8,7 @@ router.post('/chat', async (req, res) => {
 
         if (!apiKey || apiKey === 'your_key_here') {
             return res.status(500).json({ 
-                error: "Groq API Key is missing. Please add it to your Render Settings as GROQ_API_KEY." 
+                error: "Groq API Key is missing. Please add GROQ_API_KEY to your environment settings." 
             });
         }
 
@@ -31,8 +31,8 @@ When relevant to the user's query, you MUST mention and guide users to these spe
 
 BEHAVIORAL GUIDELINES:
 - **Prioritize the Platform**: If a user asks about careers, internships, scholarships, or exams, always mention that Vidya-Setu has dedicated sections for these and encourage them to check those tabs.
-- **General Knowledge**: You are a powerful AI (Llama 3.3) and can answer any general question (coding, science, literature, etc.). Do not limit your knowledge, but always frame it as coming from the Vidya-Setu Assistant.
-- **Direct & Helpful**: Provide clear answers. If the information is on Vidya-Setu, point them there.
+- **Accuracy & Honesty**: Provide highly accurate, factual answers. Do NOT hallucinate or guess information. Think step-by-step before answering. If you do not know the answer to a specific technical or academic question, admit it and guide them on how to find out.
+- **Direct & Helpful**: Provide clear, concise answers. Avoid fluff. If the information is on Vidya-Setu, point them there. Base all your advice entirely on factual information.
 
 User Context:
 - Name: ${userContext?.name || 'Student'}
@@ -52,15 +52,21 @@ User Context:
                     { role: "system", content: systemPrompt },
                     { role: "user", content: message }
                 ],
-                temperature: 0.7,
-                max_tokens: 1024
+                temperature: 0.1,
+                max_tokens: 2048
             })
         });
 
         const data = await response.json();
 
         if (data.choices && data.choices[0]) {
-            res.json({ reply: data.choices[0].message.content });
+            const msg = data.choices[0].message;
+            const reply = msg.content || msg.reasoning || (msg.reasoning_details?.[0]?.text ?? null);
+            if (!reply) {
+                console.error('OpenRouter empty content:', data);
+                throw new Error("AI returned an empty response. Please try again.");
+            }
+            res.json({ reply });
         } else {
             console.error('Groq Error Response:', data);
             throw new Error(data.error?.message || "Groq API error");
@@ -78,7 +84,7 @@ router.post('/career-analyze', async (req, res) => {
 
         if (!apiKey || apiKey === 'your_key_here') {
             return res.status(500).json({ 
-                error: "Groq API Key is missing. Please add it to your Render Settings as GROQ_API_KEY." 
+                error: "Groq API Key is missing. Please add GROQ_API_KEY to your environment settings." 
             });
         }
 
@@ -108,9 +114,9 @@ Student Profile Context:
 
 Guidelines:
 1. Provide a direct, professional, and structured response.
-2. Base ALL your advice on the provided student profile and missing skills. Do NOT invent generic advice that ignores the user's specific context.
-3. Keep the formatting clean using markdown (bullet points, bold text for emphasis). Do NOT use oversized emojis or excessive exclamation marks.
-4. If recommending technologies to learn, be specific (e.g., "Learn Express.js routing" instead of "Learn backend").
+2. Base ALL your advice STRICTLY on the provided student profile and missing skills. Do NOT invent generic advice that ignores the user's specific context. Be highly accurate and realistic.
+3. Use proper markdown formatting: use newlines to separate bullet points, use --- for horizontal rules, use | pipe tables for comparisons. Do NOT use <br> or any HTML tags.
+4. If recommending technologies to learn, be highly specific and practical (e.g., "Learn Express.js routing" instead of "Learn backend"). Avoid generic buzzwords.
 
 Task: ${taskPrompt}
 `;
@@ -127,15 +133,18 @@ Task: ${taskPrompt}
                     { role: "system", content: systemPrompt },
                     { role: "user", content: "Please generate the requested career analysis." }
                 ],
-                temperature: 0.7,
-                max_tokens: 1024
+                temperature: 0.1,
+                max_tokens: 2048
             })
         });
 
         const data = await response.json();
 
         if (data.choices && data.choices[0]) {
-            res.json({ reply: data.choices[0].message.content });
+            const msg = data.choices[0].message;
+            const reply = msg.content || msg.reasoning || (msg.reasoning_details?.[0]?.text ?? null);
+            if (!reply) throw new Error("AI returned an empty response.");
+            res.json({ reply });
         } else {
             console.error('Groq Error Response:', data);
             throw new Error(data.error?.message || "Groq API error");
@@ -157,7 +166,7 @@ router.post('/exam-analyze', async (req, res) => {
 
         if (!apiKey || apiKey === 'your_key_here') {
             return res.status(500).json({ 
-                error: "Groq API Key is missing. Please add it to your Render Settings as GROQ_API_KEY." 
+                error: "Groq API Key is missing. Please add GROQ_API_KEY to your environment settings." 
             });
         }
 
@@ -213,10 +222,10 @@ Exam Context:
 - Top 3 Focus Topics: ${hasData ? topics.slice(0, 3).map(t => t.t).join(', ') : 'Insufficient Data'}
 
 Guidelines:
-1. Provide a direct, professional, and structured response.
-2. Base ALL your advice on the provided PYQ data context. Do NOT invent PYQ statistics or topics that are not in the context. If you say "Based on the analyzed PYQs", make sure it aligns with the data.
-3. Keep the formatting clean using markdown (bullet points, bold text for emphasis). Do NOT use oversized emojis or excessive exclamation marks.
-4. Keep it concise but highly valuable.
+1. Provide a direct, professional, and highly accurate structured response.
+2. STRICT DATA ADHERENCE: Base ALL your advice ONLY on the provided PYQ data context. NEVER hallucinate, invent, or guess PYQ statistics, topics, or questions that are not explicitly provided in the context. If data is insufficient, state that clearly instead of guessing.
+3. Use proper markdown formatting: bullet points, bold text, and | pipe tables for topic lists. Use newlines between items. Do NOT use <br> or any HTML tags.
+4. Keep it concise, analytical, and highly valuable. Do not add unnecessary fluff.
 
 Task: ${taskPrompt}
 `;
@@ -233,15 +242,18 @@ Task: ${taskPrompt}
                     { role: "system", content: systemPrompt },
                     { role: "user", content: "Please generate the requested exam analysis." }
                 ],
-                temperature: 0.7,
-                max_tokens: 1024
+                temperature: 0.1,
+                max_tokens: 2048
             })
         });
 
         const data = await response.json();
 
         if (data.choices && data.choices[0]) {
-            res.json({ reply: data.choices[0].message.content });
+            const msg = data.choices[0].message;
+            const reply = msg.content || msg.reasoning || (msg.reasoning_details?.[0]?.text ?? null);
+            if (!reply) throw new Error("AI returned an empty response.");
+            res.json({ reply });
         } else {
             console.error('Groq Error Response:', data);
             throw new Error(data.error?.message || "Groq API error");
@@ -264,7 +276,7 @@ router.post('/resume/analyze', async (req, res) => {
 
         if (!apiKey || apiKey === 'your_key_here') {
             return res.status(500).json({ 
-                error: "Groq API Key is missing. Please add it to your Render Settings as GROQ_API_KEY." 
+                error: "Groq API Key is missing. Please add GROQ_API_KEY to your environment settings." 
             });
         }
         
@@ -320,7 +332,7 @@ Required JSON Structure:
                     { role: "system", content: systemPrompt },
                     { role: "user", content: "Here is the resume text to analyze:\n\n" + resumeText }
                 ],
-                temperature: 0.3,
+                temperature: 0.1,
                 max_tokens: 2000
             })
         });
