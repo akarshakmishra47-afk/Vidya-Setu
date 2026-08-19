@@ -3617,7 +3617,7 @@ const T = {
               const grouped = data.reduce((acc, curr) => {
                 const catName = curr.category || 'Other';
                 if (!acc[catName]) acc[catName] = { cat: catName, color: curr.color || T.indigo, items: [] };
-                curr.iconNode = <img src={curr.icon || 'https://vidyasetu.com/favicon.png'} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt={curr.title} />;
+                curr.iconNode = <img src={curr.icon || 'https://vidyasetu.com/favicon.png'} onError={(e) => { console.warn('Missing logo:', curr.icon); e.target.onerror = null; e.target.src = 'https://vidyasetu.com/favicon.png'; }} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt={curr.title} />;
                 acc[catName].items.push(curr);
                 return acc;
               }, {});
