@@ -149,16 +149,54 @@ const seedData = [
     eligibility: { maxIncome: 99999999, allowedCategories: ['General', 'OBC', 'SC', 'ST', 'EWS'], isDefenceRequired: false, isCapfRequired: true },
     documentsRequired: ['CAPF Service Certificate', 'Aadhaar Card', 'Admission Letter', 'PPO (if retired)', 'Disability Certificate (if applicable)', 'Marksheet']
   },
+  {
+    title: "PMSS – Wards of State/UT Police personnel martyred in Terror/Naxal attacks",
+    provider: "Ministry of Home Affairs, Govt. of India",
+    category: "CAPF",
+    amount: "₹3,000/month (Boys) | ₹3,600/month (Girls)",
+    deadline: "October 31, 2026",
+    description: "For eligible wards of police personnel who died during qualifying terror/Naxal attacks.",
+    officialUrl: "https://scholarships.gov.in/All-Scholarships?utm_source=chatgpt.com",
+    tags: ["PMSS", "Police", "State Police", "UT Police", "Martyrs"],
+    howToApply: [
+      "Go to scholarships.gov.in, register or log in.",
+      "Select 'Ministry of Home Affairs → PMSS for State/UT Police'.",
+      "Upload necessary documents including the certificate of martyrdom.",
+      "Submit within the deadline and track status on the NSP portal."
+    ],
+    eligibility: { maxIncome: 99999999, allowedCategories: ['General', 'OBC', 'SC', 'ST', 'EWS'], isDefenceRequired: false, isCapfRequired: false },
+    documentsRequired: ['Martyrdom Certificate', 'Aadhaar Card', 'Admission Letter', 'Marksheet']
+  },
 
   // ── PRIVATE / NGO ────────────────────────────────────────────
   {
-    title: "Reliance Foundation Undergraduate Scholarship",
+    title: "HDFC Bank Parivartan ECSS Programme 2026-27",
+    provider: "HDFC Bank (Parivartan)",
+    category: "Private/NGO",
+    amount: "₹15,000 to ₹75,000",
+    deadline: "Check Official Website",
+    description: "A scholarship initiative by HDFC Bank providing financial assistance to meritorious students with limited financial means. Open to students from Class 1 to PG level. Preference given to those facing personal or family crises.",
+    officialUrl: "https://www.parivartanecss.com",
+    tags: ["HDFC", "Private", "CSR", "School", "UG", "PG", "Diploma", "Crisis Support"],
+    howToApply: [
+      "Visit the official website: www.parivartanecss.com",
+      "Select your applicable education category (Classes 1-12, Diploma, UG, or PG).",
+      "Create an account or log in to start the application.",
+      "Fill in personal, academic, and financial details.",
+      "Upload required documents, including proof of crisis (if applicable).",
+      "Submit the application."
+    ],
+    eligibility: { maxIncome: 600000, allowedCategories: ['General', 'OBC', 'SC', 'ST', 'EWS'], isDefenceRequired: false, isCapfRequired: false },
+    documentsRequired: ['Income Certificate', 'Aadhaar Card', 'Previous Year Marksheet', 'Current Year Admission Proof', 'Proof of Crisis (if any)', 'Bank Account Details']
+  },
+  {
+    title: "Reliance Foundation Undergraduate Scholarship 2026-27",
     provider: "Reliance Foundation",
     category: "Private/NGO",
     amount: "Up to ₹2,00,000 over 4 years",
     deadline: "January 12, 2027",
     description: "Merit-cum-means scholarship for undergraduate students across India pursuing engineering, pure sciences, social sciences, or humanities. Includes mentoring and networking.",
-    officialUrl: "https://www.reliancefoundation.org/scholarships",
+    officialUrl: "https://www.scholarships.reliancefoundation.org/UG_Scholarship",
     tags: ["Reliance", "Private", "Merit", "Need-based", "Engineering", "Science"],
     howToApply: [
       "Visit reliancefoundation.org/scholarships and click 'Apply Now'.",
@@ -178,7 +216,7 @@ const seedData = [
     amount: "Up to ₹50,000/yr",
     deadline: "August 31, 2026",
     description: "Scholarship for meritorious but financially needy students pursuing graduation (including engineering). Focuses on students from rural or semi-urban backgrounds.",
-    officialUrl: "https://www.buddy4study.com/page/tata-capital-pankh-scholarship",
+    officialUrl: "https://www.tata.com/newsroom/community/tata-capital-pankh-scholarship?utm_source=chatgpt.com",
     tags: ["Tata", "Private", "Need-based", "Engineering", "Rural"],
     howToApply: [
       "Go to buddy4study.com and search 'Tata Capital Pankh'.",
@@ -190,24 +228,43 @@ const seedData = [
     eligibility: { maxIncome: 400000, allowedCategories: ['General', 'OBC', 'SC', 'ST', 'EWS'], isDefenceRequired: false, isCapfRequired: false },
     documentsRequired: ['Income Certificate', 'Aadhaar Card', 'Class 12 Marksheet', 'Admission Proof']
   },
+
   {
-    title: "L'Oréal India For Young Women in Science",
-    provider: "L'Oréal India",
+    title: "SBI Platinum Jubilee Asha Scholarship 2026",
+    provider: "SBI Foundation",
     category: "Private/NGO",
-    amount: "₹2,50,000 (one-time)",
-    deadline: "October 30, 2026",
-    description: "Scholarship exclusively for female students pursuing pure sciences (Physics, Chemistry, Biology, Mathematics) at undergraduate level from any Indian university.",
-    officialUrl: "https://www.lorealparisbeautyforall.com/scholarships",
-    tags: ["Women", "Science", "Girls", "STEM", "Private"],
+    amount: "₹15,000 - ₹15,00,000",
+    deadline: "October 31, 2026",
+    description: "The SBI Platinum Jubilee Asha Scholarship is one of India's largest scholarship initiatives, supporting meritorious students from economically weaker backgrounds — from Class 9 all the way to study abroad. It ensures that financial challenges never hinder access to quality education.",
+    officialUrl: "https://www.sbiashascholarship.co.in",
+    tags: ["SBI", "Asha", "Platinum Jubilee", "Class 9-12", "UG/PG", "Study Abroad"],
     howToApply: [
-      "Visit L'Oréal India website and go to the Scholarship section.",
-      "Fill in the scholarship application form with academic and personal details.",
-      "Submit a research proposal or motivation letter.",
-      "Shortlisted candidates go through a personal interview.",
-      "Awards are announced annually in March."
+      "Visit the official SBI Asha Scholarship portal (sbiashascholarship.co.in).",
+      "Register using your email or mobile number.",
+      "Fill out the online application form with personal and academic details.",
+      "Upload required documents (Income Certificate, Aadhaar, previous marksheets).",
+      "Submit the application and save the reference number."
     ],
-    eligibility: { maxIncome: 99999999, allowedCategories: ['General', 'OBC', 'SC', 'ST', 'EWS'], isDefenceRequired: false, isCapfRequired: false },
-    documentsRequired: ['Aadhaar Card', 'Class 12 Marksheet', 'Admission Proof', 'Recommendation Letter']
+    eligibility: { maxIncome: 300000, allowedCategories: ['General', 'OBC', 'SC', 'ST', 'EWS'], isDefenceRequired: false, isCapfRequired: false },
+    documentsRequired: ['Income Certificate', 'Aadhaar', 'Previous Year Marksheet', 'Bank Passbook']
+  },
+  {
+    title: "LIC Golden Jubilee Scholarship — B.Tech",
+    provider: "LIC Golden Jubilee Foundation",
+    category: "Private/NGO",
+    amount: "₹30,000 per year",
+    deadline: "Check Official Website",
+    description: "Scholarship for students from economically weaker sections pursuing BE / B.Tech / B.Arch in India. Paid in 2 instalments of ₹15,000 and available for the duration of the course.",
+    officialUrl: "https://www.licindia.in/en/web/guest/golden-jubilee-foundation?utm_source=chatgpt.com",
+    tags: ["LIC", "Private", "B.Tech", "B.Arch", "Need-based"],
+    howToApply: [
+      "Visit the official LIC Golden Jubilee Foundation page.",
+      "Check the eligibility criteria carefully.",
+      "Submit the online application form when active.",
+      "Provide necessary documents including Class 12/Diploma marksheet and income proof."
+    ],
+    eligibility: { maxIncome: 450000, allowedCategories: ['General', 'OBC', 'SC', 'ST', 'EWS'], isDefenceRequired: false, isCapfRequired: false },
+    documentsRequired: ['Income Certificate', 'Aadhaar Card', 'Class 12 / Diploma Marksheet', 'Bank Details']
   },
 
   // ── INSTITUTE ────────────────────────────────────────────────
@@ -230,36 +287,33 @@ const seedData = [
     eligibility: { maxIncome: 99999999, allowedCategories: ['General', 'OBC', 'SC', 'ST', 'EWS'], isDefenceRequired: false, isCapfRequired: false },
     documentsRequired: ['University Marksheet', 'College ID Card', 'Bank Account Details']
   },
-  {
-    title: "AICTE Pragati Scholarship (Girls in Technical Education)",
-    provider: "AICTE, Ministry of Education",
-    category: "Government",
-    amount: "₹50,000/yr + ₹2,000/month contingency",
-    deadline: "November 30, 2026",
-    description: "Scholarship exclusively for girl students in AICTE-approved diploma/degree technical programs. One scholarship per family. Promotes women in STEM fields.",
-    officialUrl: "https://www.aicte-india.org/bureaus/pgms/pragati",
-    tags: ["AICTE", "Girls", "Women", "Technical", "Engineering", "Government"],
-    howToApply: [
-      "Visit aicte-india.org and go to 'Pragati / Saksham Scholarship'.",
-      "Register & login via the AICTE scholarship portal.",
-      "Fill in your technical program details and AICTE-recognized institution name.",
-      "Upload income proof, Aadhaar, fee receipt, and enrollment certificate.",
-      "Only one girl per family can apply.",
-      "Submit online before the deadline and note your reference number."
-    ],
-    eligibility: { maxIncome: 800000, allowedCategories: ['General', 'OBC', 'SC', 'ST', 'EWS'], isDefenceRequired: false, isCapfRequired: false },
-    documentsRequired: ['Income Certificate', 'Aadhaar Card', 'Fee Receipt', 'AICTE Institution Code', 'Enrollment Certificate', 'Affidavit (one girl per family)']
-  }
+
 ];
 
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log('✅ Connected to MongoDB');
-    await Scholarship.deleteMany({});
-    console.log('🗑️  Cleared existing scholarships');
-    const inserted = await Scholarship.insertMany(seedData);
-    console.log(`🎉 Successfully seeded ${inserted.length} Scholarships!`);
-    inserted.forEach((s, i) => console.log(`  ${i+1}. [${s.category}] ${s.title}`));
+    // Removed deleteMany to prevent wiping other scholarships in the DB
+    // await Scholarship.deleteMany({});
+    // console.log('🗑️  Cleared existing scholarships');
+    let count = 0;
+    for (const s of seedData) {
+      const doc = {
+        ...s,
+        source: 'seed',
+        deduplicationKey: 'seed::' + s.title.toLowerCase().replace(/\s+/g, ''),
+        status: 'active',
+        isActive: true
+      };
+      await Scholarship.updateOne(
+        { deduplicationKey: doc.deduplicationKey },
+        { $set: doc },
+        { upsert: true }
+      );
+      count++;
+      console.log(`  ${count}. [${s.category}] ${s.title}`);
+    }
+    console.log(`🎉 Successfully seeded ${count} Scholarships!`);
     mongoose.connection.close();
   })
   .catch(err => {
