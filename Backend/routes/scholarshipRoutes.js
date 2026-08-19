@@ -48,7 +48,7 @@ async function triggerScholarshipFetch() {
     let inserted = 0;
     
     // Deactivate old external scholarships (so we don't keep dead ones active)
-    await Scholarship.updateMany({ source: { $ne: 'manual' } }, { status: 'stale' });
+    await Scholarship.updateMany({ source: { $nin: ['manual', 'seed'] } }, { status: 'stale' });
 
     // Insert or activate new external scholarships
     for (const s of newScholarships) {
