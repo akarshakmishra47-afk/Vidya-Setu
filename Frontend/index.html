@@ -8979,6 +8979,16 @@ const T = {
       useEffect(() => {
         const checkSession = async () => {
           try {
+            // Check local storage first so we can survive 3rd-party cookie blocking
+            const localData = localStorage.getItem('studentData');
+            if (localData) {
+              const fetchedData = JSON.parse(localData);
+              const inits = (fetchedData.name || "DK").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+              setUser({ ...fetchedData, initials: inits, isAdmin: fetchedData.isAdmin || false });
+              setIsAdmin(fetchedData.isAdmin || false);
+              setIsLoggedIn(true);
+            }
+
             const res = await fetch(`${API_BASE_URL}/api/users/refresh`, {
               credentials: 'include',
               headers: { 'Content-Type': 'application/json' }
@@ -8997,7 +9007,7 @@ const T = {
                 setIsAdmin(fetchedData.isAdmin || false);
                 setIsLoggedIn(true);
               }
-            } else {
+            } else if (!localData) {
               localStorage.clear();
             }
           } catch (e) {
