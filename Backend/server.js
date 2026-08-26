@@ -5,6 +5,7 @@ dns.setServers(['8.8.8.8', '8.8.4.4']);
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const cookieParser = require('cookie-parser');
 const userRoutes = require('./routes/userRoutes');
 const marketplaceRoutes = require('./routes/marketplaceRoutes');
 const perkRoutes = require('./routes/perkRoutes');
@@ -15,6 +16,7 @@ const aiRoutes = require('./routes/aiRoutes');
 const communityRoutes = require('./routes/communityRoutes');
 
 const app = express();
+app.use(cookieParser());
 
 const ALLOWED_ORIGINS = [
   'https://mini-project-eight-lime.vercel.app',
