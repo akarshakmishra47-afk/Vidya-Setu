@@ -9076,6 +9076,7 @@ const T = {
             isAdmin: fetchedData.isAdmin || false
           };
           setUser(finalUser);
+          saveToStorage(finalUser);
           setIsAdmin(fetchedData.isAdmin || false);
         }
       }} />;
