@@ -106,8 +106,8 @@ router.post('/login', async (req, res) => {
     // Set refresh token in httpOnly cookie
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: true,
+      sameSite: 'none',
       maxAge: 30 * 60 * 1000 // 30 minutes
     });
 
@@ -140,8 +140,8 @@ router.get('/refresh', async (req, res) => {
     
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: true,
+      sameSite: 'none',
       maxAge: 30 * 60 * 1000 // 30 minutes
     });
 
