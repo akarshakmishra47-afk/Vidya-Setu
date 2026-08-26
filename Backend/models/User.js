@@ -46,7 +46,8 @@ const userSchema = new mongoose.Schema({
     uploadDate: { type: Date }
   },
   resumeText: { type: String, default: '' },
-  resumeAnalysis: { type: mongoose.Schema.Types.Mixed, default: null }
+  resumeAnalysis: { type: mongoose.Schema.Types.Mixed, default: null },
+  tokenVersion: { type: Number, default: 0 }
 });
 
 module.exports = mongoose.model('User', userSchema);

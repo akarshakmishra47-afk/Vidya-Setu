@@ -2005,7 +2005,7 @@
       window.location.protocol === 'file:';
 
     const API_BASE_URL = isLocal
-      ? 'http://localhost:5000'
+      ? `http://${window.location.hostname}:5000`
       : 'https://vidya-setu-api.onrender.com';
 
     const { useState, useEffect, useRef, createContext, useContext } = React;
@@ -7391,16 +7391,15 @@ const T = {
         try {
           const res = await fetch(`${API_BASE_URL}/api/users/login`, {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ rollNo: email, password: pass })
           });
           if (res.ok) {
             const data = await res.json();
-            if (data && data.rollNo) {
-              const dataWithEmail = { ...data, email: data.email || (email.includes('@') ? email : data.email || "") };
-              // ✅ STABLE VERSION: No direct localStorage sets here to avoid storage quota errors.
-              // The onLogin() function below handles safe, filtered storage.
-              onLogin(dataWithEmail);
+            if (data && data.user && data.user.rollNo) {
+              const userWithEmail = { ...data.user, email: data.user.email || (email.includes('@') ? email : data.user.email || "") };
+              onLogin({ ...data, user: userWithEmail });
             }
           } else {
             const errData = await res.json().catch(() => ({}));
@@ -8973,58 +8972,60 @@ const T = {
         } catch (e) { console.error("Sync failed", e); }
       };
 
-      // ── PERSISTENCE: Auto-login if localStorage has studentData ──
+      const INACTIVITY_LIMIT_MS = 5 * 60 * 1000;
+
+      // ── PERSISTENCE: Session Validation via Backend ──
       useEffect(() => {
-        try {
-          const raw = localStorage.getItem("studentData");
-          if (raw) {
-            const storedData = JSON.parse(raw);
-            if (storedData && (storedData.rollNo || storedData.email)) {
-              const storedName = storedData.name || localStorage.getItem("studentName") || "Dev Kumar";
-              const inits = storedName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-
-              setUser({
-                ...storedData,
-                name: storedName,
-                initials: inits,
-                branch: storedData.branch || "CSE",
-                year: storedData.year || "1st Year",
-                dbt: storedData.dbt || false,
-                scholarshipStage: storedData.scholarshipStage || 1,
-                University: "AKTU — Lucknow",
-                valid: "May 2026",
-              });
-
-              setIsLoggedIn(true);
-
-              // ── Admin Recognition on Refresh ──
-              if ((storedData.email || "").toLowerCase() === 'vidyasetu@aktu.ac.in' || storedData.isAdmin === true) {
-                setIsAdmin(true);
-              } else {
-                setIsAdmin(false);
+        const checkSession = async () => {
+          try {
+            const res = await fetch(`${API_BASE_URL}/api/users/refresh`, {
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.user) {
+                const fetchedData = data.user;
+                const inits = (fetchedData.name || "DK").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                
+                setUser({
+                  ...fetchedData,
+                  initials: inits,
+                  isAdmin: fetchedData.isAdmin || false
+                });
+                setIsAdmin(fetchedData.isAdmin || false);
+                setIsLoggedIn(true);
               }
-
+            } else {
+              localStorage.clear();
             }
+          } catch (e) {
+            console.error("Session check failed", e);
           }
-        } catch (e) {
-          localStorage.clear();
-        }
+        };
+        checkSession();
       }, []);
 
-
-
-
-      // ── AUTO LOGOUT (5 mins inactivity) ──
+      // ── AUTO LOGOUT (5 mins inactivity) & Keep-Alive ──
       useEffect(() => {
         if (!isLoggedIn) return;
+        
         let timeout;
+        let keepAliveInterval;
+
         const resetTimer = () => {
           clearTimeout(timeout);
           timeout = setTimeout(() => {
             alert("Session expired due to 5 minutes of inactivity.");
-            handleLogout();
-          }, 15 * 60 * 1000); // 5 minutes
+            setIsLoggedIn(false);
+            setUser({});
+            setIsAdmin(false);
+          }, INACTIVITY_LIMIT_MS);
         };
+
+        keepAliveInterval = setInterval(() => {
+          fetch(`${API_BASE_URL}/api/users/refresh`, { credentials: 'include' }).catch(console.error);
+        }, 4 * 60 * 1000);
 
         const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
         events.forEach(e => window.addEventListener(e, resetTimer));
@@ -9032,36 +9033,37 @@ const T = {
 
         return () => {
           clearTimeout(timeout);
+          clearInterval(keepAliveInterval);
           events.forEach(e => window.removeEventListener(e, resetTimer));
         };
       }, [isLoggedIn]);
 
-      // ── LOGOUT: clear storage and force full page reload ──
-      const handleLogout = () => {
+      // ── LOGOUT: Revoke session on backend and clear local state ──
+      const handleLogout = async () => {
+        try {
+          await fetch(`${API_BASE_URL}/api/users/logout`, {
+            method: 'POST',
+            credentials: 'include'
+          });
+        } catch (e) { console.error(e); }
         localStorage.clear();
-        window.location.href = '/'; // Forces browser to forget session state
+        window.location.href = '/'; 
       };
 
       if (!splashDone) return <SplashScreen onDone={() => setSplashDone(true)} />;
 
-      if (!isLoggedIn) return <Login onLogin={(fetchedData) => {
+      if (!isLoggedIn) return <Login onLogin={(data) => {
+        const fetchedData = data.user || data; 
         setIsLoggedIn(true);
         if (fetchedData) {
           const inits = (fetchedData.name || "DK").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-          const isAdminUser = (fetchedData.email || "").toLowerCase() === 'vidyasetu@aktu.ac.in';
-
           const finalUser = {
             ...fetchedData,
             initials: inits,
-            isAdmin: isAdminUser
+            isAdmin: fetchedData.isAdmin || false
           };
-
           setUser(finalUser);
-          setIsAdmin(isAdminUser);
-
-          // Persist lean version to localStorage
-          saveToStorage(finalUser);
-          if (finalUser.name) localStorage.setItem("studentName", finalUser.name);
+          setIsAdmin(fetchedData.isAdmin || false);
         }
       }} />;
 

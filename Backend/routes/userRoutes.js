@@ -3,6 +3,7 @@ const router = express.Router();
 const User = require('../models/User');
 const ProfileEditRequest = require('../models/ProfileEditRequest');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const { uploadImage } = require('../cloudinaryConfig');
 
 // GET /api/users/admin/stats
@@ -74,6 +75,14 @@ router.get('/all', async (req, res) => {
   }
 });
 
+// Helper to generate tokens
+const generateTokens = (user) => {
+  const payload = { userId: user._id, rollNo: user.rollNo, isAdmin: user.email === 'vidyasetu@aktu.ac.in' };
+  const accessToken = jwt.sign(payload, process.env.JWT_ACCESS_SECRET || 'secret_access', { expiresIn: '5m' });
+  const refreshToken = jwt.sign({ userId: user._id, tokenVersion: user.tokenVersion }, process.env.JWT_REFRESH_SECRET || 'secret_refresh', { expiresIn: '30m' });
+  return { accessToken, refreshToken };
+};
+
 // POST route /login to authenticate a student using bcrypt
 router.post('/login', async (req, res) => {
   try {
@@ -92,14 +101,74 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: "Invalid Credentials" });
     }
     
+    const { accessToken, refreshToken } = generateTokens(user);
+    
+    // Set refresh token in httpOnly cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 60 * 1000 // 30 minutes
+    });
+
     const userResponse = user.toObject();
     delete userResponse.password;
     delete userResponse.securityAnswer;
+    userResponse.isAdmin = user.email === 'vidyasetu@aktu.ac.in';
     
-    res.status(200).json(userResponse);
+    res.status(200).json({ user: userResponse, accessToken });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// GET route /refresh to renew access token using refresh cookie
+router.get('/refresh', async (req, res) => {
+  try {
+    const token = req.cookies.refreshToken;
+    if (!token) return res.status(401).json({ error: "No refresh token" });
+
+    const payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET || 'secret_refresh');
+    const user = await User.findById(payload.userId);
+    
+    if (!user || user.tokenVersion !== payload.tokenVersion) {
+      return res.status(401).json({ error: "Invalid refresh token" });
+    }
+
+    // Issue new tokens (Sliding expiration: keeps them logged in if active)
+    const { accessToken, refreshToken } = generateTokens(user);
+    
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 60 * 1000 // 30 minutes
+    });
+
+    const userResponse = user.toObject();
+    delete userResponse.password;
+    delete userResponse.securityAnswer;
+    userResponse.isAdmin = user.email === 'vidyasetu@aktu.ac.in';
+
+    res.status(200).json({ user: userResponse, accessToken });
+  } catch (error) {
+    res.status(401).json({ error: "Token expired or invalid" });
+  }
+});
+
+// POST route /logout to invalidate refresh token
+router.post('/logout', async (req, res) => {
+  try {
+    const token = req.cookies.refreshToken;
+    if (token) {
+      const payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET || 'secret_refresh', { ignoreExpiration: true });
+      await User.findByIdAndUpdate(payload.userId, { $inc: { tokenVersion: 1 } });
+    }
+  } catch (e) {
+    // ignore verification errors on logout
+  }
+  res.clearCookie('refreshToken');
+  res.status(200).json({ message: "Logged out" });
 });
 
 // FORGOT PASSWORD: Get security question by roll number
