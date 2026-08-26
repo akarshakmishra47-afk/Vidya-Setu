@@ -8917,6 +8917,7 @@ const T = {
       const [splashDone, setSplashDone] = useState(false);
       const [isLoggedIn, setIsLoggedIn] = useState(false);
       const [isAdmin, setIsAdmin] = useState(false);
+      const [sessionChecked, setSessionChecked] = useState(false);
       const [user, setUser] = useState(() => {
         // Initialise user state — real hydration happens in useEffect below
         return {
@@ -9001,6 +9002,8 @@ const T = {
             }
           } catch (e) {
             console.error("Session check failed", e);
+          } finally {
+            setSessionChecked(true);
           }
         };
         checkSession();
@@ -9050,7 +9053,7 @@ const T = {
         window.location.href = '/'; 
       };
 
-      if (!splashDone) return <SplashScreen onDone={() => setSplashDone(true)} />;
+      if (!splashDone || !sessionChecked) return <SplashScreen onDone={() => setSplashDone(true)} />;
 
       if (!isLoggedIn) return <Login onLogin={(data) => {
         const fetchedData = data.user || data; 
