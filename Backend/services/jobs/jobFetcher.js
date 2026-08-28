@@ -5,7 +5,6 @@
 
 const { fetchRemotiveJobs }   = require('./sources/private/remotiveAdapter');
 const { fetchArbeitnowJobs }  = require('./sources/private/arbeitnowAdapter');
-const { fetchHimalayasJobs }  = require('./sources/private/himalayasAdapter');
 const { fetchGovtJobsRss }    = require('./sources/government/govtJobsRss');
 const { fetchHackathons }     = require('./sources/hackathons/hackathonAdapter');
 const { fetchGreenhouseJobs } = require('./sources/private/greenhouseAdapter');
@@ -42,12 +41,11 @@ async function fetchLatestJobs() {
   const startTime = Date.now();
 
   const [
-    remotiveResult, himalayasResult, hackathonResult,
+    remotiveResult, hackathonResult,
     internshalaResult, linkedinResult, unstopResult, unstopHackathonsResult,
     indeedResult, naukriResult, wellfoundResult, aicteResult
   ] = await Promise.all([
     fetchRemotiveJobs().catch(e => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
-    fetchHimalayasJobs().catch(e => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
     fetchHackathons().catch(e    => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
     fetchInternshalaJobs().catch(e=> ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
     fetchLinkedInJobs().catch(e   => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
@@ -60,7 +58,7 @@ async function fetchLatestJobs() {
   ]);
 
   const results = {
-    remotive: remotiveResult, himalayas: himalayasResult,
+    remotive: remotiveResult,
     hackathon: hackathonResult, internshala: internshalaResult, linkedin: linkedinResult, 
     'Unstop Jobs/Internships': unstopResult, 'Unstop Hackathons': unstopHackathonsResult,
     indeed: indeedResult, naukri: naukriResult, 
@@ -92,10 +90,17 @@ async function fetchLatestJobs() {
 
     if (sourceStats[sourceName].status === 'Working') {
       const activeKeys = new Set();
+      const currentFetchTime = new Date();
 
       for (const job of jobs) {
         // Validate URL requirement: must have sourceUrl (or applyUrl fallback handled inside adapter, but prefer sourceUrl)
         if (!job.sourceUrl && !job.applyUrl) {
+          sourceStats[sourceName].rejected++;
+          continue;
+        }
+        
+        // Reject jobs that are already expired before they even enter the DB
+        if (job.deadline && job.deadline !== 'Not specified' && new Date(job.deadline) < currentFetchTime) {
           sourceStats[sourceName].rejected++;
           continue;
         }
@@ -138,23 +143,20 @@ async function fetchLatestJobs() {
         deactivationFilter.primaryType = 'Hackathon';
       }
 
-      const staleResult = await Job.updateMany(
-        deactivationFilter,
-        { $set: { isActive: false } }
-      );
-      sourceStats[sourceName].deactivated = staleResult.modifiedCount;
-      totalDeactivated += staleResult.modifiedCount;
+      // Hard-delete stale jobs instead of marking them inactive
+      const staleResult = await Job.deleteMany(deactivationFilter);
+      sourceStats[sourceName].deactivated = staleResult.deletedCount;
+      totalDeactivated += staleResult.deletedCount;
     }
   }
 
   // Handle Expiry
   const now = new Date();
-  const allActiveWithDeadline = await Job.find({ isActive: true, deadline: { $ne: 'Not specified' } });
+  const allActiveWithDeadline = await Job.find({ deadline: { $ne: 'Not specified' } });
   let expiredCount = 0;
   for (const j of allActiveWithDeadline) {
     if (new Date(j.deadline) < now) {
-      j.isActive = false;
-      await j.save();
+      await Job.deleteOne({ _id: j._id });
       expiredCount++;
     }
   }
@@ -192,6 +194,7 @@ async function fetchLatestJobs() {
   sourceStats['manual'] = { ...disabledStatsTemplate };
   sourceStats['web'] = { ...disabledStatsTemplate };
   sourceStats['arbeitnow'] = { ...disabledStatsTemplate };
+  sourceStats['himalayas'] = { ...disabledStatsTemplate };
   
   sourceStats['Jobicy'] = { ...unavailableStatsTemplate };
   sourceStats['The Muse'] = { ...unavailableStatsTemplate };

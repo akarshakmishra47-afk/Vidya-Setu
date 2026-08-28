@@ -75,7 +75,7 @@ function buildJobFilter(query) {
   let filter = { 
     isIndiaLocation: { $ne: false }, 
     isActive: { $ne: false },
-    source: { $nin: ['greenhouse', 'lever', 'govtRss', 'manual', 'web', 'arbeitnow'] }
+    source: { $nin: ['greenhouse', 'lever', 'govtRss', 'manual', 'web', 'arbeitnow', 'himalayas'] }
   };
 
   if (query.primaryType) {
@@ -105,7 +105,7 @@ function buildJobFilter(query) {
   }
   
   if (query.source && query.source.toLowerCase() !== 'all') {
-    const disabledSources = ['greenhouse', 'lever', 'govtRss', 'manual', 'web', 'arbeitnow'];
+    const disabledSources = ['greenhouse', 'lever', 'govtRss', 'manual', 'web', 'arbeitnow', 'himalayas'];
     if (disabledSources.includes(query.source.toLowerCase())) {
       filter.source = '__DISABLED__';
     } else {
