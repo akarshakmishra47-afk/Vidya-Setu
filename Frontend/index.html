@@ -8963,7 +8963,7 @@ const T = {
         } catch (e) { console.error("Sync failed", e); }
       };
 
-      const INACTIVITY_LIMIT_MS = 5 * 60 * 1000;
+
 
       // ── PERSISTENCE: Session Validation via Backend ──
       useEffect(() => {
@@ -9009,35 +9009,16 @@ const T = {
         checkSession();
       }, []);
 
-      // ── AUTO LOGOUT (5 mins inactivity) & Keep-Alive ──
+      // ── KEEP-ALIVE (Refresh backend session every 4 mins) ──
       useEffect(() => {
         if (!isLoggedIn) return;
         
-        let timeout;
-        let keepAliveInterval;
-
-        const resetTimer = () => {
-          clearTimeout(timeout);
-          timeout = setTimeout(() => {
-            alert("Session expired due to 5 minutes of inactivity.");
-            setIsLoggedIn(false);
-            setUser({});
-            setIsAdmin(false);
-          }, INACTIVITY_LIMIT_MS);
-        };
-
-        keepAliveInterval = setInterval(() => {
+        const keepAliveInterval = setInterval(() => {
           fetch(`${API_BASE_URL}/api/users/refresh`, { credentials: 'include' }).catch(console.error);
         }, 4 * 60 * 1000);
 
-        const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
-        events.forEach(e => window.addEventListener(e, resetTimer));
-        resetTimer();
-
         return () => {
-          clearTimeout(timeout);
           clearInterval(keepAliveInterval);
-          events.forEach(e => window.removeEventListener(e, resetTimer));
         };
       }, [isLoggedIn]);
 
