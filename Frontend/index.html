@@ -9009,16 +9009,16 @@ const T = {
         checkSession();
       }, []);
 
-      // ── SECURE AUTO LOGOUT (30 mins inactivity) & KEEP-ALIVE ──
+      // ── SECURE AUTO LOGOUT (5 mins inactivity) & KEEP-ALIVE ──
       useEffect(() => {
         if (!isLoggedIn) return;
         
         let inactivityTimeout;
         let keepAliveInterval;
-        const INACTIVITY_LIMIT_MS = 30 * 60 * 1000; // 30 minutes
+        const INACTIVITY_LIMIT_MS = 5 * 60 * 1000; // 5 minutes
 
         const performSecureLogout = async () => {
-          alert("Session expired due to 30 minutes of inactivity. For your security, you have been logged out.");
+          alert("Session expired due to 5 minutes of inactivity. For your security, you have been logged out.");
           try {
             await fetch(`${API_BASE_URL}/api/users/logout`, {
               method: 'POST',
