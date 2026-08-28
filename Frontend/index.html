@@ -9020,6 +9020,7 @@ const T = {
         localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
 
         const performSecureLogout = async () => {
+          alert("Session expired due to 5 minutes of inactivity. For your security, you have been logged out.");
           try {
             await fetch(`${API_BASE_URL}/api/users/logout`, {
               method: 'POST',
