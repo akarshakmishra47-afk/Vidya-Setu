@@ -9009,16 +9009,17 @@ const T = {
         checkSession();
       }, []);
 
-      // ── SECURE AUTO LOGOUT (5 mins inactivity) & KEEP-ALIVE ──
+      // ── SECURE AUTO LOGOUT & KEEP-ALIVE (Production Grade) ──
       useEffect(() => {
         if (!isLoggedIn) return;
         
-        let inactivityTimeout;
-        let keepAliveInterval;
         const INACTIVITY_LIMIT_MS = 5 * 60 * 1000; // 5 minutes
+        const ACTIVITY_KEY = 'vidyasetu_last_activity';
+        
+        // Initialize activity timestamp
+        localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
 
         const performSecureLogout = async () => {
-          alert("Session expired due to 5 minutes of inactivity. For your security, you have been logged out.");
           try {
             await fetch(`${API_BASE_URL}/api/users/logout`, {
               method: 'POST',
@@ -9033,26 +9034,45 @@ const T = {
           window.location.href = '/'; 
         };
 
-        const resetTimer = () => {
-          clearTimeout(inactivityTimeout);
-          inactivityTimeout = setTimeout(performSecureLogout, INACTIVITY_LIMIT_MS);
+        // Check if we've exceeded the inactivity limit
+        const checkInactivity = () => {
+          const lastActivity = parseInt(localStorage.getItem(ACTIVITY_KEY) || '0', 10);
+          if (Date.now() - lastActivity > INACTIVITY_LIMIT_MS) {
+            performSecureLogout();
+          }
         };
 
+        // Update the timestamp on interaction (debounced to avoid performance hits)
+        let debounceTimer;
+        const updateActivity = () => {
+          if (debounceTimer) return;
+          debounceTimer = setTimeout(() => {
+            localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
+            debounceTimer = null;
+          }, 1000);
+        };
+
+        // Run the inactivity check every 10 seconds
+        const inactivityChecker = setInterval(checkInactivity, 10000);
+
         // Ping the backend every 4 minutes to keep the session alive ONLY IF active
-        keepAliveInterval = setInterval(() => {
-          fetch(`${API_BASE_URL}/api/users/refresh`, { credentials: 'include' }).catch(console.error);
+        const keepAliveInterval = setInterval(() => {
+          const lastActivity = parseInt(localStorage.getItem(ACTIVITY_KEY) || '0', 10);
+          // Only extend the session if the user was active recently
+          if (Date.now() - lastActivity < INACTIVITY_LIMIT_MS) {
+            fetch(`${API_BASE_URL}/api/users/refresh`, { credentials: 'include' }).catch(console.error);
+          }
         }, 4 * 60 * 1000);
 
         const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
-        events.forEach(e => window.addEventListener(e, resetTimer));
+        events.forEach(e => window.addEventListener(e, updateActivity, { passive: true }));
         
-        // Start the initial timer
-        resetTimer();
-
         return () => {
-          clearTimeout(inactivityTimeout);
+          clearInterval(inactivityTimeout); // Fallback for old code
+          clearInterval(inactivityChecker);
           clearInterval(keepAliveInterval);
-          events.forEach(e => window.removeEventListener(e, resetTimer));
+          events.forEach(e => window.removeEventListener(e, updateActivity));
+          if (debounceTimer) clearTimeout(debounceTimer);
         };
       }, [isLoggedIn]);
 
