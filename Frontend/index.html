@@ -6721,11 +6721,6 @@ const T = {
                     Last sync: +{lastRefreshResult.jobsAdded} new
                   </button>
                 )}
-                <button onClick={handleRefresh} disabled={refreshing || loading}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: refreshing ? '#F3F4F6' : '#FF4F1F', color: refreshing ? '#6B7280' : '#fff', border: refreshing ? '1px solid #E5E7EB' : 'none', borderRadius: 6, padding: '7px 15px', fontSize: 13, fontWeight: 700, cursor: refreshing ? 'wait' : 'pointer', transition: 'all .2s ease' }}>
-                  <span className="material-symbols-outlined" style={{ display: 'inline-block', fontSize: 15, animation: refreshing ? 'spin 1s linear infinite' : 'none' }}>sync</span>
-                  {refreshing ? 'Fetching…' : 'Refresh Live Feed'}
-                </button>
               </div>
             </div>
 
