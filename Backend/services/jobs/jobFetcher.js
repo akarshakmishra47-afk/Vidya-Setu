@@ -3,19 +3,14 @@
  * Main orchestrator for the Vidya-Setu Jobs & Internships module.
  */
 
-const { fetchRemotiveJobs }   = require('./sources/private/remotiveAdapter');
-const { fetchArbeitnowJobs }  = require('./sources/private/arbeitnowAdapter');
-const { fetchGovtJobsRss }    = require('./sources/government/govtJobsRss');
 const { fetchHackathons }     = require('./sources/hackathons/hackathonAdapter');
-const { fetchGreenhouseJobs } = require('./sources/private/greenhouseAdapter');
-const { fetchLeverJobs }      = require('./sources/private/leverAdapter');
+
 // New Adapters
 const { fetchInternshalaJobs } = require('./sources/private/internshalaAdapter');
 const { fetchLinkedInJobs }    = require('./sources/private/linkedinAdapter');
 const { fetchUnstopJobs, fetchUnstopHackathons } = require('./sources/private/unstopAdapter');
 const { fetchIndeedJobs }      = require('./sources/private/indeedAdapter');
 const { fetchNaukriJobs }      = require('./sources/private/naukriAdapter');
-const { fetchWellfoundJobs }   = require('./sources/private/wellfoundAdapter');
 const { fetchAicteJobs }       = require('./sources/private/aicteAdapter');
 
 const { validateJob }         = require('./utils/jobValidator');
@@ -113,6 +108,13 @@ async function fetchLatestJobs() {
           fetchedAt: new Date()
         };
 
+        const { evaluateDomain } = require('./utils/domainEvaluator');
+        
+        // Auto-assign domain if missing from the adapter
+        if (!job.domain || job.domain === 'Unknown') {
+          job.domain = evaluateDomain(job.title, job.description || '', []);
+        }
+
         // Add domain verification to ensure ONLY technical domains are accepted
         if (job.domain && job.domain !== 'Unknown') {
             const validDomains = [
@@ -127,6 +129,11 @@ async function fetchLatestJobs() {
                 sourceStats[sourceName].rejected++;
                 continue;
             }
+        } else {
+            // If even evaluateDomain couldn't classify it into a tech domain, reject it
+            console.log(`[JobFetcher] Rejected ${job.title} because domain is Unknown`);
+            sourceStats[sourceName].rejected++;
+            continue;
         }
 
         const existing = await Job.findOne({ deduplicationKey: dedupKey });
