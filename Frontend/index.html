@@ -9013,7 +9013,8 @@ const T = {
       useEffect(() => {
         if (!isLoggedIn) return;
         
-        const INACTIVITY_LIMIT_MS = 5 * 60 * 1000; // 5 minutes
+        const INACTIVITY_LIMIT_OPEN_TAB_MS = 5 * 60 * 1000; // 5 minutes (open tab)
+        const INACTIVITY_LIMIT_CLOSED_TAB_MS = 20 * 60 * 1000; // 20 minutes (closed tab)
         const ACTIVITY_KEY = 'vidyasetu_last_activity';
         
         // Initialize activity timestamp ONLY if it doesn't exist
@@ -9021,8 +9022,10 @@ const T = {
           localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
         }
 
-        const performSecureLogout = async () => {
-          alert("Session expired due to 5 minutes of inactivity. For your security, you have been logged out.");
+        const performSecureLogout = async (silent = false) => {
+          if (!silent) {
+            alert("Session expired due to 5 minutes of inactivity. For your security, you have been logged out.");
+          }
           try {
             await fetch(`${API_BASE_URL}/api/users/logout`, {
               method: 'POST',
@@ -9031,6 +9034,7 @@ const T = {
           } catch (e) { console.error("Logout API failed", e); }
           
           localStorage.clear();
+          sessionStorage.clear();
           setIsLoggedIn(false);
           setUser({});
           setIsAdmin(false);
@@ -9038,24 +9042,44 @@ const T = {
         };
 
         // Check if we've exceeded the inactivity limit
-        const checkInactivity = () => {
+        const checkInactivity = (isInitialMount = false) => {
           const lastActivity = parseInt(localStorage.getItem(ACTIVITY_KEY) || '0', 10);
-          if (lastActivity && Date.now() - lastActivity > INACTIVITY_LIMIT_MS) {
-            performSecureLogout();
-            return true;
+          if (!lastActivity) return false;
+
+          const timeSinceLastActivity = Date.now() - lastActivity;
+          const isNewTabSession = isInitialMount && !sessionStorage.getItem('vidyasetu_tab_active');
+
+          if (isNewTabSession) {
+            // Tab was closed and is now being reopened
+            if (timeSinceLastActivity > INACTIVITY_LIMIT_CLOSED_TAB_MS) {
+              performSecureLogout(true); // silent logout
+              return true;
+            }
+          } else {
+            // Tab is currently open
+            if (timeSinceLastActivity > INACTIVITY_LIMIT_OPEN_TAB_MS) {
+              performSecureLogout(false); // logout with message
+              return true;
+            }
           }
           return false;
         };
         
         // Immediately check on mount in case they returned after a long time
-        if (checkInactivity()) return;
+        if (checkInactivity(true)) return;
+        
+        // If this is a new tab session, reset their activity so they get a fresh 5 minutes
+        if (!sessionStorage.getItem('vidyasetu_tab_active')) {
+          localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
+          sessionStorage.setItem('vidyasetu_tab_active', 'true');
+        }
 
         // Update the timestamp on interaction (debounced to avoid performance hits)
         let debounceTimer;
         const updateActivity = () => {
           // If already expired, don't update! Let the checker catch it.
           const lastActivity = parseInt(localStorage.getItem(ACTIVITY_KEY) || '0', 10);
-          if (lastActivity && Date.now() - lastActivity > INACTIVITY_LIMIT_MS) {
+          if (lastActivity && Date.now() - lastActivity > INACTIVITY_LIMIT_OPEN_TAB_MS) {
             checkInactivity();
             return;
           }
@@ -9074,7 +9098,7 @@ const T = {
         const keepAliveInterval = setInterval(() => {
           const lastActivity = parseInt(localStorage.getItem(ACTIVITY_KEY) || '0', 10);
           // Only extend the session if the user was active recently
-          if (Date.now() - lastActivity < INACTIVITY_LIMIT_MS) {
+          if (Date.now() - lastActivity < INACTIVITY_LIMIT_OPEN_TAB_MS) {
             fetch(`${API_BASE_URL}/api/users/refresh`, { credentials: 'include' }).catch(console.error);
           }
         }, 4 * 60 * 1000);
