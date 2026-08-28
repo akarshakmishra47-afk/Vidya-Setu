@@ -29,6 +29,10 @@ async function fetchUnstopJobs() {
       }
 
       const domain = evaluateDomain(title, '', []);
+      if (!domain) {
+        stats.rejected++;
+        continue;
+      }
       const deadline = item.end_date || (item.regnRequirements && item.regnRequirements.end_regn_dt) || null;
 
       jobs.push({
@@ -76,6 +80,10 @@ async function fetchUnstopHackathons() {
       }
 
       const domain = evaluateDomain(title, '', []);
+      if (!domain) {
+        stats.rejected++;
+        continue;
+      }
       const deadline = item.end_date || (item.regnRequirements && item.regnRequirements.end_regn_dt) || null;
 
       jobs.push({

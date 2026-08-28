@@ -13,13 +13,7 @@ const DOMAINS = [
   'Mechanical Engineering',
   'Civil Engineering',
   'Electrical Engineering',
-  'Finance',
-  'Marketing',
-  'Human Resources',
-  'UI/UX Design',
-  'Graphic Design',
-  'Product Management',
-  'Business Analytics'
+  'UI/UX Design'
 ];
 
 const DOMAIN_RULES = [
@@ -37,13 +31,7 @@ const DOMAIN_RULES = [
   { domain: 'Mechanical Engineering', keywords: ['mechanical engineer', 'mechanical design', 'cad engineer', 'solidworks', 'hvac', 'thermal engineer', 'manufacturing engineer', 'autocad'] },
   { domain: 'Civil Engineering', keywords: ['civil engineer', 'structural engineer', 'construction engineer', 'site engineer', 'autocad civil', 'architectural engineer'] },
   { domain: 'Electrical Engineering', keywords: ['electrical engineer', 'power systems', 'electrical design', 'control systems', 'high voltage'] },
-  { domain: 'Finance', keywords: ['finance', 'financial analyst', 'investment banking', 'accounting', 'auditor', 'chartered accountant', 'tax consultant', 'wealth management'] },
-  { domain: 'Marketing', keywords: ['marketing', 'digital marketing', 'seo', 'social media', 'content writer', 'copywriter', 'brand manager', 'campaign manager', 'sales', 'business development'] },
-  { domain: 'Human Resources', keywords: ['human resources', 'hr generalist', 'talent acquisition', 'recruiter', 'hr manager', 'employee relations'] },
-  { domain: 'UI/UX Design', keywords: ['ui/ux', 'ux designer', 'ui designer', 'user experience', 'user interface', 'figma', 'product designer'] },
-  { domain: 'Graphic Design', keywords: ['graphic designer', 'illustrator', 'photoshop', 'motion graphics', 'video editor', 'visual designer', 'animator'] },
-  { domain: 'Product Management', keywords: ['product manager', 'product owner', 'scrum master', 'agile coach', 'associate product manager', 'apm', 'delivery manager', 'project manager'] },
-  { domain: 'Business Analytics', keywords: ['business analyst', 'business intelligence', 'power bi', 'tableau', 'business analytics', 'reporting analyst', 'reporting', 'decision science', 'supply chain analytics', 'analytics consultant'] }
+  { domain: 'UI/UX Design', keywords: ['ui/ux', 'ux designer', 'ui designer', 'user experience', 'user interface', 'figma', 'product designer'] }
 ];
 
 /**

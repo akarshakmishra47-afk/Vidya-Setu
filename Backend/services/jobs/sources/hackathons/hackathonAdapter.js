@@ -22,8 +22,8 @@ function normalizeHackathon(event) {
   const desc = (event.description || '').substring(0, 800).trim();
   const applyUrl = event.url || event.subscribe || '';
   
-  // HackerEarth IDs aren't explicitly provided, so we'll use a hash of the URL or title
-  const rawId = applyUrl ? Buffer.from(applyUrl).toString('base64').substring(0, 32) : title.replace(/\s+/g, '-').toLowerCase();
+  const crypto = require('crypto');
+  const rawId = applyUrl ? crypto.createHash('md5').update(applyUrl).digest('hex') : title.replace(/\s+/g, '-').toLowerCase();
   const sourceId = `hackerearth_${rawId}`;
   
   const branch = classifyBranch(title, desc);

@@ -66,8 +66,7 @@ const jobSchema = new mongoose.Schema({
       'Software Development', 'Web Development', 'App Development', 'AI/ML',
       'Data Science', 'Cyber Security', 'Cloud Computing', 'DevOps', 'Database',
       'Electronics', 'Embedded Systems', 'Mechanical Engineering', 'Civil Engineering',
-      'Electrical Engineering', 'Finance', 'Marketing', 'Human Resources',
-      'UI/UX Design', 'Graphic Design', 'Product Management', 'Business Analytics'
+      'Electrical Engineering', 'UI/UX Design'
     ]
   },
 

@@ -41,11 +41,10 @@ async function fetchLatestJobs() {
   const startTime = Date.now();
 
   const [
-    remotiveResult, hackathonResult,
-    internshalaResult, linkedinResult, unstopResult, unstopHackathonsResult,
-    indeedResult, naukriResult, wellfoundResult, aicteResult
+    hackathonResult, internshalaResult, linkedinResult, 
+    unstopResult, unstopHackathonsResult, indeedResult, 
+    naukriResult, aicteResult
   ] = await Promise.all([
-    fetchRemotiveJobs().catch(e => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
     fetchHackathons().catch(e    => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
     fetchInternshalaJobs().catch(e=> ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
     fetchLinkedInJobs().catch(e   => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
@@ -53,16 +52,14 @@ async function fetchLatestJobs() {
     fetchUnstopHackathons().catch(e => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
     fetchIndeedJobs().catch(e     => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
     fetchNaukriJobs().catch(e     => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
-    fetchWellfoundJobs().catch(e  => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
     fetchAicteJobs().catch(e      => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } }))
   ]);
-
+  
   const results = {
-    remotive: remotiveResult,
     hackathon: hackathonResult, internshala: internshalaResult, linkedin: linkedinResult, 
     'Unstop Jobs/Internships': unstopResult, 'Unstop Hackathons': unstopHackathonsResult,
     indeed: indeedResult, naukri: naukriResult, 
-    wellfound: wellfoundResult, aicte: aicteResult
+    aicte: aicteResult
   };
 
   const sourceStats = {};
@@ -95,12 +92,14 @@ async function fetchLatestJobs() {
       for (const job of jobs) {
         // Validate URL requirement: must have sourceUrl (or applyUrl fallback handled inside adapter, but prefer sourceUrl)
         if (!job.sourceUrl && !job.applyUrl) {
+          console.log(`[JobFetcher] Rejected ${job.title} because no URL`);
           sourceStats[sourceName].rejected++;
           continue;
         }
         
         // Reject jobs that are already expired before they even enter the DB
         if (job.deadline && job.deadline !== 'Not specified' && new Date(job.deadline) < currentFetchTime) {
+          console.log(`[JobFetcher] Rejected ${job.title} because deadline expired: ${job.deadline}`);
           sourceStats[sourceName].rejected++;
           continue;
         }
@@ -113,6 +112,22 @@ async function fetchLatestJobs() {
           isActive: true,
           fetchedAt: new Date()
         };
+
+        // Add domain verification to ensure ONLY technical domains are accepted
+        if (job.domain && job.domain !== 'Unknown') {
+            const validDomains = [
+              'Software Development', 'Web Development', 'App Development', 'AI/ML',
+              'Data Science', 'Cyber Security', 'Cloud Computing', 'DevOps', 'Database',
+              'Electronics', 'Embedded Systems', 'Mechanical Engineering', 'Civil Engineering',
+              'Electrical Engineering', 'UI/UX Design'
+            ];
+            
+            if (!validDomains.includes(job.domain)) {
+                console.log(`[JobFetcher] Rejected ${job.title} because invalid domain: ${job.domain}`);
+                sourceStats[sourceName].rejected++;
+                continue;
+            }
+        }
 
         const existing = await Job.findOne({ deduplicationKey: dedupKey });
         if (existing) {
@@ -134,6 +149,7 @@ async function fetchLatestJobs() {
 
       // Source-Safe Deactivation: deactivate any jobs from THIS source that are currently active in DB but missing from this fetch
       const activeKeysArray = Array.from(activeKeys);
+      console.log(`[JobFetcher] ${sourceName} - Active keys to keep: ${activeKeysArray.length}`);
       
       let deactivationFilter = { source: jobSourceMap(sourceName), isActive: true, deduplicationKey: { $nin: activeKeysArray } };
 
@@ -143,6 +159,7 @@ async function fetchLatestJobs() {
         deactivationFilter.primaryType = 'Hackathon';
       }
 
+      console.log(`[JobFetcher] Deleting stale for ${sourceName} using filter:`, JSON.stringify(deactivationFilter));
       // Hard-delete stale jobs instead of marking them inactive
       const staleResult = await Job.deleteMany(deactivationFilter);
       sourceStats[sourceName].deactivated = staleResult.deletedCount;
