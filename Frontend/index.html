@@ -9016,8 +9016,10 @@ const T = {
         const INACTIVITY_LIMIT_MS = 5 * 60 * 1000; // 5 minutes
         const ACTIVITY_KEY = 'vidyasetu_last_activity';
         
-        // Initialize activity timestamp
-        localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
+        // Initialize activity timestamp ONLY if it doesn't exist
+        if (!localStorage.getItem(ACTIVITY_KEY)) {
+          localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
+        }
 
         const performSecureLogout = async () => {
           alert("Session expired due to 5 minutes of inactivity. For your security, you have been logged out.");
@@ -9038,14 +9040,26 @@ const T = {
         // Check if we've exceeded the inactivity limit
         const checkInactivity = () => {
           const lastActivity = parseInt(localStorage.getItem(ACTIVITY_KEY) || '0', 10);
-          if (Date.now() - lastActivity > INACTIVITY_LIMIT_MS) {
+          if (lastActivity && Date.now() - lastActivity > INACTIVITY_LIMIT_MS) {
             performSecureLogout();
+            return true;
           }
+          return false;
         };
+        
+        // Immediately check on mount in case they returned after a long time
+        if (checkInactivity()) return;
 
         // Update the timestamp on interaction (debounced to avoid performance hits)
         let debounceTimer;
         const updateActivity = () => {
+          // If already expired, don't update! Let the checker catch it.
+          const lastActivity = parseInt(localStorage.getItem(ACTIVITY_KEY) || '0', 10);
+          if (lastActivity && Date.now() - lastActivity > INACTIVITY_LIMIT_MS) {
+            checkInactivity();
+            return;
+          }
+          
           if (debounceTimer) return;
           debounceTimer = setTimeout(() => {
             localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
