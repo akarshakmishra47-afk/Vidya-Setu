@@ -9009,16 +9009,50 @@ const T = {
         checkSession();
       }, []);
 
-      // ── KEEP-ALIVE (Refresh backend session every 4 mins) ──
+      // ── SECURE AUTO LOGOUT (30 mins inactivity) & KEEP-ALIVE ──
       useEffect(() => {
         if (!isLoggedIn) return;
         
-        const keepAliveInterval = setInterval(() => {
+        let inactivityTimeout;
+        let keepAliveInterval;
+        const INACTIVITY_LIMIT_MS = 30 * 60 * 1000; // 30 minutes
+
+        const performSecureLogout = async () => {
+          alert("Session expired due to 30 minutes of inactivity. For your security, you have been logged out.");
+          try {
+            await fetch(`${API_BASE_URL}/api/users/logout`, {
+              method: 'POST',
+              credentials: 'include'
+            });
+          } catch (e) { console.error("Logout API failed", e); }
+          
+          localStorage.clear();
+          setIsLoggedIn(false);
+          setUser({});
+          setIsAdmin(false);
+          window.location.href = '/'; 
+        };
+
+        const resetTimer = () => {
+          clearTimeout(inactivityTimeout);
+          inactivityTimeout = setTimeout(performSecureLogout, INACTIVITY_LIMIT_MS);
+        };
+
+        // Ping the backend every 4 minutes to keep the session alive ONLY IF active
+        keepAliveInterval = setInterval(() => {
           fetch(`${API_BASE_URL}/api/users/refresh`, { credentials: 'include' }).catch(console.error);
         }, 4 * 60 * 1000);
 
+        const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
+        events.forEach(e => window.addEventListener(e, resetTimer));
+        
+        // Start the initial timer
+        resetTimer();
+
         return () => {
+          clearTimeout(inactivityTimeout);
           clearInterval(keepAliveInterval);
+          events.forEach(e => window.removeEventListener(e, resetTimer));
         };
       }, [isLoggedIn]);
 
