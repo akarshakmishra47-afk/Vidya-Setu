@@ -7485,7 +7485,7 @@ const T = {
             }
           } else {
             const errData = await res.json().catch(() => ({}));
-            alert(errData.error || "Login failed. Check your credentials.");
+            alert(errData.error || errData.message || "Login failed. Check your credentials.");
           }
         } catch (err) {
           alert("Server error: " + err.message);
