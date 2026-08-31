@@ -2088,9 +2088,15 @@
       
       return response;
     };
-
     const { useState, useEffect, useRef, createContext, useContext } = React;
 
+    // Temporary Global Error Handler for Debugging Whitescreen
+    window.addEventListener('error', (event) => {
+      alert("React Crash: " + event.message + "\nAt: " + event.filename + ":" + event.lineno);
+    });
+    window.addEventListener('unhandledrejection', (event) => {
+      alert("Unhandled Promise Rejection: " + (event.reason && event.reason.message ? event.reason.message : String(event.reason)));
+    });
     /* ─── CONTEXTS ─── */
     const UserContext = createContext(null);
     const ToastContext = createContext(null);
