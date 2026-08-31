@@ -19,6 +19,7 @@ const app = express();
 app.use(cookieParser());
 
 const ALLOWED_ORIGINS = [
+  'https://www.vidya-setu.org.in',
   'https://mini-project-eight-lime.vercel.app',
   'http://localhost:3000',
   'http://localhost:5000',
