@@ -181,7 +181,7 @@ router.post('/login', async (req, res) => {
     res.status(200).json({ user: userResponse, accessToken });
   } catch (error) {
     console.error('Login error:', error.message);
-    res.status(500).json({ success: false, message: "Login failed. Please try again." });
+    res.status(500).json({ success: false, message: "Login failed. Please try again.", debug_error: error.message });
   }
 });
 
