@@ -22,6 +22,7 @@ const ALLOWED_ORIGINS = [
   'https://mini-project-eight-lime.vercel.app',
   'http://localhost:3000',
   'http://localhost:5000',
+  'http://localhost:5500',
   'http://127.0.0.1:5500',
   'http://127.0.0.1:3000',
   null // file:// protocol (local file open)
@@ -29,10 +30,17 @@ const ALLOWED_ORIGINS = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+    const envOrigin = process.env.FRONTEND_URL;
+    if (envOrigin) {
+      if (origin === envOrigin) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    } else if (!origin || ALLOWED_ORIGINS.includes(origin)) {
       callback(null, true);
     } else {
-      callback(null, true); // Allow all for development — restrict in production via env
+      callback(new Error('Not allowed by CORS'));
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -48,6 +56,12 @@ app.use('/api/academic', academicRoutes);
 app.use('/api/scholarships', scholarshipRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/community', communityRoutes);
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled Error:', err.stack);
+  res.status(500).json({ success: false, message: 'Internal Server Error' });
+});
 
 const mongoURI = process.env.MONGO_URI ? process.env.MONGO_URI.trim() : null;
 

@@ -61,8 +61,11 @@ npm install
 Create a `.env` file in the `Backend` directory and add the following:
 ```env
 PORT=5000
+FRONTEND_URL=http://localhost:5500
 MONGO_URI=your_mongodb_connection_string
 GROQ_API_KEY=your_groq_api_key
+JWT_ACCESS_SECRET=your_secret_here
+JWT_REFRESH_SECRET=your_secret_here
 ```
 Start the backend server:
 ```bash
@@ -105,8 +108,10 @@ Vidya-Setu/
 
 ## 🛡️ Security
 
-*   **Environment Variables:** Sensitive data like MongoDB URIs and API keys are strictly kept out of version control.
+*   **Environment Variables:** Sensitive data like MongoDB URIs and API keys are strictly kept out of version control. Use `.env.example`.
 *   **Password Encryption:** All user passwords are encrypted using Bcrypt hashing before being saved to the database.
+*   **Vulnerability Reporting:** See [SECURITY.md](SECURITY.md) for our security policy and reporting instructions.
+*   **Hard-Coded Paths:** Note that there are some hard-coded local absolute paths in test scripts (e.g., `import_internshala.js`, `import_naukri.js`) which will need to be updated to relative paths or environment variables if moved to a different machine.
 
 ---
 

@@ -139,13 +139,13 @@ router.get('/pyqs/analytics', async (req, res) => {
     // Unit coverage percentages (from verified data only)
     const units = Object.values(unitMap).map(u => ({
       u: u.unit,
-      c: Math.round((u.questions / pyqs.length) * 100)
+      c: pyqs.length > 0 ? Math.round((u.questions / pyqs.length) * 100) : 0
     })).sort((a, b) => a.u - b.u);
 
     // Topic probabilities (based on years appeared vs total years)
     let maxFreq = 0;
     const preTopics = Object.values(topicsMap).map(t => {
-      const probability = Math.round((t.yearsSet.size / yearsCovered) * 100);
+      const probability = yearsCovered > 0 ? Math.round((t.yearsSet.size / yearsCovered) * 100) : 0;
       if (t.frequency > maxFreq) maxFreq = t.frequency;
       return {
         t: t.title,

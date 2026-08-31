@@ -8,7 +8,6 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.11.5",
     "axios": "^1.19.0",
     "bcryptjs": "^3.0.3",
     "cheerio": "^1.2.0",
@@ -21,6 +20,7 @@
     "mongoose": "^8.3.2",
     "multer": "^2.2.0",
     "pdf-parse": "^1.1.1",
+    "pdfkit": "^0.20.2",
     "xml2js": "^0.6.2"
   }
 }

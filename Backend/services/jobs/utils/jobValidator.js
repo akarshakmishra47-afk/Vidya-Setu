@@ -65,14 +65,17 @@ function validateJob(job) {
 function classifyInternshipCompensation(title = '', description = '', salary = '') {
   const combined = (title + ' ' + description + ' ' + (salary || '')).toLowerCase();
 
-  const paidRegex = /\b(stipend|paid|salary|compensation|₹|rs\.?|inr|per month|\/month|monthly|remuneration|lpa|ctc)\b/;
-  const freeRegex = /\b(unpaid|no stipend|volunteer|pro bono|free internship|no compensation|non-paid|without stipend)\b/;
-
-  const isPaid = paidRegex.test(combined);
+  const freeRegex = /\b(unpaid|no stipend|volunteer|pro bono|free internship|no compensation|non-paid|without stipend|zero stipend)\b/;
   const isFree = freeRegex.test(combined);
 
-  if (isPaid && !isFree) return 'Paid';
-  if (isFree && !isPaid) return 'Free';
+  // If it explicitly says unpaid/no stipend, it's free. This overrides any other mention of "stipend"
+  if (isFree) return 'Free';
+
+  const paidRegex = /\b(stipend|paid|salary|compensation|₹|rs\.?|inr|per month|\/month|monthly|remuneration|lpa|ctc)\b/;
+  const isPaid = paidRegex.test(combined);
+
+  if (isPaid) return 'Paid';
+  
   return 'Unknown';
 }
 
@@ -89,8 +92,16 @@ function classifyFresher(title, experience = '') {
   const seniorRegex = /\b(senior|lead|manager|principal|head|director|sr|vp|architect|staff)\b|\b[3-9]\+?\s*years\b|\b\d{2,}\+?\s*years\b/;
   if (seniorRegex.test(t) || seniorRegex.test(e)) return false;
 
-  const fresherRegex = /\b(fresher|freshers|graduate|new graduate|campus|graduate engineer trainee|get|trainee|entry level|entry-level|junior|jr|associate|0-1 years|0-2 years|no experience)\b/;
-  return fresherRegex.test(t) || fresherRegex.test(e);
+  // Explicit fresher wording or strict 0-2 years logic
+  const explicitFresherRegex = /\b(fresher|freshers|graduate|new graduate|campus|graduate engineer trainee|get|trainee|entry level|entry-level|0-1 years|0-2 years|0 to 1|0 to 2|0 - 1|0 - 2|no experience)\b/;
+  
+  if (explicitFresherRegex.test(t) || explicitFresherRegex.test(e)) return true;
+  
+  // Only use junior/associate if experience explicitly states low years
+  const weakFresherRegex = /\b(junior|jr|associate)\b/;
+  if (weakFresherRegex.test(t) && /\b(0|1|2)\b/.test(e)) return true;
+  
+  return false;
 }
 
 /**

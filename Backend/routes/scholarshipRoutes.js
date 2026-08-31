@@ -1,11 +1,13 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 const Scholarship = require('../models/Scholarship');
 const ScholarshipApplication = require('../models/ScholarshipApplication');
 const User = require('../models/User');
 const AktuStudentOtr = require('../models/AktuStudentOtr');
 const AktuScholarshipApplication = require('../models/AktuScholarshipApplication');
 const { fetchAllScholarships } = require('../services/scholarships/scholarshipFetcher');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -16,9 +18,8 @@ let autoRefreshTimer = null;
 // Initialize & Migrate DB on startup
 async function initializeScholarships() {
   try {
-    if (mongoose.connection.readyState !== 1) return; // Wait for connection
+    if (mongoose.connection.readyState !== 1) return;
     
-    // Migrate existing manually seeded scholarships to have deduplicationKey and source
     const oldScholarships = await Scholarship.find({ source: { $exists: false } });
     if (oldScholarships.length > 0) {
       console.log(`[ScholarshipRoutes] Found ${oldScholarships.length} un-migrated scholarships. Migrating...`);
@@ -47,10 +48,8 @@ async function triggerScholarshipFetch() {
     const newScholarships = await fetchAllScholarships();
     let inserted = 0;
     
-    // Deactivate old external scholarships (so we don't keep dead ones active)
     await Scholarship.updateMany({ source: { $nin: ['manual', 'seed'] } }, { status: 'stale' });
 
-    // Insert or activate new external scholarships
     for (const s of newScholarships) {
       try {
         const existing = await Scholarship.findOne({ deduplicationKey: s.deduplicationKey });
@@ -58,7 +57,6 @@ async function triggerScholarshipFetch() {
           await Scholarship.create(s);
           inserted++;
         } else {
-          // Re-activate if it was stale, and update timestamp
           await Scholarship.findByIdAndUpdate(existing._id, { status: 'active', lastVerifiedAt: Date.now() });
         }
       } catch (e) {
@@ -80,17 +78,18 @@ autoRefreshTimer = setInterval(() => {
   triggerScholarshipFetch();
 }, 12 * 60 * 60 * 1000);
 
-// GET all available scholarships
+// GET all available scholarships — public
 router.get('/', async (req, res) => {
   try {
     const scholarships = await Scholarship.find({ status: 'active', isActive: true }).sort({ createdAt: -1 });
     res.json(scholarships);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch scholarships" });
+    console.error('Scholarship fetch error:', err.message);
+    res.status(500).json({ success: false, message: "Failed to fetch scholarships" });
   }
 });
 
-// GET scholarships pipeline status
+// GET scholarships pipeline status — public
 router.get('/status', async (req, res) => {
   try {
     const total = await Scholarship.countDocuments();
@@ -108,97 +107,116 @@ router.get('/status', async (req, res) => {
       refreshInProgress
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to fetch scholarship stats' });
+    res.status(500).json({ success: false, message: 'Failed to fetch scholarship stats' });
   }
 });
 
-// GET all user-reported issues
+// GET all user-reported issues — public
 router.get('/issues', async (req, res) => {
   try {
     const ScholarshipIssue = require('../models/ScholarshipIssue');
     const issues = await ScholarshipIssue.find().sort({ createdAt: -1 });
     res.json(issues);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch issues" });
+    res.status(500).json({ success: false, message: "Failed to fetch issues" });
   }
 });
 
-// POST new user-reported issue
-router.post('/issues', async (req, res) => {
+// POST new user-reported issue — require auth
+router.post('/issues', authenticateToken, async (req, res) => {
   try {
     const ScholarshipIssue = require('../models/ScholarshipIssue');
     const { title, desc } = req.body;
-    if (!title) return res.status(400).json({ error: "Title is required" });
+    if (!title || typeof title !== 'string' || title.length > 200) {
+      return res.status(400).json({ success: false, message: "Valid title is required (max 200 characters)" });
+    }
     const newIssue = new ScholarshipIssue({ 
-      title, 
-      desc: desc || "Awaiting further details."
+      title: title.substring(0, 200), 
+      desc: typeof desc === 'string' ? desc.substring(0, 2000) : "Awaiting further details."
     });
     await newIssue.save();
     res.status(201).json({ success: true, issue: newIssue });
   } catch (err) {
-    res.status(500).json({ error: "Failed to save issue" });
+    res.status(500).json({ success: false, message: "Failed to save issue" });
   }
 });
 
-// POST trigger manual fetch
-router.post('/fetch-latest', async (req, res) => {
+// POST trigger manual fetch — Bug 1: admin only
+router.post('/fetch-latest', authenticateToken, requireAdmin, async (req, res) => {
   if (refreshInProgress) {
-    return res.status(429).json({ error: 'Refresh already in progress' });
+    return res.status(429).json({ success: false, message: 'Refresh already in progress' });
   }
-  // Run asynchronously without blocking
   triggerScholarshipFetch();
-  res.json({ message: 'Refresh triggered successfully' });
+  res.json({ success: true, message: 'Refresh triggered successfully' });
 });
 
-// -------------------------------------------------------------
-// BELOW ARE PRE-EXISTING ROUTES FOR APPLICATIONS AND AKTU PORTAL
-// -------------------------------------------------------------
-
-// GET applications for a specific user (by rollNo or ID)
-router.get('/my-applications/:identifier', async (req, res) => {
+// GET applications for authenticated user — Bug 11: require auth, verify ownership
+router.get('/my-applications/:identifier', authenticateToken, async (req, res) => {
   try {
-    const user = req.params.identifier.length === 24 ? await User.findById(req.params.identifier) : await User.findOne({ rollNo: req.params.identifier });
+    // Bug 11: Must match authenticated user
+    const user = await User.findById(req.user.userId);
     if (!user) return res.json([]);
-    const applications = await ScholarshipApplication.find({ studentId: user._id })
+
+    // Verify the identifier matches the authenticated user
+    const identifier = req.params.identifier;
+    const isOwnId = identifier === req.user.userId.toString();
+    const isOwnRoll = identifier === user.rollNo;
+
+    if (!isOwnId && !isOwnRoll && !req.user.isAdmin) {
+      return res.status(403).json({ success: false, message: 'Forbidden: Can only view your own applications' });
+    }
+
+    const targetUser = (isOwnId || isOwnRoll) ? user : 
+      (identifier.length === 24 ? await User.findById(identifier) : await User.findOne({ rollNo: identifier }));
+    
+    if (!targetUser) return res.json([]);
+
+    const applications = await ScholarshipApplication.find({ studentId: targetUser._id })
       .populate('scholarshipId');
     res.json(applications);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch applications" });
+    console.error('My applications error:', err.message);
+    res.status(500).json({ success: false, message: "Failed to fetch applications" });
   }
 });
 
-// POST apply to a scholarship
-router.post('/apply', async (req, res) => {
+// POST apply to a scholarship — Bug 11: use authenticated identity
+router.post('/apply', authenticateToken, async (req, res) => {
   try {
-    const { studentId, rollNo, scholarshipId, documents } = req.body;
+    const { scholarshipId, documents } = req.body;
 
-    const user = studentId ? await User.findById(studentId) : await User.findOne({ rollNo });
+    if (!scholarshipId || !mongoose.Types.ObjectId.isValid(scholarshipId)) {
+      return res.status(400).json({ success: false, message: "Valid scholarship ID required" });
+    }
+
+    // Bug 11: Use authenticated user ID, not from request body
+    const user = await User.findById(req.user.userId);
     const scholarship = await Scholarship.findById(scholarshipId);
 
-    if (!user || !scholarship) return res.status(404).json({ error: "User or Scholarship not found" });
+    if (!user || !scholarship) return res.status(404).json({ success: false, message: "User or Scholarship not found" });
 
-    // ELIGIBILITY ENGINE: 
+    // ELIGIBILITY ENGINE
     if (user.familyIncome > scholarship.eligibility.maxIncome) {
-      return res.status(400).json({ error: `Not eligible: Family income exceeds max limit.` });
+      return res.status(400).json({ success: false, message: `Not eligible: Family income exceeds max limit.` });
     }
     if (!scholarship.eligibility.allowedCategories.includes(user.casteCategory)) {
-      return res.status(400).json({ error: `Not eligible: Category ${user.casteCategory} not accepted for this scholarship.` });
+      return res.status(400).json({ success: false, message: `Not eligible: Category ${user.casteCategory} not accepted for this scholarship.` });
     }
     if (scholarship.eligibility.isDefenceRequired && !user.defenceDependent) {
-      return res.status(400).json({ error: "Not eligible: Must be a ward of Armed Forces personnel." });
+      return res.status(400).json({ success: false, message: "Not eligible: Must be a ward of Armed Forces personnel." });
     }
     if (scholarship.eligibility.isCapfRequired && !user.capfDependent) {
-      return res.status(400).json({ error: "Not eligible: Must be a ward of CAPF personnel." });
+      return res.status(400).json({ success: false, message: "Not eligible: Must be a ward of CAPF personnel." });
     }
 
     if (scholarship.category === 'Government') {
       const activeGovt = await ScholarshipApplication.findOne({
-        studentId,
+        studentId: user._id,
         categoryApplied: 'Government',
         status: { $in: ['Applied', 'Approved'] }
       });
       if (activeGovt) {
-        return res.status(400).json({ error: "Conflict: You can only have one active Government Scholarship at a time." });
+        return res.status(400).json({ success: false, message: "Conflict: You can only have one active Government Scholarship at a time." });
       }
     }
 
@@ -214,14 +232,15 @@ router.post('/apply', async (req, res) => {
 
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(400).json({ error: "You have already applied for this exact scholarship." });
+      return res.status(400).json({ success: false, message: "You have already applied for this exact scholarship." });
     }
-    res.status(500).json({ error: "Server error during application process." });
+    console.error('Scholarship apply error:', err.message);
+    res.status(500).json({ success: false, message: "Server error during application process." });
   }
 });
 
-// ADMIN: Get all applications
-router.get('/admin/all', async (req, res) => {
+// ADMIN: Get all applications — Bug 1: admin only
+router.get('/admin/all', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const apps = await ScholarshipApplication.find()
       .sort({ submittedAt: -1 })
@@ -229,16 +248,20 @@ router.get('/admin/all', async (req, res) => {
       .populate('scholarshipId', 'title category amount');
     res.json(apps);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch all applications" });
+    console.error('Admin fetch applications error:', err.message);
+    res.status(500).json({ success: false, message: "Failed to fetch all applications" });
   }
 });
 
-// ADMIN: Update application status
-router.put('/admin/application/:id', async (req, res) => {
+// ADMIN: Update application status — Bug 1: admin only
+router.put('/admin/application/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { status } = req.body;
     if (!['Applied', 'Approved', 'Rejected'].includes(status)) {
-      return res.status(400).json({ error: "Invalid status state" });
+      return res.status(400).json({ success: false, message: "Invalid status state" });
+    }
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid application ID" });
     }
 
     const application = await ScholarshipApplication.findByIdAndUpdate(
@@ -246,50 +269,100 @@ router.put('/admin/application/:id', async (req, res) => {
       { status },
       { new: true }
     );
+    if (!application) return res.status(404).json({ success: false, message: "Application not found" });
     res.json(application);
   } catch (err) {
-    res.status(500).json({ error: "Failed to update application" });
+    console.error('Admin update application error:', err.message);
+    res.status(500).json({ success: false, message: "Failed to update application" });
   }
 });
 
-// AKTU: Save OTR (Student Collection)
-router.post('/aktu-otr', async (req, res) => {
+// AKTU: Save OTR — Bug 9: hash securityPin, Bug 10: use authenticated userId
+router.post('/aktu-otr', authenticateToken, async (req, res) => {
   try {
-    const { aadhaarNumber, fullName, dob, mobileNumber, category, securityPin, otrStatus, userId } = req.body;
+    const { aadhaarNumber, fullName, dob, mobileNumber, category, securityPin, otrStatus } = req.body;
+
+    if (!aadhaarNumber || typeof aadhaarNumber !== 'string' || aadhaarNumber.length !== 12) {
+      return res.status(400).json({ success: false, message: "Valid 12-digit Aadhaar number required" });
+    }
+    if (securityPin && (typeof securityPin !== 'string' || securityPin.length < 4 || securityPin.length > 20)) {
+      return res.status(400).json({ success: false, message: "Security PIN must be 4-20 characters" });
+    }
+
     let student = await AktuStudentOtr.findOne({ aadhaarNumber });
     
     if (student) {
-      if (student.otrStatus) return res.status(400).json({ error: "OTR is permanently locked." });
-      student = await AktuStudentOtr.findOneAndUpdate({ aadhaarNumber }, req.body, { new: true });
+      if (student.otrStatus) return res.status(400).json({ success: false, message: "OTR is permanently locked." });
+      
+      // Bug 9: Hash the security PIN if provided
+      const updateData = { fullName, dob, mobileNumber, category, otrStatus };
+      if (securityPin) {
+        updateData.securityPin = await bcrypt.hash(securityPin, 10);
+      }
+      student = await AktuStudentOtr.findOneAndUpdate({ aadhaarNumber }, updateData, { new: true });
     } else {
-      const studentId = 'AKTU' + Date.now().toString().slice(-6); // System generated identifier
-      student = new AktuStudentOtr({ studentId, aadhaarNumber, fullName, dob, mobileNumber, category, securityPin, otrStatus });
+      const studentId = 'AKTU' + Date.now().toString().slice(-6);
+      
+      // Bug 9: Hash the security PIN before storing
+      const hashedPin = securityPin ? await bcrypt.hash(securityPin, 10) : undefined;
+      
+      student = new AktuStudentOtr({
+        studentId,
+        aadhaarNumber,
+        fullName,
+        dob,
+        mobileNumber,
+        category,
+        securityPin: hashedPin,
+        otrStatus
+      });
       await student.save();
     }
 
-    if (userId) {
-      await User.findByIdAndUpdate(userId, {
-        aadhaarNumber,
-        dob,
-        mobileNumber,
-        casteCategory: category || 'General'
-      });
-    }
+    // Bug 10: Use authenticated user ID, not from request body
+    await User.findByIdAndUpdate(req.user.userId, {
+      aadhaarNumber,
+      dob,
+      mobileNumber,
+      casteCategory: category || 'General'
+    });
 
-    res.status(201).json({ success: true, student });
+    // Bug 9: Never return securityPin in response
+    const safeStudent = student.toObject();
+    delete safeStudent.securityPin;
+
+    res.status(201).json({ success: true, student: safeStudent });
   } catch (err) {
-    res.status(500).json({ error: "Failed to save OTR data" });
+    console.error('AKTU OTR error:', err.message);
+    res.status(500).json({ success: false, message: "Failed to save OTR data" });
   }
 });
 
-// AKTU: Save Application Form (Application Collection)
-router.post('/aktu-application', async (req, res) => {
+// AKTU: Save Application Form — Bug 11: verify ownership
+router.post('/aktu-application', authenticateToken, async (req, res) => {
   try {
     const { studentReference, applicationStatus, ...applicationData } = req.body;
+
+    if (!studentReference || typeof studentReference !== 'string') {
+      return res.status(400).json({ success: false, message: "Student reference required" });
+    }
+
+    // Bug 11: Verify the studentReference belongs to authenticated user
+    const otr = await AktuStudentOtr.findOne({ studentId: studentReference });
+    if (!otr) return res.status(404).json({ success: false, message: "Student OTR not found" });
+
+    // Verify ownership: check if this user's aadhaar matches the OTR
+    const user = await User.findById(req.user.userId);
+    if (!user || user.aadhaarNumber !== otr.aadhaarNumber) {
+      if (!req.user.isAdmin) {
+        return res.status(403).json({ success: false, message: "Forbidden: Not your OTR record" });
+      }
+    }
+
     let app = await AktuScholarshipApplication.findOne({ studentReference });
 
     if (app && app.applicationStatus !== 'Draft' && app.applicationStatus !== 'Rejected_by_Institute') {
-      return res.status(400).json({ error: "Application is locked and cannot be edited." });
+      return res.status(400).json({ success: false, message: "Application is locked and cannot be edited." });
     }
 
     if (app) {
@@ -310,18 +383,32 @@ router.post('/aktu-application', async (req, res) => {
     }
     res.status(201).json({ success: true, application: app });
   } catch (err) {
-    res.status(500).json({ error: "Failed to save application data" });
+    console.error('AKTU application error:', err.message);
+    res.status(500).json({ success: false, message: "Failed to save application data" });
   }
 });
 
-// AKTU: Get Application Form (Application Collection)
-router.get('/aktu-application/:studentRef', async (req, res) => {
+// AKTU: Get Application — Bug 11: verify ownership or admin
+router.get('/aktu-application/:studentRef', authenticateToken, async (req, res) => {
   try {
     const app = await AktuScholarshipApplication.findOne({ studentReference: req.params.studentRef });
     if (!app) return res.json({ success: false });
+
+    // Bug 11: Verify ownership
+    if (!req.user.isAdmin) {
+      const otr = await AktuStudentOtr.findOne({ studentId: req.params.studentRef });
+      if (otr) {
+        const user = await User.findById(req.user.userId);
+        if (!user || user.aadhaarNumber !== otr.aadhaarNumber) {
+          return res.status(403).json({ success: false, message: "Forbidden: Not your application" });
+        }
+      }
+    }
+
     res.json({ success: true, app });
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch AKTU application" });
+    console.error('AKTU application fetch error:', err.message);
+    res.status(500).json({ success: false, message: "Failed to fetch AKTU application" });
   }
 });
 

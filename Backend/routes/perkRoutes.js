@@ -3,6 +3,7 @@ const router = express.Router();
 const Perk = require('../models/Perk');
 const User = require('../models/User');
 const { fetchAllPerks } = require('../services/perks/perkFetcher');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 let lastRefresh = null;
 let refreshInProgress = false;
@@ -88,18 +89,18 @@ autoRefreshTimer = setInterval(() => {
   triggerPerkFetch();
 }, 12 * 60 * 60 * 1000);
 
-// GET all perks
+// GET all perks — public
 router.get('/', async (req, res) => {
   try {
     const perks = await Perk.find({ status: 'active' }).sort({ createdAt: -1 });
     res.json(perks);
   } catch (err) {
-    console.error('[PerkRoutes] GET error:', err);
-    res.status(500).json({ error: 'Failed to fetch perks' });
+    console.error('[PerkRoutes] GET error:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch perks' });
   }
 });
 
-// GET perks status
+// GET perks status — public
 router.get('/status', async (req, res) => {
   try {
     const total = await Perk.countDocuments();
@@ -115,37 +116,27 @@ router.get('/status', async (req, res) => {
       refreshInProgress
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to fetch perk stats' });
+    res.status(500).json({ success: false, message: 'Failed to fetch perk stats' });
   }
 });
 
-// POST trigger manual fetch
-router.post('/fetch-latest', async (req, res) => {
+// POST trigger manual fetch — Bug 1: admin only
+router.post('/fetch-latest', authenticateToken, requireAdmin, async (req, res) => {
   if (refreshInProgress) {
-    return res.status(429).json({ error: 'Refresh already in progress' });
+    return res.status(429).json({ success: false, message: 'Refresh already in progress' });
   }
   triggerPerkFetch();
-  res.json({ message: 'Refresh triggered successfully' });
+  res.json({ success: true, message: 'Refresh triggered successfully' });
 });
 
-// POST claim a perk
-router.post('/claim/:id', async (req, res) => {
+// POST claim a perk — Bug 3: use authenticateToken instead of manual jwt.verify with wrong secret
+router.post('/claim/:id', authenticateToken, async (req, res) => {
   try {
-    // Note: Expecting auth middleware, but we fallback to extracting from body/headers if missing.
-    // In a real app with JWT, user id is in req.user
-    // The frontend sends token in Authorization header. We will decode it here or rely on middleware.
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
-    
-    const token = authHeader.split(' ')[1];
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    const user = await User.findById(decoded.userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     
     const perk = await Perk.findById(req.params.id);
-    if (!perk) return res.status(404).json({ error: 'Perk not found' });
+    if (!perk) return res.status(404).json({ success: false, message: 'Perk not found' });
     
     if (!user.claimedPerks.includes(perk._id.toString())) {
       user.claimedPerks.push(perk._id.toString());
@@ -154,8 +145,8 @@ router.post('/claim/:id', async (req, res) => {
     
     res.json({ success: true, message: 'Perk claimed successfully', officialUrl: perk.officialUrl });
   } catch (error) {
-    console.error('[PerkRoutes] Claim error:', error);
-    res.status(500).json({ error: 'Failed to claim perk' });
+    console.error('[PerkRoutes] Claim error:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to claim perk' });
   }
 });
 

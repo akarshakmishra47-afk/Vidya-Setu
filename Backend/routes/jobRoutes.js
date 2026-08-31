@@ -6,15 +6,18 @@
  *   GET  /api/jobs              - List jobs with filters/search/pagination
  *   GET  /api/jobs/status       - Refresh status + live counters
  *   GET  /api/jobs/stats        - Live category counters for UI
- *   POST /api/jobs/fetch-latest - Trigger manual refresh
- *   POST /api/jobs/refresh      - Alias for fetch-latest
+ *   GET  /api/jobs/stats/summary- Legacy stats endpoint
+ *   POST /api/jobs/fetch-latest - Trigger manual refresh (admin)
+ *   POST /api/jobs/refresh      - Alias for fetch-latest (admin)
  *   POST /api/jobs              - Create manual job (admin)
  *   GET  /api/jobs/:id          - Get single job
  *   DELETE /api/jobs/:id        - Delete job (admin)
  */
 
 const express = require('express');
+const mongoose = require('mongoose');
 const Job     = require('../models/Job');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const {
   fetchLatestJobs,
   isRefreshing,
@@ -35,6 +38,11 @@ let isAutoRefreshRunning  = false;
 
 // ── SOURCE NAMES (for stale cleanup — only clean sources that responded) ──────
 const API_SOURCES = ['remotive', 'arbeitnow', 'himalayas', 'govtRss', 'hackathon'];
+
+// ── Bug 23: Escape regex metacharacters in user input ─────────────────────────
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 // ── UTILITY: Perform job refresh ─────────────────────────────────────────────
 async function performJobRefresh() {
@@ -72,6 +80,16 @@ async function performJobRefresh() {
 
 // ── UTILITY: Build Filter from Request ───────────────────────────────────────
 function buildJobFilter(query) {
+  /**
+   * Bug 30: Source exclusion list explanation.
+   * These sources are INTENTIONALLY excluded from default job listings because:
+   * - 'greenhouse', 'lever': Legacy adapters that were disabled due to API changes/reliability
+   * - 'govtRss': Government RSS feed adapter disabled (unreliable data quality)
+   * - 'manual': Manually added jobs — excluded from default filter to avoid stale manual entries
+   * - 'web': Generic web-scraped jobs — disabled due to data quality concerns
+   * - 'arbeitnow', 'himalayas': External API adapters disabled (see jobFetcher.js for status)
+   * All these are marked as "Disabled" in the jobFetcher source stats.
+   */
   let filter = { 
     isIndiaLocation: { $ne: false }, 
     isActive: { $ne: false },
@@ -109,7 +127,8 @@ function buildJobFilter(query) {
     if (disabledSources.includes(query.source.toLowerCase())) {
       filter.source = '__DISABLED__';
     } else {
-      filter.source = new RegExp(`^${query.source}$`, 'i');
+      // Bug 23: Escape regex metacharacters in source filter
+      filter.source = new RegExp(`^${escapeRegex(query.source)}$`, 'i');
     }
   }
   
@@ -123,7 +142,8 @@ function buildJobFilter(query) {
     if (query.location.toLowerCase() === 'remote') {
       locationConditions.push({ location: { $regex: /remote/i } });
     } else {
-      locationConditions.push({ location: { $regex: new RegExp(query.location, 'i') } });
+      // Bug 23: Escape user input before using in regex
+      locationConditions.push({ location: { $regex: new RegExp(escapeRegex(query.location), 'i') } });
     }
   }
 
@@ -152,7 +172,9 @@ function buildJobFilter(query) {
   }
 
   if (query.search) {
-    const searchRegex = new RegExp(query.search.substring(0, 100), 'i');
+    // Bug 23: Escape regex metacharacters and limit search length
+    const sanitizedSearch = escapeRegex(String(query.search).substring(0, 100));
+    const searchRegex = new RegExp(sanitizedSearch, 'i');
     filter.$or = [
       { title:    searchRegex },
       { company:  searchRegex },
@@ -173,7 +195,7 @@ async function getLiveCounts(query = {}) {
   delete baseQuery.type;
   delete baseQuery.category;
   delete baseQuery.experienceLevel;
-  delete baseQuery.secondaryType; // strip paid/free for tab base context
+  delete baseQuery.secondaryType;
   delete baseQuery.domainGroup;
   delete baseQuery.excludeGovt;
   
@@ -200,7 +222,7 @@ async function getLiveCounts(query = {}) {
     Job.countDocuments({ ...baseFilter, experienceLevel: { $in: ['Fresher', 'Entry-Level'] } }),
     Job.countDocuments({ ...baseFilter, companyType: 'product' }),
     Job.countDocuments({ ...baseFilter, companyType: 'service' }),
-    Job.countDocuments({ ...buildJobFilter({}), source: 'remotive' }), // Keep source counts global
+    Job.countDocuments({ ...buildJobFilter({}), source: 'remotive' }),
     Job.countDocuments({ ...buildJobFilter({}), source: 'arbeitnow' }),
     Job.countDocuments({ ...buildJobFilter({}), source: 'himalayas' }),
     Job.countDocuments({ ...buildJobFilter({}), source: 'govtRss' }),
@@ -246,7 +268,7 @@ function initializeJobRefresh() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ROUTES
+// ROUTES — Bug 24: Specific routes BEFORE /:id parameterized route
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ── GET /api/jobs — List with filters, search, pagination ─────────────────────
@@ -254,19 +276,17 @@ router.get('/', async (req, res) => {
   try {
     const filter = buildJobFilter(req.query);
 
-    // Pagination
+    // Bug 37: Validate pagination params
     const rawLimit = parseInt(req.query.limit);
     const limit = Math.min(Math.max(isNaN(rawLimit) ? 20 : rawLimit, 1), 300);
     const rawPage = parseInt(req.query.page);
     let page = isNaN(rawPage) ? 1 : Math.max(rawPage, 1);
     
-    // Fallback to offset if page is not provided but offset is
     if (isNaN(rawPage) && !isNaN(parseInt(req.query.offset))) {
       page = Math.floor(parseInt(req.query.offset) / limit) + 1;
     }
     const skip = (page - 1) * limit;
 
-    // Execute queries
     const [rawJobs, total] = await Promise.all([
       Job.find(filter)
         .sort({ postedAt: -1, createdAt: -1 })
@@ -308,8 +328,19 @@ router.get('/', async (req, res) => {
       totalPages 
     });
   } catch (err) {
-    console.error('[GET /api/jobs] Error:', err);
-    res.status(500).json({ success: false, error: 'Unable to load jobs' });
+    console.error('[GET /api/jobs] Error:', err.message);
+    res.status(500).json({ success: false, message: 'Unable to load jobs' });
+  }
+});
+
+// ── Bug 24: /stats/summary BEFORE /:id ────────────────────────────────────────
+router.get('/stats/summary', async (req, res) => {
+  try {
+    const counts = await getLiveCounts();
+    res.json(counts);
+  } catch (err) {
+    console.error('[GET /api/jobs/stats/summary] Error:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to get stats' });
   }
 });
 
@@ -320,17 +351,17 @@ router.get('/stats', async (req, res) => {
     res.json({ success: true, ...counts, lastRefreshTime: getLastRefreshTime() });
   } catch (err) {
     console.error('[GET /api/jobs/stats] Error:', err.message);
-    res.status(500).json({ error: 'Failed to get stats', details: err.message });
+    res.status(500).json({ success: false, message: 'Failed to get stats' });
   }
 });
 
-// ── GET /api/jobs/source-status — Live source statuses ──────────────────────────────
+// ── GET /api/jobs/source-status — Live source statuses ──────────────────────────
 router.get('/source-status', (req, res) => {
   try {
     const stats = getLastSourceStats();
     res.json({ success: true, sources: stats });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to get source status', details: err.message });
+    res.status(500).json({ success: false, message: 'Failed to get source status' });
   }
 });
 
@@ -353,17 +384,17 @@ router.get('/status', async (req, res) => {
     });
   } catch (err) {
     console.error('[GET /api/jobs/status] Error:', err.message);
-    res.status(500).json({ error: 'Failed to get status', details: err.message });
+    res.status(500).json({ success: false, message: 'Failed to get status' });
   }
 });
 
-// ── POST /api/jobs/fetch-latest — Trigger manual refresh ─────────────────────
-router.post('/fetch-latest', async (req, res) => {
+// ── POST /api/jobs/fetch-latest — Bug 1: Admin only ──────────────────────────
+router.post('/fetch-latest', authenticateToken, requireAdmin, async (req, res) => {
   try {
     if (isRefreshing()) {
       return res.status(429).json({
         success: false,
-        error: 'Refresh already in progress. Please wait.'
+        message: 'Refresh already in progress. Please wait.'
       });
     }
 
@@ -376,25 +407,25 @@ router.post('/fetch-latest', async (req, res) => {
     });
   } catch (err) {
     console.error('[POST /api/jobs/fetch-latest] Error:', err.message);
-    res.status(500).json({ success: false, error: 'Refresh failed', details: err.message });
+    res.status(500).json({ success: false, message: 'Refresh failed' });
   }
 });
 
-// ── POST /api/jobs/refresh — Alias ───────────────────────────────────────────
-router.post('/refresh', async (req, res) => {
+// ── POST /api/jobs/refresh — Alias, Bug 1: Admin only ────────────────────────
+router.post('/refresh', authenticateToken, requireAdmin, async (req, res) => {
   try {
     if (isRefreshing()) {
-      return res.status(429).json({ success: false, error: 'Refresh already in progress.' });
+      return res.status(429).json({ success: false, message: 'Refresh already in progress.' });
     }
     const result = await performJobRefresh();
     res.json({ success: result.status !== 'error', ...result });
   } catch (err) {
-    res.status(500).json({ success: false, error: 'Refresh failed', details: err.message });
+    res.status(500).json({ success: false, message: 'Refresh failed' });
   }
 });
 
-// ── POST /api/jobs — Create manual job (admin) ────────────────────────────────
-router.post('/', async (req, res) => {
+// ── POST /api/jobs — Create manual job, Bug 1: Admin only ────────────────────
+router.post('/', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const jobData = { ...req.body, source: 'manual' };
     if (!jobData.deduplicationKey) {
@@ -404,39 +435,36 @@ router.post('/', async (req, res) => {
     await job.save();
     res.status(201).json({ success: true, job });
   } catch (err) {
-    res.status(400).json({ error: 'Failed to create job', details: err.message });
+    res.status(400).json({ success: false, message: 'Failed to create job' });
   }
 });
 
-// ── GET /api/jobs/:id — Single job ────────────────────────────────────────────
+// ── GET /api/jobs/:id — Single job (Bug 24: AFTER specific routes) ───────────
 router.get('/:id', async (req, res) => {
   try {
+    // Bug 37: Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid job ID' });
+    }
     const job = await Job.findById(req.params.id).lean();
-    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (!job) return res.status(404).json({ success: false, message: 'Job not found' });
     res.json({ success: true, job });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch job', details: err.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch job' });
   }
 });
 
-// ── DELETE /api/jobs/:id — Delete job (admin) ─────────────────────────────────
-router.delete('/:id', async (req, res) => {
+// ── DELETE /api/jobs/:id — Delete job, Bug 1: Admin only ─────────────────────
+router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid job ID' });
+    }
     const deleted = await Job.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ error: 'Job not found' });
+    if (!deleted) return res.status(404).json({ success: false, message: 'Job not found' });
     res.json({ success: true, message: 'Job deleted' });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to delete job', details: err.message });
-  }
-});
-
-// ── LEGACY: /api/jobs/stats/summary ──────────────────────────────────────────
-router.get('/stats/summary', async (req, res) => {
-  try {
-    const counts = await getLiveCounts();
-    res.json(counts);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to get stats' });
+    res.status(500).json({ success: false, message: 'Failed to delete job' });
   }
 });
 

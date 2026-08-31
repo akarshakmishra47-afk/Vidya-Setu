@@ -46,37 +46,35 @@ function evaluateDomain(title = '', description = '', tags = []) {
   const d = (description || '').toLowerCase();
   const tagsString = (tags || []).join(' ').toLowerCase();
   
-  const fullText = `${t} ${d} ${tagsString}`;
-  
-  // High confidence match: Title matching
+  let bestDomain = null;
+  let highestScore = 0;
+
   for (const rule of DOMAIN_RULES) {
+    let score = 0;
     for (const kw of rule.keywords) {
-      // Regex with word boundaries to prevent partial matches like "data" in "database" matching Data Science
-      const regex = new RegExp(`\\b${kw.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
-      if (regex.test(t)) {
-        return rule.domain;
-      }
+      const escapedKw = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // If the keyword contains non-word characters at the ends (like C++), standard \b might fail to match properly.
+      // For simplicity, we just check if it's bounded by non-alphanumeric or start/end of string.
+      // But standard \b works fine for 'c\+\+' if we just let regex do its job, EXCEPT \b after + doesn't match space.
+      // To fix this correctly without complex lookarounds:
+      const regex = new RegExp(`(?:^|[^a-zA-Z0-9_])${escapedKw}(?:[^a-zA-Z0-9_]|$)`, 'ig');
+      
+      const titleMatches = (t.match(regex) || []).length;
+      const tagMatches = (tagsString.match(regex) || []).length;
+      const descMatches = (d.match(regex) || []).length;
+      
+      score += (titleMatches * 5) + (tagMatches * 3) + (descMatches * 1);
+    }
+    
+    if (score > highestScore) {
+      highestScore = score;
+      bestDomain = rule.domain;
     }
   }
 
-  // Medium confidence match: Tags matching
-  for (const rule of DOMAIN_RULES) {
-    for (const kw of rule.keywords) {
-      const regex = new RegExp(`\\b${kw.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
-      if (regex.test(tagsString)) {
-        return rule.domain;
-      }
-    }
-  }
-
-  // Lower confidence match: Description matching (requires multiple hits or specific keywords to avoid false positives, but for now we'll do simple check)
-  for (const rule of DOMAIN_RULES) {
-    for (const kw of rule.keywords) {
-      const regex = new RegExp(`\\b${kw.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
-      if (regex.test(d)) {
-        return rule.domain;
-      }
-    }
+  // Require a minimum confidence score (e.g., at least one mention in tags, or multiple in desc)
+  if (highestScore >= 2) {
+    return bestDomain;
   }
 
   return null;

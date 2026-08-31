@@ -14,6 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
   <style>
     *,
     *::before,
@@ -2008,6 +2009,86 @@
       ? `http://${window.location.hostname}:5000`
       : 'https://vidya-setu-api.onrender.com';
 
+    // Global fetch override to always send credentials (cookies) to the API
+    let isRefreshing = false;
+    let refreshPromise = null;
+
+    const originalFetch = window.fetch;
+    window.fetch = async function(resource, config = {}) {
+      // 1. Extract URL and prepare requests securely
+      let url = '';
+      let requestToFetch = resource;
+      let requestForRetry = resource;
+      
+      if (typeof resource === 'string') {
+        url = resource;
+      } else if (resource instanceof Request) {
+        url = resource.url;
+        // MUST clone the Request so its body stream is not permanently locked on the first attempt
+        requestToFetch = resource.clone();
+        requestForRetry = resource.clone();
+      } else if (resource && resource.href) {
+        url = resource.href;
+      }
+
+      const isApiCall = url.startsWith(API_BASE_URL);
+      
+      // 2. Inject credentials if targeting our API
+      if (isApiCall) {
+        if (resource instanceof Request) {
+          // You can't directly mutate credentials on a Request, it's read-only.
+          // But our frontend uses fetch('/api/...', { credentials: ... }) almost exclusively.
+          // We apply to config.
+        } else {
+          config.credentials = 'include';
+        }
+      }
+      
+      // 3. First execution
+      const response = await originalFetch(requestToFetch, config);
+      
+      // 4. Implement 401 -> Refresh -> Retry exactly once
+      const isAuthEndpoint = url.includes('/api/users/refresh') || 
+                             url.includes('/api/users/login') || 
+                             url.includes('/api/users/logout');
+      
+      if (response.status === 401 && isApiCall && !isAuthEndpoint) {
+        if (!isRefreshing) {
+          isRefreshing = true;
+          refreshPromise = originalFetch(`${API_BASE_URL}/api/users/refresh`, {
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' }
+          }).finally(() => {
+            isRefreshing = false;
+            refreshPromise = null;
+          });
+        }
+        
+        try {
+          const refreshResponse = await refreshPromise;
+          if (refreshResponse && refreshResponse.ok) {
+            // 5. Retry exactly once using originalFetch (bypassing interceptor to prevent infinite loops)
+            const retryResponse = await originalFetch(requestForRetry, config);
+            
+            // If retry fails with 401/403, the session is dead (e.g., token version changed or blocked)
+            if (retryResponse.status === 401 || retryResponse.status === 403) {
+              window.dispatchEvent(new Event('vidyasetu_force_logout'));
+            }
+            return retryResponse;
+          } else {
+            // Refresh explicitly failed
+            window.dispatchEvent(new Event('vidyasetu_force_logout'));
+            return response; // Return original 401
+          }
+        } catch (err) {
+          window.dispatchEvent(new Event('vidyasetu_force_logout'));
+          return response;
+        }
+      }
+      
+      return response;
+    };
+
     const { useState, useEffect, useRef, createContext, useContext } = React;
 
     /* ─── CONTEXTS ─── */
@@ -2385,7 +2466,7 @@ const T = {
       const handleResumeUpload = async (e) => {
         if (!e.target.files || e.target.files.length === 0) return;
         const file = e.target.files[0];
-        if (file.type !== "application/pdf") {
+        if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
           addToast("Invalid File", "Only PDF files are allowed", "", T.rose);
           return;
         }
@@ -5270,12 +5351,23 @@ const T = {
 
       const renderAiText = (text) => {
          if (!text) return null;
+         
+         const parseBold = (str) => {
+           const parts = str.split(/(\*\*.*?\*\*)/g);
+           return parts.map((part, index) => {
+             if (part.startsWith('**') && part.endsWith('**')) {
+               return <strong key={index}>{part.substring(2, part.length - 2)}</strong>;
+             }
+             return part;
+           });
+         };
+         
          return text.split('\n').map((line, i) => {
             if (line.startsWith('###')) return <h4 key={i} style={{ fontSize: 14, fontWeight: 600, margin: "14px 0 6px", color: "#1F2937" }}>{line.replace(/#/g, '').trim()}</h4>;
             if (line.startsWith('##')) return <h3 key={i} style={{ fontSize: 15, fontWeight: 600, margin: "16px 0 8px", color: "#1F2937" }}>{line.replace(/#/g, '').trim()}</h3>;
-            if (line.startsWith('-')) return <li key={i} style={{ marginLeft: 20, marginBottom: 4, color: "#4B5563", fontSize: 13 }} dangerouslySetInnerHTML={{ __html: line.substring(1).trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />;
+            if (line.startsWith('-')) return <li key={i} style={{ marginLeft: 20, marginBottom: 4, color: "#4B5563", fontSize: 13 }}>{parseBold(line.substring(1).trim())}</li>;
             if (line.trim() === '') return <br key={i} />;
-            return <p key={i} style={{ marginBottom: 6, lineHeight: 1.5, color: "#4B5563", fontSize: 13 }} dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />;
+            return <p key={i} style={{ marginBottom: 6, lineHeight: 1.5, color: "#4B5563", fontSize: 13 }}>{parseBold(line)}</p>;
          });
       };
 
@@ -5573,10 +5665,10 @@ const T = {
           if (data.reply) {
             setMsgs(p => [...p, { sender: "ai", txt: data.reply }]);
           } else {
-            throw new Error(data.error || "AI error");
+            throw new Error(data.message || data.error || "AI error");
           }
         } catch (e) {
-          setMsgs(p => [...p, { sender: "ai", txt: "🤖 I'm having trouble connecting to my brain right now. Please ensure the API key is set in the backend .env file! 🧠" }]);
+          setMsgs(p => [...p, { sender: "ai", txt: `🤖 Error: ${e.message}` }]);
         } finally {
           setTyping(false);
         }
@@ -5608,7 +5700,7 @@ const T = {
                 {msgs.map((m, i) => (
                   <div key={i} className={`slide-in ${m.sender === "ai" ? "md-content" : ""}`} 
                        style={{ alignSelf: m.sender === "user" ? "flex-end" : "flex-start", background: m.sender === "user" ? `linear-gradient(135deg,${T.orange},${T.orangeLt})` : "#fff", color: m.sender === "user" ? "#fff" : T.text, padding: "10px 14px", borderRadius: 16, borderBottomRightRadius: m.sender === "user" ? 4 : 16, borderBottomLeftRadius: m.sender === "ai" ? 4 : 16, maxWidth: "80%", fontSize: 14, lineHeight: 1.4, whiteSpace: m.sender === "ai" ? "normal" : "pre-line", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", border: m.sender === "ai" ? `1px solid ${T.border}` : "none" }}
-                       dangerouslySetInnerHTML={m.sender === "ai" && window.marked ? { __html: window.marked.parse(m.txt) } : undefined}
+                       dangerouslySetInnerHTML={m.sender === "ai" && window.marked ? { __html: window.DOMPurify ? window.DOMPurify.sanitize(window.marked.parse(m.txt)) : window.marked.parse(m.txt) } : undefined}
                   >
                     {!(m.sender === "ai" && window.marked) ? m.txt : null}
                   </div>
@@ -8903,11 +8995,41 @@ const T = {
     /* ══════════════════════════════════════
           APP WITH PROVIDERS
         ══════════════════════════════════════ */
+    function SessionWarningModal({ open, onStayLoggedIn, onLogout }) {
+      if (!open) return null;
+      return (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}>
+          <div className="modal-sheet" style={{ background: "#fff", width: "90%", maxWidth: 420, borderRadius: 16, padding: 24, boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+            <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 20 }}>
+              <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(245,158,11,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#F59E0B" }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 28 }}>warning</span>
+              </div>
+              <div>
+                <h3 style={{ fontSize: 18, marginBottom: 8, color: "#111", marginTop: 0 }}>Session Expiring Soon</h3>
+                <p style={{ fontSize: 14, color: "#555", lineHeight: 1.5, margin: 0 }}>
+                  Your session is about to expire due to inactivity. You will be logged out in approximately 60 seconds.
+                </p>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button onClick={onLogout} style={{ padding: "10px 16px", borderRadius: 8, border: "1px solid #E5E7EB", background: "#fff", color: "#555", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} className="btn-press">
+                Log Out Now
+              </button>
+              <button onClick={onStayLoggedIn} style={{ padding: "10px 16px", borderRadius: 8, border: "none", background: "#FF4F1F", color: "#fff", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }} className="btn-press">
+                Stay Logged In
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     function AppWithProviders() {
       const [splashDone, setSplashDone] = useState(false);
       const [isLoggedIn, setIsLoggedIn] = useState(false);
       const [isAdmin, setIsAdmin] = useState(false);
       const [sessionChecked, setSessionChecked] = useState(false);
+      const [showSessionWarning, setShowSessionWarning] = useState(false);
       const [user, setUser] = useState(() => {
         // Initialise user state — real hydration happens in useEffect below
         return {
@@ -8940,7 +9062,7 @@ const T = {
           localStorage.setItem("studentData", JSON.stringify(lean));
         } catch (e) {
           console.error("Storage error:", e);
-          localStorage.clear(); // Emergency clear if quota exceeded
+          localStorage.removeItem('studentData'); // Safe removal instead of clear
         }
       };
 
@@ -8998,7 +9120,7 @@ const T = {
                 setIsLoggedIn(true);
               }
             } else if (!localData) {
-              localStorage.clear();
+              localStorage.removeItem('studentData');
             }
           } catch (e) {
             console.error("Session check failed", e);
@@ -9009,63 +9131,101 @@ const T = {
         checkSession();
       }, []);
 
+      const isLoggingOutRef = useRef(false);
+
+      const performSecureLogout = async (silent = false) => {
+        if (isLoggingOutRef.current) return;
+        isLoggingOutRef.current = true;
+        
+        try {
+          await fetch(`${API_BASE_URL}/api/users/logout`, {
+            method: 'POST',
+            credentials: 'include'
+          });
+        } catch (e) { console.error("Logout API failed", e); }
+        finally {
+          // Guaranteed local cleanup without destroying unrelated keys
+          localStorage.removeItem('vidyasetu_last_activity');
+          localStorage.removeItem('vidyasetu_tab_active');
+          localStorage.removeItem('studentData');
+          sessionStorage.removeItem('vidyasetu_tab_active');
+          
+          // Broadcast logout to other tabs
+          localStorage.setItem('vidyasetu_logout', Date.now().toString());
+          
+          setIsLoggedIn(false);
+          setShowSessionWarning(false);
+          setUser({});
+          setIsAdmin(false);
+          window.location.href = '/'; 
+        }
+      };
+
       // ── SECURE AUTO LOGOUT & KEEP-ALIVE (Production Grade) ──
       useEffect(() => {
         if (!isLoggedIn) return;
         
-        const INACTIVITY_LIMIT_OPEN_TAB_MS = 5 * 60 * 1000; // 5 minutes (open tab)
-        const INACTIVITY_LIMIT_CLOSED_TAB_MS = 20 * 60 * 1000; // 20 minutes (closed tab)
+        const INACTIVITY_LIMIT_OPEN_TAB_MS = 5 * 60 * 1000; // 5 minutes
+        const WARNING_LIMIT_MS = 4 * 60 * 1000; // 4 minutes
+        const INACTIVITY_LIMIT_CLOSED_TAB_MS = 20 * 60 * 1000; // 20 minutes
         const ACTIVITY_KEY = 'vidyasetu_last_activity';
         
-        // Initialize activity timestamp ONLY if it doesn't exist
-        if (!localStorage.getItem(ACTIVITY_KEY)) {
-          localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
-        }
+        const inactivityCheckerRef = useRef(null);
+        const keepAliveIntervalRef = useRef(null);
+        const debounceTimerRef = useRef(null);
 
-        const performSecureLogout = async (silent = false) => {
-          if (!silent) {
-            alert("Session expired due to 5 minutes of inactivity. For your security, you have been logged out.");
-          }
-          try {
-            await fetch(`${API_BASE_URL}/api/users/logout`, {
-              method: 'POST',
-              credentials: 'include'
-            });
-          } catch (e) { console.error("Logout API failed", e); }
-          
-          localStorage.clear();
-          sessionStorage.clear();
-          setIsLoggedIn(false);
-          setUser({});
-          setIsAdmin(false);
-          window.location.href = '/'; 
-        };
+        // Initialize activity timestamp safely
+        let initialActivity = localStorage.getItem(ACTIVITY_KEY);
+        if (!initialActivity || isNaN(parseInt(initialActivity, 10)) || parseInt(initialActivity, 10) > Date.now()) {
+          initialActivity = Date.now().toString();
+          localStorage.setItem(ACTIVITY_KEY, initialActivity);
+        }
 
         // Check if we've exceeded the inactivity limit
         const checkInactivity = (isInitialMount = false) => {
-          const lastActivity = parseInt(localStorage.getItem(ACTIVITY_KEY) || '0', 10);
-          if (!lastActivity) return false;
+          if (isLoggingOutRef.current) return false;
+          
+          const rawActivity = localStorage.getItem(ACTIVITY_KEY);
+          if (!rawActivity) return false;
+          
+          let lastActivity = parseInt(rawActivity, 10);
+          
+          if (isNaN(lastActivity)) {
+             // Corrupted string
+             performSecureLogout(true);
+             return true;
+          }
+
+          if (lastActivity > Date.now() + 60000) {
+             // Maliciously set future timestamp or severe clock drift
+             performSecureLogout(true);
+             return true;
+          }
 
           const timeSinceLastActivity = Date.now() - lastActivity;
           const isNewTabSession = isInitialMount && !sessionStorage.getItem('vidyasetu_tab_active');
 
           if (isNewTabSession) {
             // Tab was closed and is now being reopened
-            if (timeSinceLastActivity > INACTIVITY_LIMIT_CLOSED_TAB_MS) {
-              performSecureLogout(true); // silent logout
+            if (timeSinceLastActivity >= INACTIVITY_LIMIT_CLOSED_TAB_MS) {
+              performSecureLogout(true);
               return true;
             }
           } else {
             // Tab is currently open
-            if (timeSinceLastActivity > INACTIVITY_LIMIT_OPEN_TAB_MS) {
-              performSecureLogout(false); // logout with message
+            if (timeSinceLastActivity >= INACTIVITY_LIMIT_OPEN_TAB_MS) {
+              performSecureLogout(true); // Silent here, warning handled earlier via modal
               return true;
+            } else if (timeSinceLastActivity >= WARNING_LIMIT_MS) {
+              setShowSessionWarning(true);
+            } else {
+              setShowSessionWarning(false);
             }
           }
           return false;
         };
         
-        // Immediately check on mount in case they returned after a long time
+        // Immediately check on mount in case they returned after a long time (e.g. from hibernation)
         if (checkInactivity(true)) return;
         
         // If this is a new tab session, reset their activity so they get a fresh 5 minutes
@@ -9075,56 +9235,104 @@ const T = {
         }
 
         // Update the timestamp on interaction (debounced to avoid performance hits)
-        let debounceTimer;
         const updateActivity = () => {
-          // If already expired, don't update! Let the checker catch it.
-          const lastActivity = parseInt(localStorage.getItem(ACTIVITY_KEY) || '0', 10);
-          if (lastActivity && Date.now() - lastActivity > INACTIVITY_LIMIT_OPEN_TAB_MS) {
-            checkInactivity();
+          if (isLoggingOutRef.current) return;
+          
+          const rawActivity = localStorage.getItem(ACTIVITY_KEY);
+          let lastActivity = parseInt(rawActivity || '0', 10);
+          
+          // Allow update if warning is shown, so they can dismiss it by interacting
+          // Only block update if we've completely exceeded the 5 min limit
+          if (!isNaN(lastActivity) && Date.now() - lastActivity >= INACTIVITY_LIMIT_OPEN_TAB_MS) {
+            checkInactivity(false);
             return;
           }
           
-          if (debounceTimer) return;
-          debounceTimer = setTimeout(() => {
+          if (debounceTimerRef.current) return;
+          debounceTimerRef.current = setTimeout(() => {
             localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
-            debounceTimer = null;
+            setShowSessionWarning(false); // Interaction removes warning
+            debounceTimerRef.current = null;
           }, 1000);
         };
 
         // Run the inactivity check every 10 seconds
-        const inactivityChecker = setInterval(checkInactivity, 10000);
+        inactivityCheckerRef.current = setInterval(() => checkInactivity(false), 10000);
 
         // Ping the backend every 4 minutes to keep the session alive ONLY IF active
-        const keepAliveInterval = setInterval(() => {
-          const lastActivity = parseInt(localStorage.getItem(ACTIVITY_KEY) || '0', 10);
+        keepAliveIntervalRef.current = setInterval(async () => {
+          if (isLoggingOutRef.current) return;
+          const rawActivity = localStorage.getItem(ACTIVITY_KEY);
+          let lastActivity = parseInt(rawActivity || '0', 10);
           // Only extend the session if the user was active recently
-          if (Date.now() - lastActivity < INACTIVITY_LIMIT_OPEN_TAB_MS) {
-            fetch(`${API_BASE_URL}/api/users/refresh`, { credentials: 'include' }).catch(console.error);
+          if (!isNaN(lastActivity) && Date.now() - lastActivity < WARNING_LIMIT_MS) {
+            try {
+              const res = await fetch(`${API_BASE_URL}/api/users/refresh`, { credentials: 'include' });
+              if (res.status === 401 || res.status === 403) {
+                // Backend rejected the session (e.g. expired or revoked)
+                performSecureLogout(true);
+              }
+            } catch (err) { console.error("Keep-alive failed", err); }
           }
         }, 4 * 60 * 1000);
 
-        const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
+        // Listen for modern events to track activity accurately and without duplicates
+        const events = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'];
         events.forEach(e => window.addEventListener(e, updateActivity, { passive: true }));
         
+        // Listen for visibility change (e.g. returning from sleep or switching tabs back)
+        const handleVisibilityChange = () => {
+          if (document.visibilityState === 'visible') {
+            checkInactivity(false);
+          }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        // Multi-tab session synchronization
+        const handleStorage = (e) => {
+          if (e.key === 'vidyasetu_logout') {
+            if (!isLoggingOutRef.current) {
+              isLoggingOutRef.current = true;
+              localStorage.removeItem('vidyasetu_last_activity');
+              localStorage.removeItem('vidyasetu_tab_active');
+              localStorage.removeItem('studentData');
+              setIsLoggedIn(false);
+              setShowSessionWarning(false);
+              setUser({});
+              setIsAdmin(false);
+              window.location.href = '/';
+            }
+          } else if (e.key === ACTIVITY_KEY) {
+            checkInactivity(false);
+          }
+        };
+        window.addEventListener('storage', handleStorage);
+
+        // Listen for forced logout from 401 global fetch wrapper
+        const handleForceLogout = () => {
+          performSecureLogout(true);
+        };
+        window.addEventListener('vidyasetu_force_logout', handleForceLogout);
+
         return () => {
-          clearInterval(inactivityTimeout); // Fallback for old code
-          clearInterval(inactivityChecker);
-          clearInterval(keepAliveInterval);
+          if (inactivityCheckerRef.current) clearInterval(inactivityCheckerRef.current);
+          if (keepAliveIntervalRef.current) clearInterval(keepAliveIntervalRef.current);
+          if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
           events.forEach(e => window.removeEventListener(e, updateActivity));
-          if (debounceTimer) clearTimeout(debounceTimer);
+          document.removeEventListener('visibilitychange', handleVisibilityChange);
+          window.removeEventListener('storage', handleStorage);
+          window.removeEventListener('vidyasetu_force_logout', handleForceLogout);
         };
       }, [isLoggedIn]);
 
-      // ── LOGOUT: Revoke session on backend and clear local state ──
-      const handleLogout = async () => {
-        try {
-          await fetch(`${API_BASE_URL}/api/users/logout`, {
-            method: 'POST',
-            credentials: 'include'
-          });
-        } catch (e) { console.error(e); }
-        localStorage.clear();
-        window.location.href = '/'; 
+      // ── LOGOUT: Shared manual and auto logout flow ──
+      const handleLogout = () => {
+        performSecureLogout(true);
+      };
+
+      const handleStayLoggedIn = () => {
+        localStorage.setItem('vidyasetu_last_activity', Date.now().toString());
+        setShowSessionWarning(false);
       };
 
       if (!splashDone || !sessionChecked) return <SplashScreen onDone={() => setSplashDone(true)} />;
@@ -9150,6 +9358,7 @@ const T = {
       if (isAdmin) {
         return (
           <ToastContext.Provider value={addToast}>
+            <SessionWarningModal open={showSessionWarning} onStayLoggedIn={handleStayLoggedIn} onLogout={handleLogout} />
             <AdminDashboard onLogout={handleLogout} />
             <ToastSystem toasts={toasts} />
           </ToastContext.Provider>
@@ -9159,6 +9368,7 @@ const T = {
       return (
         <UserContext.Provider value={{ user, updateUser, refreshUser }}>
           <ToastContext.Provider value={addToast}>
+            <SessionWarningModal open={showSessionWarning} onStayLoggedIn={handleStayLoggedIn} onLogout={handleLogout} />
             <App onLogout={handleLogout} />
             <ToastSystem toasts={toasts} />
           </ToastContext.Provider>

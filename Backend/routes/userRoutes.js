@@ -4,53 +4,106 @@ const User = require('../models/User');
 const ProfileEditRequest = require('../models/ProfileEditRequest');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { uploadImage } = require('../cloudinaryConfig');
+const { uploadImage, cloudinary } = require('../cloudinaryConfig');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const mongoose = require('mongoose');
 
-// GET /api/users/admin/stats
-router.get('/admin/stats', async (req, res) => {
+// ── RATE LIMITING (in-memory, per-IP) for forgot-password ──
+const forgotPasswordAttempts = new Map();
+const FORGOT_PW_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const FORGOT_PW_MAX_ATTEMPTS = 5;
+
+function checkForgotPasswordRateLimit(ip) {
+  const now = Date.now();
+  const entry = forgotPasswordAttempts.get(ip);
+  if (!entry || now - entry.windowStart > FORGOT_PW_WINDOW_MS) {
+    forgotPasswordAttempts.set(ip, { windowStart: now, count: 1 });
+    return true;
+  }
+  if (entry.count >= FORGOT_PW_MAX_ATTEMPTS) {
+    return false;
+  }
+  entry.count++;
+  return true;
+}
+
+// Clean up stale rate limit entries every 30 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of forgotPasswordAttempts.entries()) {
+    if (now - entry.windowStart > FORGOT_PW_WINDOW_MS) {
+      forgotPasswordAttempts.delete(ip);
+    }
+  }
+}, 30 * 60 * 1000);
+
+// ── SAFE USER PROJECTION — never expose these fields ──
+const SAFE_USER_SELECT = '-password -securityAnswer -resumeBase64 -resumeText';
+
+// GET /api/users/admin/stats — Bug 1: require admin auth
+router.get('/admin/stats', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const totalEnrolled = await require('../models/AktuStudentOtr').countDocuments();
     const totalRegistered = await User.countDocuments();
     const profileEditRequests = await User.countDocuments({ profileEditRequested: true });
     
-    // Check if there's any other pending requests from ScholarshipApplication
     const pendingScholarships = await require('../models/ScholarshipApplication').countDocuments({ status: 'Applied' });
     
-    // total requests = profileEditRequests + pendingScholarships
     const totalPendingRequests = profileEditRequests + pendingScholarships;
     
     res.status(200).json({
       totalEnrolled,
       totalRegistered,
       totalPendingRequests,
-      loginUpdateRequests: 0, // Placeholder
+      loginUpdateRequests: 0,
       profileUpdateRequests: profileEditRequests,
       otherRequests: pendingScholarships
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Admin stats error:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch admin stats' });
   }
 });
 
-// POST route /register to save a student with hashed credentials
+// POST route /register — Bug 39, 40: whitelist fields, prevent role escalation
 router.post('/register', async (req, res) => {
   try {
-    const { password, securityAnswer, role } = req.body;
+    const { name, rollNo, branch, year, email, password, securityQuestion, securityAnswer,
+            mobileNumber, casteCategory, familyIncome, isFeeWaiver, domicileState,
+            hasIncomeCertificate, course } = req.body;
+
     if (!password || !securityAnswer) {
-      return res.status(400).json({ error: "Password and Security Answer are required." });
+      return res.status(400).json({ success: false, message: "Password and Security Answer are required." });
+    }
+    if (!name || !rollNo || !branch || !year || !email || !securityQuestion) {
+      return res.status(400).json({ success: false, message: "All required fields must be provided." });
+    }
+    if (typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters." });
     }
 
-    // Hash the password and security answer for safety
     const hashedPassword = await bcrypt.hash(password, 10);
     const hashedAnswer = await bcrypt.hash(securityAnswer, 10);
 
-    const approvalStatus = 'approved';
-
+    // Bug 39/40: Explicit whitelist — never accept role, isAdmin, tokenVersion, etc. from client
     const newUser = new User({
-      ...req.body,
+      name,
+      rollNo,
+      branch,
+      year,
+      email,
       password: hashedPassword,
+      securityQuestion,
       securityAnswer: hashedAnswer,
-      approvalStatus
+      mobileNumber: mobileNumber || '',
+      casteCategory: casteCategory || 'General',
+      familyIncome: familyIncome || 0,
+      isFeeWaiver: isFeeWaiver || false,
+      domicileState: domicileState || '',
+      hasIncomeCertificate: hasIncomeCertificate || false,
+      course: course || 'B.Tech',
+      approvalStatus: 'approved'
+      // role defaults to 'student' via schema — never set from client
     });
 
     await newUser.save();
@@ -58,111 +111,130 @@ router.post('/register', async (req, res) => {
     const userResponse = newUser.toObject();
     delete userResponse.password;
     delete userResponse.securityAnswer;
+    delete userResponse.resumeText;
     
     res.status(201).json({ message: "Registered successfully", user: userResponse });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, message: "Roll number already registered." });
+    }
+    console.error('Registration error:', error.message);
+    res.status(400).json({ success: false, message: "Registration failed. Please check your input." });
   }
 });
 
-// GET route /all to retrieve all students
-router.get('/all', async (req, res) => {
-  try {
-    const users = await User.find({}).select('-password -securityAnswer -resumeBase64 -profilePhoto -resumeAnalysis');
-    res.status(200).json(users);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Helper to generate tokens
+// Helper to generate tokens — Bug 4: no fallback secrets, Bug 39: admin from DB role
 const generateTokens = (user) => {
-  const payload = { userId: user._id, rollNo: user.rollNo, isAdmin: user.email === 'vidyasetu@aktu.ac.in' };
-  const accessToken = jwt.sign(payload, process.env.JWT_ACCESS_SECRET || 'secret_access', { expiresIn: '5m' });
-  const refreshToken = jwt.sign({ userId: user._id, tokenVersion: user.tokenVersion }, process.env.JWT_REFRESH_SECRET || 'secret_refresh', { expiresIn: '30m' });
-  return { accessToken, refreshToken };
+  const accessSecret = process.env.JWT_ACCESS_SECRET;
+  const refreshSecret = process.env.JWT_REFRESH_SECRET;
+  if (!accessSecret || !refreshSecret) {
+    throw new Error('JWT secrets are not configured');
+  }
+
+  const isAdmin = user.role === 'super_admin';
+  const payload = { userId: user._id, rollNo: user.rollNo, isAdmin };
+  const accessToken = jwt.sign(payload, accessSecret, { expiresIn: '5m' });
+  const refreshToken = jwt.sign(
+    { userId: user._id, tokenVersion: user.tokenVersion },
+    refreshSecret,
+    { expiresIn: '30m' }
+  );
+  return { accessToken, refreshToken, isAdmin };
 };
 
-// POST route /login to authenticate a student using bcrypt
+// POST route /login
 router.post('/login', async (req, res) => {
   try {
     const { rollNo, password } = req.body;
     if (!rollNo || !password) {
-      return res.status(400).json({ error: "Roll Number and Password are required." });
+      return res.status(400).json({ success: false, message: "Roll Number and Password are required." });
+    }
+    if (typeof rollNo !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ success: false, message: "Invalid input format." });
     }
     
     const user = await User.findOne({ rollNo });
     if (!user) {
-      return res.status(401).json({ error: "Invalid Credentials" });
+      return res.status(401).json({ success: false, message: "Invalid Credentials" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password || "");
     if (!isMatch) {
-      return res.status(401).json({ error: "Invalid Credentials" });
+      return res.status(401).json({ success: false, message: "Invalid Credentials" });
     }
     
-    const { accessToken, refreshToken } = generateTokens(user);
+    const { accessToken, refreshToken, isAdmin } = generateTokens(user);
     
-    // Set refresh token in httpOnly cookie
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: 30 * 60 * 1000 // 30 minutes
+      maxAge: 30 * 60 * 1000
     });
 
     const userResponse = user.toObject();
     delete userResponse.password;
     delete userResponse.securityAnswer;
-    userResponse.isAdmin = user.email === 'vidyasetu@aktu.ac.in';
+    delete userResponse.resumeText;
+    userResponse.isAdmin = isAdmin;
     
     res.status(200).json({ user: userResponse, accessToken });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Login error:', error.message);
+    res.status(500).json({ success: false, message: "Login failed. Please try again." });
   }
 });
 
-// GET route /refresh to renew access token using refresh cookie
+// GET route /refresh — Bug 4: no fallback secrets
 router.get('/refresh', async (req, res) => {
   try {
     const token = req.cookies.refreshToken;
-    if (!token) return res.status(401).json({ error: "No refresh token" });
+    if (!token) return res.status(401).json({ success: false, message: "No refresh token" });
 
-    const payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET || 'secret_refresh');
+    const refreshSecret = process.env.JWT_REFRESH_SECRET;
+    if (!refreshSecret) {
+      console.error('FATAL: JWT_REFRESH_SECRET is not set');
+      return res.status(500).json({ success: false, message: "Server configuration error" });
+    }
+
+    const payload = jwt.verify(token, refreshSecret);
     const user = await User.findById(payload.userId);
     
     if (!user || user.tokenVersion !== payload.tokenVersion) {
-      return res.status(401).json({ error: "Invalid refresh token" });
+      return res.status(401).json({ success: false, message: "Invalid refresh token" });
     }
 
-    // Issue new tokens (Sliding expiration: keeps them logged in if active)
-    const { accessToken, refreshToken } = generateTokens(user);
+    const { accessToken, refreshToken, isAdmin } = generateTokens(user);
     
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: 30 * 60 * 1000 // 30 minutes
+      maxAge: 30 * 60 * 1000
     });
 
     const userResponse = user.toObject();
     delete userResponse.password;
     delete userResponse.securityAnswer;
-    userResponse.isAdmin = user.email === 'vidyasetu@aktu.ac.in';
+    delete userResponse.resumeText;
+    userResponse.isAdmin = isAdmin;
 
     res.status(200).json({ user: userResponse, accessToken });
   } catch (error) {
-    res.status(401).json({ error: "Token expired or invalid" });
+    res.status(401).json({ success: false, message: "Token expired or invalid" });
   }
 });
 
-// POST route /logout to invalidate refresh token
+// POST route /logout — Bug 4: no fallback secrets
 router.post('/logout', async (req, res) => {
   try {
     const token = req.cookies.refreshToken;
     if (token) {
-      const payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET || 'secret_refresh', { ignoreExpiration: true });
-      await User.findByIdAndUpdate(payload.userId, { $inc: { tokenVersion: 1 } });
+      const refreshSecret = process.env.JWT_REFRESH_SECRET;
+      if (refreshSecret) {
+        const payload = jwt.verify(token, refreshSecret, { ignoreExpiration: true });
+        await User.findByIdAndUpdate(payload.userId, { $inc: { tokenVersion: 1 } });
+      }
     }
   } catch (e) {
     // ignore verification errors on logout
@@ -171,73 +243,122 @@ router.post('/logout', async (req, res) => {
   res.status(200).json({ message: "Logged out" });
 });
 
-// FORGOT PASSWORD: Get security question by roll number
+// FORGOT PASSWORD: Get security question — Bug 6: rate limit, generic messages
 router.get('/forgot-password/question/:rollNo', async (req, res) => {
   try {
-    const user = await User.findOne({ rollNo: req.params.rollNo });
-    if (!user) return res.status(404).json({ error: "Student not found" });
-    if (!user.securityQuestion) return res.status(400).json({ error: "No security question set for this user." });
+    if (!checkForgotPasswordRateLimit(req.ip)) {
+      return res.status(429).json({ success: false, message: "Too many attempts. Please try again later." });
+    }
+
+    const rollNo = req.params.rollNo;
+    if (!rollNo || typeof rollNo !== 'string' || rollNo.length > 50) {
+      return res.status(400).json({ success: false, message: "Invalid roll number." });
+    }
+
+    const user = await User.findOne({ rollNo }).select('securityQuestion');
+    if (!user || !user.securityQuestion) {
+      // Generic response to avoid account enumeration
+      return res.status(404).json({ success: false, message: "Unable to process request." });
+    }
     
     res.json({ question: user.securityQuestion });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Forgot password question error:', error.message);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
-// FORGOT PASSWORD: Reset password after verifying security answer
+// FORGOT PASSWORD: Reset password — Bug 5: invalidate sessions, Bug 6: rate limit
 router.post('/forgot-password/reset', async (req, res) => {
   try {
+    if (!checkForgotPasswordRateLimit(req.ip)) {
+      return res.status(429).json({ success: false, message: "Too many attempts. Please try again later." });
+    }
+
     const { rollNo, securityAnswer, newPassword } = req.body;
     if (!rollNo || !securityAnswer || !newPassword) {
-      return res.status(400).json({ error: "All fields are required." });
+      return res.status(400).json({ success: false, message: "All fields are required." });
+    }
+    if (typeof newPassword !== 'string' || newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters." });
     }
 
     const user = await User.findOne({ rollNo });
-    if (!user) return res.status(404).json({ error: "Student not found" });
+    if (!user) {
+      // Generic response
+      return res.status(400).json({ success: false, message: "Unable to reset password." });
+    }
 
     const isMatch = await bcrypt.compare(securityAnswer, user.securityAnswer || "");
-    if (!isMatch) return res.status(401).json({ error: "Incorrect Security Answer" });
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: "Verification failed." });
+    }
 
-    // Hash the new password before saving
+    // Bug 5: Hash new password and invalidate all existing sessions
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
-    
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
+
     res.status(200).json({ success: true, message: "Password updated successfully!" });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Password reset error:', error.message);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
-// GET route /search/:rollNo to find a student by roll number
-router.get('/search/:rollNo', async (req, res) => {
+// GET /all — Bug 7: admin only
+router.get('/all', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const user = await User.findOne({ rollNo: req.params.rollNo }).select('-password -securityAnswer');
+    const users = await User.find({}).select('-password -securityAnswer -resumeBase64 -profilePhoto -resumeAnalysis -resumeText');
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('Fetch all users error:', error.message);
+    res.status(500).json({ success: false, message: "Failed to fetch users" });
+  }
+});
+
+// GET /search/:rollNo — Bug 7: require auth
+router.get('/search/:rollNo', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ rollNo: req.params.rollNo }).select(SAFE_USER_SELECT);
     if (!user) {
-      return res.status(404).json({ error: "Student not found" });
+      return res.status(404).json({ success: false, message: "Student not found" });
     }
     res.status(200).json(user);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Search user error:', error.message);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
-// GET Student Profile by ID
-router.get('/profile/:id', async (req, res) => {
+// GET /profile/:id — Bug 7: auth required, own profile or admin
+router.get('/profile/:id', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password -securityAnswer');
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    const id = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid user ID' });
+    }
+
+    // Students can only view their own profile details
+    if (!req.user.isAdmin && req.user.userId.toString() !== id) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+
+    const user = await User.findById(id).select(SAFE_USER_SELECT);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     res.json(user);
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Profile fetch error:', error.message);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// GET verify digital ID via QR code
+// GET verify digital ID via QR code — public endpoint, returns minimal info only
 router.get('/verify/:rollNo', async (req, res) => {
   try {
     const user = await User.findOne({ rollNo: req.params.rollNo }).select('name rollNo branch year course scholarshipStage');
-    if (!user) return res.status(404).json({ success: false, error: 'Student not found' });
+    if (!user) return res.status(404).json({ success: false, message: 'Student not found' });
     
     res.json({
       success: true,
@@ -253,32 +374,34 @@ router.get('/verify/:rollNo', async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Server error' });
+    console.error('Verify error:', error.message);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// PUT route /update-profile to edit profile (ONE-TIME only)
-router.put('/update-profile', async (req, res) => {
+// PUT /update-profile — Bug 8: use req.user.userId, require auth
+router.put('/update-profile', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findOne({ rollNo: req.body.rollNo });
-    if (!user) return res.status(404).json({ error: "Student not found" });
+    // Bug 8: Identity from JWT, not from request body
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ success: false, message: "Student not found" });
 
-    // ── PASSWORD VERIFICATION ──
+    // PASSWORD VERIFICATION
     const { password } = req.body;
     if (!password) {
-      return res.status(400).json({ error: "Password is required to save profile changes." });
+      return res.status(400).json({ success: false, message: "Password is required to save profile changes." });
     }
     const isMatch = await bcrypt.compare(password, user.password || "");
     if (!isMatch) {
-      return res.status(401).json({ error: "Incorrect password. Profile not saved." });
+      return res.status(401).json({ success: false, message: "Incorrect password. Profile not saved." });
     }
 
-    // ── ONE-TIME EDIT GUARD ──
+    // ONE-TIME EDIT GUARD
     if (user.profileEditedOnce) {
-      return res.status(403).json({ error: "Profile can only be edited once. Your profile is now locked." });
+      return res.status(403).json({ success: false, message: "Profile can only be edited once. Your profile is now locked." });
     }
 
-    // ── TFW ELIGIBILITY VALIDATION (server-side) ──
+    // TFW ELIGIBILITY VALIDATION
     if (req.body.isFeeWaiver) {
       const income = parseInt(req.body.familyIncome) || 0;
       const domicile = req.body.domicileState || '';
@@ -299,11 +422,11 @@ router.put('/update-profile', async (req, res) => {
         errors.push('TFW is not available for B.Arch courses.');
       }
       if (errors.length > 0) {
-        return res.status(400).json({ error: "TFW Eligibility Failed", reasons: errors });
+        return res.status(400).json({ success: false, message: "TFW Eligibility Failed", reasons: errors });
       }
     }
 
-    // ── APPLY UPDATE + LOCK ──
+    // Bug 40: Explicit whitelist — never allow role, isAdmin, tokenVersion, password etc.
     const allowedFields = ['name', 'branch', 'year', 'mobileNumber', 'email', 'casteCategory', 'familyIncome', 'isFeeWaiver', 'domicileState', 'hasIncomeCertificate', 'course'];
     const updatePayload = { profileEditedOnce: true };
     for (const key of allowedFields) {
@@ -312,23 +435,25 @@ router.put('/update-profile', async (req, res) => {
       }
     }
 
-    const updatedUser = await User.findOneAndUpdate(
-      { rollNo: req.body.rollNo },
+    // Bug 8: Use authenticated user's ID, not rollNo from body
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.userId,
       { $set: updatePayload },
       { new: true }
-    ).select('-password -securityAnswer');
+    ).select(SAFE_USER_SELECT);
     res.status(200).json(updatedUser);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Update profile error:', error.message);
+    res.status(500).json({ success: false, message: "Failed to update profile" });
   }
 });
 
-// POST route /request-profile-edit
-router.post('/request-profile-edit', async (req, res) => {
+// POST /request-profile-edit — Bug 8: use req.user
+router.post('/request-profile-edit', authenticateToken, async (req, res) => {
   try {
-    const { rollNo, requestedChanges, reason } = req.body;
-    const user = await User.findOne({ rollNo });
-    if (!user) return res.status(404).json({ error: "Student not found" });
+    const { requestedChanges, reason } = req.body;
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ success: false, message: "Student not found" });
     
     const newReq = new ProfileEditRequest({
       userId: user._id,
@@ -337,35 +462,40 @@ router.post('/request-profile-edit', async (req, res) => {
     });
     await newReq.save();
     
-    // Set flag so UI knows request is pending
-    await User.updateOne({ rollNo }, { $set: { profileEditRequested: true } });
+    await User.updateOne({ _id: user._id }, { $set: { profileEditRequested: true } });
     
     res.status(200).json({ success: true, message: "Profile edit request sent to admin." });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Request profile edit error:', error.message);
+    res.status(500).json({ success: false, message: "Failed to submit request" });
   }
 });
 
-// GET route /admin/profile-edit-requests
-router.get('/admin/profile-edit-requests', async (req, res) => {
+// GET /admin/profile-edit-requests — Bug 1: admin only
+router.get('/admin/profile-edit-requests', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const requests = await ProfileEditRequest.find({}).populate('userId', 'name rollNo branch year email').sort({ requestedAt: -1 });
     res.status(200).json(requests);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Fetch profile edit requests error:', error.message);
+    res.status(500).json({ success: false, message: "Failed to fetch requests" });
   }
 });
 
-// POST route /admin/approve-profile-edit
-router.post('/admin/approve-profile-edit', async (req, res) => {
+// POST /admin/approve-profile-edit — Bug 1: admin only
+router.post('/admin/approve-profile-edit', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { requestId } = req.body;
+    if (!requestId || !mongoose.Types.ObjectId.isValid(requestId)) {
+      return res.status(400).json({ success: false, message: "Valid request ID required" });
+    }
+
     const editReq = await ProfileEditRequest.findById(requestId);
-    if (!editReq) return res.status(404).json({ error: "Request not found" });
-    if (editReq.status !== 'Pending') return res.status(400).json({ error: "Request is not pending" });
+    if (!editReq) return res.status(404).json({ success: false, message: "Request not found" });
+    if (editReq.status !== 'Pending') return res.status(400).json({ success: false, message: "Request is not pending" });
     
     const user = await User.findById(editReq.userId);
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     const allowedFields = ['name', 'branch', 'year', 'mobileNumber', 'email', 'casteCategory', 'familyIncome', 'isFeeWaiver', 'domicileState', 'hasIncomeCertificate', 'course'];
     const updatePayload = {};
@@ -375,9 +505,6 @@ router.post('/admin/approve-profile-edit', async (req, res) => {
       }
     }
     
-    // We unlock the profile when approving so they can edit again, or just apply the fields
-    // The instructions say "Apply ONLY approved requested fields... After approval, the student's profile editing ability may be restored"
-    // We will set profileEditedOnce to false so they can edit again.
     updatePayload.profileEditedOnce = false;
     updatePayload.profileEditRequested = false;
 
@@ -390,19 +517,23 @@ router.post('/admin/approve-profile-edit', async (req, res) => {
     
     res.status(200).json({ success: true, message: "Profile edit approved successfully." });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Approve profile edit error:', error.message);
+    res.status(500).json({ success: false, message: "Failed to approve request" });
   }
 });
 
-// POST route /admin/reject-profile-edit
-router.post('/admin/reject-profile-edit', async (req, res) => {
+// POST /admin/reject-profile-edit — Bug 1: admin only
+router.post('/admin/reject-profile-edit', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { requestId, rejectionReason } = req.body;
-    if (!rejectionReason) return res.status(400).json({ error: "Rejection reason required" });
+    if (!rejectionReason) return res.status(400).json({ success: false, message: "Rejection reason required" });
+    if (!requestId || !mongoose.Types.ObjectId.isValid(requestId)) {
+      return res.status(400).json({ success: false, message: "Valid request ID required" });
+    }
     
     const editReq = await ProfileEditRequest.findById(requestId);
-    if (!editReq) return res.status(404).json({ error: "Request not found" });
-    if (editReq.status !== 'Pending') return res.status(400).json({ error: "Request is not pending" });
+    if (!editReq) return res.status(404).json({ success: false, message: "Request not found" });
+    if (editReq.status !== 'Pending') return res.status(400).json({ success: false, message: "Request is not pending" });
     
     editReq.status = 'Rejected';
     editReq.rejectionReason = rejectionReason;
@@ -410,24 +541,25 @@ router.post('/admin/reject-profile-edit', async (req, res) => {
     editReq.reviewedBy = 'Admin';
     await editReq.save();
     
-    // Remove the pending flag from the user so they can submit another one
     await User.updateOne({ _id: editReq.userId }, { $set: { profileEditRequested: false } });
     
     res.status(200).json({ success: true, message: "Profile edit rejected." });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Reject profile edit error:', error.message);
+    res.status(500).json({ success: false, message: "Failed to reject request" });
   }
 });
 
-// PUT route /update-status
-router.put('/update-status', async (req, res) => {
+// PUT /update-status — Bug 1: admin only
+router.put('/update-status', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { rollNo, ...updates } = req.body;
-    if (!rollNo) return res.status(400).json({ error: "Roll number strictly required." });
+    if (!rollNo) return res.status(400).json({ success: false, message: "Roll number required." });
     
     const user = await User.findOne({ rollNo });
-    if(!user) return res.status(404).json({ error: "User not found" });
+    if(!user) return res.status(404).json({ success: false, message: "User not found" });
 
+    // Bug 40: Only allow specific status fields
     const allowedStatusFields = ['scholarshipStage', 'dbt', 'ochk', 'tokens', 'claimedPerks'];
     const updatePayload = {};
     for (const key of allowedStatusFields) {
@@ -440,68 +572,69 @@ router.put('/update-status', async (req, res) => {
        updatePayload.ochk = { ...user.ochk, ...updatePayload.ochk };
     }
     
-    const updatedUser = await User.findOneAndUpdate({ rollNo }, { $set: updatePayload }, { new: true }).select('-password -securityAnswer');
+    const updatedUser = await User.findOneAndUpdate({ rollNo }, { $set: updatePayload }, { new: true }).select(SAFE_USER_SELECT);
     res.status(200).json(updatedUser);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Update status error:', error.message);
+    res.status(500).json({ success: false, message: "Failed to update status" });
   }
 });
 
-// PUT route /upload-profile-photo to upload profile photo to Cloudinary
-router.put('/upload-profile-photo', async (req, res) => {
+// PUT /upload-profile-photo — Bug 8: use req.user.userId
+router.put('/upload-profile-photo', authenticateToken, async (req, res) => {
   try {
-    const { rollNo, photoData } = req.body;
-    if (!rollNo || !photoData) {
-      return res.status(400).json({ error: "Roll number and photo data are required." });
+    const { photoData } = req.body;
+    if (!photoData) {
+      return res.status(400).json({ success: false, message: "Photo data is required." });
     }
 
-    // Upload to Cloudinary
     const photoUrl = await uploadImage(photoData);
-    console.log('✅ Profile photo uploaded to Cloudinary:', photoUrl);
 
-    // Save URL to user profile
-    const user = await User.findOneAndUpdate(
-      { rollNo },
+    // Bug 8: Use authenticated user ID, not rollNo from body
+    const user = await User.findByIdAndUpdate(
+      req.user.userId,
       { $set: { profilePhoto: photoUrl } },
       { new: true }
-    ).select('-password -securityAnswer');
+    ).select(SAFE_USER_SELECT);
 
-    if (!user) return res.status(404).json({ error: "Student not found" });
+    if (!user) return res.status(404).json({ success: false, message: "Student not found" });
 
     res.status(200).json({ success: true, profilePhoto: photoUrl, user });
   } catch (error) {
-    console.error('❌ Profile photo upload error:', error.message);
-    res.status(500).json({ error: error.message });
+    console.error('Profile photo upload error:', error.message);
+    res.status(500).json({ success: false, message: "Failed to upload profile photo" });
   }
 });
 
-// PUT route /profile/links to update links
-router.put('/profile/links', async (req, res) => {
+// PUT /profile/links — Bug 8: use req.user.userId
+router.put('/profile/links', authenticateToken, async (req, res) => {
   try {
-    const { rollNo, links } = req.body;
-    if (!rollNo || !links) {
-      return res.status(400).json({ error: 'Roll number and links are required.' });
+    const { links } = req.body;
+    if (!links || !Array.isArray(links)) {
+      return res.status(400).json({ success: false, message: 'Links array is required.' });
     }
-    const user = await User.findOneAndUpdate(
-      { rollNo },
+    // Bug 8: Use authenticated user ID
+    const user = await User.findByIdAndUpdate(
+      req.user.userId,
       { $set: { links } },
       { new: true }
-    ).select('-password -securityAnswer');
-    if (!user) return res.status(404).json({ error: 'Student not found' });
+    ).select(SAFE_USER_SELECT);
+    if (!user) return res.status(404).json({ success: false, message: 'Student not found' });
     res.status(200).json({ success: true, links: user.links, user });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Update links error:', error.message);
+    res.status(500).json({ success: false, message: "Failed to update links" });
   }
 });
 
-// Upload resume
+// Resume upload — Bug 8, 20, 21
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
 const upload = multer({ 
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') {
+    if (file.mimetype === 'application/pdf' || file.originalname.toLowerCase().endsWith('.pdf')) {
       cb(null, true);
     } else {
       cb(new Error('Only PDF files are allowed!'), false);
@@ -509,63 +642,109 @@ const upload = multer({
   }
 });
 
-router.put('/profile/resume/upload', upload.single('resume'), async (req, res) => {
+const fs = require('fs');
+const handleUpload = (req, res, next) => {
+  const logMsg = `[${new Date().toISOString()}] Resume Upload Request. Content-Length: ${req.headers['content-length']}\n`;
+  console.log(logMsg);
+  try { fs.appendFileSync('upload_debug.log', logMsg); } catch(e){}
+  
+  upload.single('resume')(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      const errMsg = `[${new Date().toISOString()}] MulterError: ${err.message}\n`;
+      console.log(errMsg);
+      try { fs.appendFileSync('upload_debug.log', errMsg); } catch(e){}
+      return res.status(400).json({ success: false, error: `Upload error: ${err.message}` });
+    } else if (err) {
+      const errMsg2 = `[${new Date().toISOString()}] Error: ${err.message}\n`;
+      console.log(errMsg2);
+      try { fs.appendFileSync('upload_debug.log', errMsg2); } catch(e){}
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    const succMsg = `[${new Date().toISOString()}] Multer finished. File exists: ${!!req.file}\n`;
+    console.log(succMsg);
+    try { fs.appendFileSync('upload_debug.log', succMsg); } catch(e){}
+    next();
+  });
+};
+
+// Bug 21: Require auth. Bug 8: Use req.user.userId. Bug 20: Upload to Cloudinary instead of fake URL.
+router.put('/profile/resume/upload', authenticateToken, handleUpload, async (req, res) => {
   try {
-    const { rollNo } = req.body;
-    if (!rollNo) return res.status(400).json({ error: 'Roll number required.' });
-    if (!req.file) return res.status(400).json({ error: 'No PDF file uploaded.' });
+    if (!req.file) return res.status(400).json({ success: false, error: 'No PDF file uploaded.' });
     
+    // Validate file extension as additional check
+    const originalName = req.file.originalname || '';
+    if (!originalName.toLowerCase().endsWith('.pdf')) {
+      return res.status(400).json({ success: false, error: 'Only PDF files are allowed.' });
+    }
+
     let extractedText = '';
     try {
       const pdfData = await pdfParse(req.file.buffer);
       extractedText = pdfData.text;
     } catch (parseErr) {
-      console.error('PDF Parse Error:', parseErr);
-      return res.status(400).json({ error: 'Failed to extract text from PDF. Ensure the file is not corrupted or image-based.' });
+      console.error('PDF Parse Error:', parseErr.message);
+      return res.status(400).json({ success: false, error: 'Failed to extract text from PDF. Ensure the file is not corrupted or image-based.' });
     }
     
-    const fakeUrl = 'https://vidyasetu-storage.example.com/resumes/' + Date.now() + '.pdf';
+    // Bug 20: Upload PDF to Cloudinary as raw resource instead of fake URL
+    let resumeUrl = '';
+    try {
+      const b64 = req.file.buffer.toString('base64');
+      const dataUri = `data:application/pdf;base64,${b64}`;
+      const uploadResult = await cloudinary.uploader.upload(dataUri, {
+        resource_type: 'raw',
+        folder: 'vidyasetu_resumes',
+        public_id: `resume_${req.user.userId}_${Date.now()}`
+      });
+      resumeUrl = uploadResult.secure_url;
+    } catch (uploadErr) {
+      console.error('Cloudinary resume upload error:', uploadErr.message);
+      // Fallback: store without URL, keep the text for analysis
+      resumeUrl = '';
+    }
 
-    const user = await User.findOneAndUpdate(
-      { rollNo },
+    // Bug 8: Use authenticated user ID
+    const user = await User.findByIdAndUpdate(
+      req.user.userId,
       { 
         $set: { 
           resume: { 
-            url: fakeUrl, 
+            url: resumeUrl, 
             filename: req.file.originalname, 
             uploadDate: new Date() 
           },
-          resumeText: extractedText // store temporarily for analyze endpoint
+          resumeText: extractedText
         } 
       },
       { new: true, strict: false }
-    ).select('-password -securityAnswer');
+    ).select(SAFE_USER_SELECT);
     
-    if (!user) return res.status(404).json({ error: 'Student not found' });
+    if (!user) return res.status(404).json({ success: false, error: 'Student not found' });
     res.status(200).json({ success: true, resume: user.resume, user });
   } catch (error) {
     if (error.message === 'Only PDF files are allowed!') {
-      return res.status(400).json({ error: error.message });
+      return res.status(400).json({ success: false, error: error.message });
     }
-    res.status(500).json({ error: error.message });
+    console.error('Resume upload error:', error.message);
+    res.status(500).json({ success: false, error: "Failed to upload resume" });
   }
 });
 
-router.delete('/profile/resume', async (req, res) => {
+// Bug 8, 21: Delete resume — require auth, use req.user.userId
+router.delete('/profile/resume', authenticateToken, async (req, res) => {
   try {
-    const { rollNo } = req.body;
-    if (!rollNo) return res.status(400).json({ error: 'Roll number required.' });
-    const user = await User.findOneAndUpdate(
-      { rollNo },
+    const user = await User.findByIdAndUpdate(
+      req.user.userId,
       { $unset: { resume: '', resumeAnalysis: '', resumeText: '' } },
       { new: true, strict: false }
-    ).select('-password -securityAnswer');
-    if (!user) return res.status(404).json({ error: 'Student not found' });
+    ).select(SAFE_USER_SELECT);
+    if (!user) return res.status(404).json({ success: false, message: 'Student not found' });
     res.status(200).json({ success: true, message: 'Resume deleted', user });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Resume delete error:', error.message);
+    res.status(500).json({ success: false, message: "Failed to delete resume" });
   }
 });
 
 module.exports = router;
-
