@@ -9380,7 +9380,38 @@ const T = {
       );
     }
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<AppWithProviders />);
+    class ErrorBoundary extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null, errorInfo: null };
+      }
+      static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+      }
+      componentDidCatch(error, errorInfo) {
+        this.setState({ errorInfo });
+      }
+      render() {
+        if (this.state.hasError) {
+          return (
+            <div style={{ padding: '20px', background: '#fee', color: '#c00', margin: '20px', fontFamily: 'monospace' }}>
+              <h2>React Crash</h2>
+              <p><strong>{this.state.error && this.state.error.toString()}</strong></p>
+              <pre style={{ whiteSpace: 'pre-wrap', marginTop: '10px' }}>
+                {this.state.errorInfo && this.state.errorInfo.componentStack}
+              </pre>
+            </div>
+          );
+        }
+        return this.props.children;
+      }
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(
+      <ErrorBoundary>
+        <AppWithProviders />
+      </ErrorBoundary>
+    );
   </script>
 </body>
 
