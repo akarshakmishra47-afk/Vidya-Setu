@@ -9174,9 +9174,9 @@ const T = {
         const INACTIVITY_LIMIT_CLOSED_TAB_MS = 20 * 60 * 1000; // 20 minutes
         const ACTIVITY_KEY = 'vidyasetu_last_activity';
         
-        const inactivityCheckerRef = useRef(null);
-        const keepAliveIntervalRef = useRef(null);
-        const debounceTimerRef = useRef(null);
+        let inactivityChecker = null;
+        let keepAliveInterval = null;
+        let debounceTimer = null;
 
         // Initialize activity timestamp safely
         let initialActivity = localStorage.getItem(ACTIVITY_KEY);
@@ -9252,19 +9252,19 @@ const T = {
             return;
           }
           
-          if (debounceTimerRef.current) return;
-          debounceTimerRef.current = setTimeout(() => {
+          if (debounceTimer) return;
+          debounceTimer = setTimeout(() => {
             localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
             setShowSessionWarning(false); // Interaction removes warning
-            debounceTimerRef.current = null;
+            debounceTimer = null;
           }, 1000);
         };
 
         // Run the inactivity check every 10 seconds
-        inactivityCheckerRef.current = setInterval(() => checkInactivity(false), 10000);
+        inactivityChecker = setInterval(() => checkInactivity(false), 10000);
 
         // Ping the backend every 4 minutes to keep the session alive ONLY IF active
-        keepAliveIntervalRef.current = setInterval(async () => {
+        keepAliveInterval = setInterval(async () => {
           if (isLoggingOutRef.current) return;
           const rawActivity = localStorage.getItem(ACTIVITY_KEY);
           let lastActivity = parseInt(rawActivity || '0', 10);
@@ -9319,9 +9319,9 @@ const T = {
         window.addEventListener('vidyasetu_force_logout', handleForceLogout);
 
         return () => {
-          if (inactivityCheckerRef.current) clearInterval(inactivityCheckerRef.current);
-          if (keepAliveIntervalRef.current) clearInterval(keepAliveIntervalRef.current);
-          if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+          if (inactivityChecker) clearInterval(inactivityChecker);
+          if (keepAliveInterval) clearInterval(keepAliveInterval);
+          if (debounceTimer) clearTimeout(debounceTimer);
           events.forEach(e => window.removeEventListener(e, updateActivity));
           document.removeEventListener('visibilitychange', handleVisibilityChange);
           window.removeEventListener('storage', handleStorage);
