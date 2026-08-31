@@ -46,11 +46,11 @@ router.get('/admin/stats', authenticateToken, requireAdmin, async (req, res) => 
     const totalEnrolled = await require('../models/AktuStudentOtr').countDocuments();
     const totalRegistered = await User.countDocuments();
     const profileEditRequests = await User.countDocuments({ profileEditRequested: true });
-    
+
     const pendingScholarships = await require('../models/ScholarshipApplication').countDocuments({ status: 'Applied' });
-    
+
     const totalPendingRequests = profileEditRequests + pendingScholarships;
-    
+
     res.status(200).json({
       totalEnrolled,
       totalRegistered,
@@ -69,8 +69,8 @@ router.get('/admin/stats', authenticateToken, requireAdmin, async (req, res) => 
 router.post('/register', async (req, res) => {
   try {
     const { name, rollNo, branch, year, email, password, securityQuestion, securityAnswer,
-            mobileNumber, casteCategory, familyIncome, isFeeWaiver, domicileState,
-            hasIncomeCertificate, course } = req.body;
+      mobileNumber, casteCategory, familyIncome, isFeeWaiver, domicileState,
+      hasIncomeCertificate, course } = req.body;
 
     if (!password || !securityAnswer) {
       return res.status(400).json({ success: false, message: "Password and Security Answer are required." });
@@ -107,12 +107,12 @@ router.post('/register', async (req, res) => {
     });
 
     await newUser.save();
-    
+
     const userResponse = newUser.toObject();
     delete userResponse.password;
     delete userResponse.securityAnswer;
     delete userResponse.resumeText;
-    
+
     res.status(201).json({ message: "Registered successfully", user: userResponse });
   } catch (error) {
     if (error.code === 11000) {
@@ -152,7 +152,7 @@ router.post('/login', async (req, res) => {
     if (typeof rollNo !== 'string' || typeof password !== 'string') {
       return res.status(400).json({ success: false, message: "Invalid input format." });
     }
-    
+
     const user = await User.findOne({ rollNo });
     if (!user) {
       return res.status(401).json({ success: false, message: "Invalid Credentials" });
@@ -162,9 +162,9 @@ router.post('/login', async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ success: false, message: "Invalid Credentials" });
     }
-    
+
     const { accessToken, refreshToken, isAdmin } = generateTokens(user);
-    
+
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: true,
@@ -177,11 +177,11 @@ router.post('/login', async (req, res) => {
     delete userResponse.securityAnswer;
     delete userResponse.resumeText;
     userResponse.isAdmin = isAdmin;
-    
+
     res.status(200).json({ user: userResponse, accessToken });
   } catch (error) {
     console.error('Login error:', error.message);
-    res.status(500).json({ success: false, message: "Login failed. Please try again.", debug_error: error.message });
+    res.status(500).json({ success: false, message: "Login failed. Please try again." });
   }
 });
 
@@ -199,13 +199,13 @@ router.get('/refresh', async (req, res) => {
 
     const payload = jwt.verify(token, refreshSecret);
     const user = await User.findById(payload.userId);
-    
+
     if (!user || user.tokenVersion !== payload.tokenVersion) {
       return res.status(401).json({ success: false, message: "Invalid refresh token" });
     }
 
     const { accessToken, refreshToken, isAdmin } = generateTokens(user);
-    
+
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: true,
@@ -260,7 +260,7 @@ router.get('/forgot-password/question/:rollNo', async (req, res) => {
       // Generic response to avoid account enumeration
       return res.status(404).json({ success: false, message: "Unable to process request." });
     }
-    
+
     res.json({ question: user.securityQuestion });
   } catch (error) {
     console.error('Forgot password question error:', error.message);
@@ -359,7 +359,7 @@ router.get('/verify/:rollNo', async (req, res) => {
   try {
     const user = await User.findOne({ rollNo: req.params.rollNo }).select('name rollNo branch year course scholarshipStage');
     if (!user) return res.status(404).json({ success: false, message: 'Student not found' });
-    
+
     res.json({
       success: true,
       data: {
@@ -454,16 +454,16 @@ router.post('/request-profile-edit', authenticateToken, async (req, res) => {
     const { requestedChanges, reason } = req.body;
     const user = await User.findById(req.user.userId);
     if (!user) return res.status(404).json({ success: false, message: "Student not found" });
-    
+
     const newReq = new ProfileEditRequest({
       userId: user._id,
       requestedChanges: requestedChanges || {},
       reason: reason || ''
     });
     await newReq.save();
-    
+
     await User.updateOne({ _id: user._id }, { $set: { profileEditRequested: true } });
-    
+
     res.status(200).json({ success: true, message: "Profile edit request sent to admin." });
   } catch (error) {
     console.error('Request profile edit error:', error.message);
@@ -493,7 +493,7 @@ router.post('/admin/approve-profile-edit', authenticateToken, requireAdmin, asyn
     const editReq = await ProfileEditRequest.findById(requestId);
     if (!editReq) return res.status(404).json({ success: false, message: "Request not found" });
     if (editReq.status !== 'Pending') return res.status(400).json({ success: false, message: "Request is not pending" });
-    
+
     const user = await User.findById(editReq.userId);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
@@ -504,17 +504,17 @@ router.post('/admin/approve-profile-edit', authenticateToken, requireAdmin, asyn
         updatePayload[key] = editReq.requestedChanges[key];
       }
     }
-    
+
     updatePayload.profileEditedOnce = false;
     updatePayload.profileEditRequested = false;
 
     await User.updateOne({ _id: user._id }, { $set: updatePayload });
-    
+
     editReq.status = 'Approved';
     editReq.reviewedAt = new Date();
     editReq.reviewedBy = 'Admin';
     await editReq.save();
-    
+
     res.status(200).json({ success: true, message: "Profile edit approved successfully." });
   } catch (error) {
     console.error('Approve profile edit error:', error.message);
@@ -530,19 +530,19 @@ router.post('/admin/reject-profile-edit', authenticateToken, requireAdmin, async
     if (!requestId || !mongoose.Types.ObjectId.isValid(requestId)) {
       return res.status(400).json({ success: false, message: "Valid request ID required" });
     }
-    
+
     const editReq = await ProfileEditRequest.findById(requestId);
     if (!editReq) return res.status(404).json({ success: false, message: "Request not found" });
     if (editReq.status !== 'Pending') return res.status(400).json({ success: false, message: "Request is not pending" });
-    
+
     editReq.status = 'Rejected';
     editReq.rejectionReason = rejectionReason;
     editReq.reviewedAt = new Date();
     editReq.reviewedBy = 'Admin';
     await editReq.save();
-    
+
     await User.updateOne({ _id: editReq.userId }, { $set: { profileEditRequested: false } });
-    
+
     res.status(200).json({ success: true, message: "Profile edit rejected." });
   } catch (error) {
     console.error('Reject profile edit error:', error.message);
@@ -555,9 +555,9 @@ router.put('/update-status', authenticateToken, requireAdmin, async (req, res) =
   try {
     const { rollNo, ...updates } = req.body;
     if (!rollNo) return res.status(400).json({ success: false, message: "Roll number required." });
-    
+
     const user = await User.findOne({ rollNo });
-    if(!user) return res.status(404).json({ success: false, message: "User not found" });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     // Bug 40: Only allow specific status fields
     const allowedStatusFields = ['scholarshipStage', 'dbt', 'ochk', 'tokens', 'claimedPerks'];
@@ -568,10 +568,10 @@ router.put('/update-status', authenticateToken, requireAdmin, async (req, res) =
       }
     }
 
-    if(updatePayload.ochk) {
-       updatePayload.ochk = { ...user.ochk, ...updatePayload.ochk };
+    if (updatePayload.ochk) {
+      updatePayload.ochk = { ...user.ochk, ...updatePayload.ochk };
     }
-    
+
     const updatedUser = await User.findOneAndUpdate({ rollNo }, { $set: updatePayload }, { new: true }).select(SAFE_USER_SELECT);
     res.status(200).json(updatedUser);
   } catch (error) {
@@ -630,7 +630,7 @@ router.put('/profile/links', authenticateToken, async (req, res) => {
 // Resume upload — Bug 8, 20, 21
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
-const upload = multer({ 
+const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
@@ -646,23 +646,23 @@ const fs = require('fs');
 const handleUpload = (req, res, next) => {
   const logMsg = `[${new Date().toISOString()}] Resume Upload Request. Content-Length: ${req.headers['content-length']}\n`;
   console.log(logMsg);
-  try { fs.appendFileSync('upload_debug.log', logMsg); } catch(e){}
-  
+  try { fs.appendFileSync('upload_debug.log', logMsg); } catch (e) { }
+
   upload.single('resume')(req, res, (err) => {
     if (err instanceof multer.MulterError) {
       const errMsg = `[${new Date().toISOString()}] MulterError: ${err.message}\n`;
       console.log(errMsg);
-      try { fs.appendFileSync('upload_debug.log', errMsg); } catch(e){}
+      try { fs.appendFileSync('upload_debug.log', errMsg); } catch (e) { }
       return res.status(400).json({ success: false, error: `Upload error: ${err.message}` });
     } else if (err) {
       const errMsg2 = `[${new Date().toISOString()}] Error: ${err.message}\n`;
       console.log(errMsg2);
-      try { fs.appendFileSync('upload_debug.log', errMsg2); } catch(e){}
+      try { fs.appendFileSync('upload_debug.log', errMsg2); } catch (e) { }
       return res.status(400).json({ success: false, error: err.message });
     }
     const succMsg = `[${new Date().toISOString()}] Multer finished. File exists: ${!!req.file}\n`;
     console.log(succMsg);
-    try { fs.appendFileSync('upload_debug.log', succMsg); } catch(e){}
+    try { fs.appendFileSync('upload_debug.log', succMsg); } catch (e) { }
     next();
   });
 };
@@ -671,7 +671,7 @@ const handleUpload = (req, res, next) => {
 router.put('/profile/resume/upload', authenticateToken, handleUpload, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, error: 'No PDF file uploaded.' });
-    
+
     // Validate file extension as additional check
     const originalName = req.file.originalname || '';
     if (!originalName.toLowerCase().endsWith('.pdf')) {
@@ -686,7 +686,7 @@ router.put('/profile/resume/upload', authenticateToken, handleUpload, async (req
       console.error('PDF Parse Error:', parseErr.message);
       return res.status(400).json({ success: false, error: 'Failed to extract text from PDF. Ensure the file is not corrupted or image-based.' });
     }
-    
+
     // Bug 20: Upload PDF to Cloudinary as raw resource instead of fake URL
     let resumeUrl = '';
     try {
@@ -707,19 +707,19 @@ router.put('/profile/resume/upload', authenticateToken, handleUpload, async (req
     // Bug 8: Use authenticated user ID
     const user = await User.findByIdAndUpdate(
       req.user.userId,
-      { 
-        $set: { 
-          resume: { 
-            url: resumeUrl, 
-            filename: req.file.originalname, 
-            uploadDate: new Date() 
+      {
+        $set: {
+          resume: {
+            url: resumeUrl,
+            filename: req.file.originalname,
+            uploadDate: new Date()
           },
           resumeText: extractedText
-        } 
+        }
       },
       { new: true, strict: false }
     ).select(SAFE_USER_SELECT);
-    
+
     if (!user) return res.status(404).json({ success: false, error: 'Student not found' });
     res.status(200).json({ success: true, resume: user.resume, user });
   } catch (error) {
