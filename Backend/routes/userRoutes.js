@@ -165,12 +165,16 @@ router.post('/login', async (req, res) => {
 
     const { accessToken, refreshToken, isAdmin } = generateTokens(user);
 
-    res.cookie('refreshToken', refreshToken, {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieOptions = (maxAge) => ({
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      maxAge: 30 * 60 * 1000
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge
     });
+
+    res.cookie('accessToken', accessToken, cookieOptions(5 * 60 * 1000));
+    res.cookie('refreshToken', refreshToken, cookieOptions(30 * 60 * 1000));
 
     const userResponse = user.toObject();
     delete userResponse.password;
@@ -206,12 +210,16 @@ router.get('/refresh', async (req, res) => {
 
     const { accessToken, refreshToken, isAdmin } = generateTokens(user);
 
-    res.cookie('refreshToken', refreshToken, {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieOptions = (maxAge) => ({
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      maxAge: 30 * 60 * 1000
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge
     });
+
+    res.cookie('accessToken', accessToken, cookieOptions(5 * 60 * 1000));
+    res.cookie('refreshToken', refreshToken, cookieOptions(30 * 60 * 1000));
 
     const userResponse = user.toObject();
     delete userResponse.password;
@@ -239,6 +247,7 @@ router.post('/logout', async (req, res) => {
   } catch (e) {
     // ignore verification errors on logout
   }
+  res.clearCookie('accessToken');
   res.clearCookie('refreshToken');
   res.status(200).json({ message: "Logged out" });
 });
