@@ -68,14 +68,16 @@ router.get('/admin/stats', authenticateToken, requireAdmin, async (req, res) => 
 // POST route /register — Bug 39, 40: whitelist fields, prevent role escalation
 router.post('/register', async (req, res) => {
   try {
-    const { name, rollNo, branch, year, email, password, securityQuestion, securityAnswer,
+    const { name, branch, year, email, password, securityQuestion, securityAnswer,
       mobileNumber, casteCategory, familyIncome, isFeeWaiver, domicileState,
       hasIncomeCertificate, course } = req.body;
+      
+    const rollNo = req.body.rollNo || email;
 
     if (!password || !securityAnswer) {
       return res.status(400).json({ success: false, message: "Password and Security Answer are required." });
     }
-    if (!name || !rollNo || !branch || !year || !email || !securityQuestion) {
+    if (!name || !branch || !year || !email || !securityQuestion) {
       return res.status(400).json({ success: false, message: "All required fields must be provided." });
     }
     if (typeof password !== 'string' || password.length < 6) {
@@ -145,15 +147,16 @@ const generateTokens = (user) => {
 // POST route /login
 router.post('/login', async (req, res) => {
   try {
-    const { rollNo, password } = req.body;
-    if (!rollNo || !password) {
-      return res.status(400).json({ success: false, message: "Roll Number and Password are required." });
+    const email = req.body.email || req.body.rollNo;
+    const password = req.body.password;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: "Email and Password are required." });
     }
-    if (typeof rollNo !== 'string' || typeof password !== 'string') {
+    if (typeof email !== 'string' || typeof password !== 'string') {
       return res.status(400).json({ success: false, message: "Invalid input format." });
     }
 
-    const user = await User.findOne({ rollNo });
+    const user = await User.findOne({ email: email }) || await User.findOne({ rollNo: email });
     if (!user) {
       return res.status(401).json({ success: false, message: "Invalid Credentials" });
     }
@@ -253,18 +256,21 @@ router.post('/logout', async (req, res) => {
 });
 
 // FORGOT PASSWORD: Get security question — Bug 6: rate limit, generic messages
-router.get('/forgot-password/question/:rollNo', async (req, res) => {
+router.get('/forgot-password/question/:email', async (req, res) => {
   try {
     if (!checkForgotPasswordRateLimit(req.ip)) {
       return res.status(429).json({ success: false, message: "Too many attempts. Please try again later." });
     }
 
-    const rollNo = req.params.rollNo;
-    if (!rollNo || typeof rollNo !== 'string' || rollNo.length > 50) {
-      return res.status(400).json({ success: false, message: "Invalid roll number." });
+    const email = req.params.email;
+    if (!email || typeof email !== 'string' || email.length > 50) {
+      return res.status(400).json({ success: false, message: "Invalid email." });
     }
 
-    const user = await User.findOne({ rollNo }).select('securityQuestion');
+    const user = await User.findOne({ email: email }) || await User.findOne({ rollNo: email });
+    if (user) {
+      user.securityQuestion = user.securityQuestion || "Security question not set";
+    }
     if (!user || !user.securityQuestion) {
       // Generic response to avoid account enumeration
       return res.status(404).json({ success: false, message: "Unable to process request." });
@@ -284,15 +290,16 @@ router.post('/forgot-password/reset', async (req, res) => {
       return res.status(429).json({ success: false, message: "Too many attempts. Please try again later." });
     }
 
-    const { rollNo, securityAnswer, newPassword } = req.body;
-    if (!rollNo || !securityAnswer || !newPassword) {
+    const { email, rollNo, securityAnswer, newPassword } = req.body;
+    const lookupEmail = email || rollNo;
+    if (!lookupEmail || !securityAnswer || !newPassword) {
       return res.status(400).json({ success: false, message: "All fields are required." });
     }
     if (typeof newPassword !== 'string' || newPassword.length < 6) {
       return res.status(400).json({ success: false, message: "Password must be at least 6 characters." });
     }
 
-    const user = await User.findOne({ rollNo });
+    const user = await User.findOne({ email: lookupEmail }) || await User.findOne({ rollNo: lookupEmail });
     if (!user) {
       // Generic response
       return res.status(400).json({ success: false, message: "Unable to reset password." });

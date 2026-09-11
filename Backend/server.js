@@ -1,4 +1,4 @@
-require('dotenv').config();
+﻿require('dotenv').config();
 const dns = require('dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
@@ -24,9 +24,9 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:5000',
   'http://localhost:5500',
-  'http://127.0.0.1:5500',
+  'http://127.0.0.1:5500', 'http://127.0.0.1:5501', 'http://127.0.0.1:5502', 'http://localhost:5501', 'http://localhost:5502',
   'http://127.0.0.1:3000',
-  null // file:// protocol (local file open)
+  null, 'null' // file:// protocol (local file open)
 ];
 
 app.use(cors({
@@ -67,24 +67,24 @@ app.use((err, req, res, next) => {
 const mongoURI = process.env.MONGO_URI ? process.env.MONGO_URI.trim() : null;
 
 if (!mongoURI) {
-  console.error("❌ ERROR: MONGO_URI is missing in your .env file!");
+  console.error("âŒ ERROR: MONGO_URI is missing in your .env file!");
   process.exit(1);
 }
 
 mongoose.connect(mongoURI)
   .then(() => {
-    console.log('✅ Database Connected');
+    console.log('âœ… Database Connected');
     
     // Initialize automatic job refresh after DB connection
     try {
       jobRoutes.initializeJobRefresh();
-      console.log('✅ Automatic job refresh initialized');
+      console.log('âœ… Automatic job refresh initialized');
     } catch (error) {
-      console.error('⚠️  Failed to initialize job refresh:', error.message);
+      console.error('âš ï¸  Failed to initialize job refresh:', error.message);
     }
   })
   .catch(err => {
-    console.error('❌ Database Connection Error:');
+    console.error('âŒ Database Connection Error:');
     console.error(err.message);
   });
 
@@ -92,3 +92,4 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+

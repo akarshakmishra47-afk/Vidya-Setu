@@ -1,0 +1,77 @@
+entType = parts[0].split(':')[1].split(';')[0];
+          const byteCharacters = atob(parts[1]);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: contentType });
+          const url = URL.createObjectURL(blob);
+          window.open(url, '_blank');
+        } catch (e) {
+          window.open(data, '_blank');
+        }
+      };
+
+      const fetchApplications = async () => {
+        try {
+          setLoading(true);
+          const res = await fetch(`${API_BASE_URL}/api/users/institute-applications`);
+          if (res.ok) {
+            setApplications(await res.json());
+          }
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      useEffect(() => {
+        fetchApplications();
+      }, []);
+
+      const handleVerify = async (status) => {
+        if (status === 'Rejected_by_Institute' && !remark.trim()) {
+          return addToast("Remark Required", "Please provide a reason for rejection.", "⚠️", T.rose);
+        }
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/users/verify-application`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ applicationId: selectedApp._id, status, remark })
+          });
+          if (res.ok) {
+            addToast("Success", `Application ${status === 'Verified_by_Institute' ? 'Verified' : 'Rejected'}`, "✅", T.success);
+            setSelectedApp(null);
+            setRemark("");
+            fetchApplications();
+          }
+        } catch (e) {
+          addToast("Error", "Failed to update application", "❌", T.rose);
+        }
+      };
+
+      return (
+        <div className="vs-shell" style={{ height: '100vh', overflow: 'hidden' }}>
+          <aside className="vs-sidebar sidebar-open">
+            <div className="sidebar-brand">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                <div>
+                  <div className="brand-text-name">Verification Hub</div>
+                  <div className="brand-text-sub" style={{ color: T.orange }}>Institute Admin</div>
+                </div>
+                <button onClick={fetchApplications} title="Refresh Data" style={{ background: "transparent", border: "none", color: "#9CA3AF", cursor: "pointer", display: "flex", alignItems: "center", padding: 4, borderRadius: 4 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 20 }}>refresh</span>
+                </button>
+              </div>
+            </div>
+            <nav className="sidebar-nav">
+              <div className="sidebar-section-label">Verification Queue</div>
+              {loading ? <div style={{ padding: 16, color: T.muted }}>Loading...</div> : applications.map(app => (
+                <button key={app._id} onClick={() => setSelectedApp(app)}
+                  className={`sidebar-nav-item ${selectedApp?._id === app._id ? "active" : ""}`}>
+                  <span className="nav-icon"><span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>description</span></span>
+                  <div style={{ textAlign: "left", flex: 1, minWidth: 0 }}>
+                    <div className="nav-label" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{app.studentReference?.name || "Unknown"}</div>
+                    <div style={{ fontSize: 10, color: app.applicationStatus === 'Verified_by_Institute' ? T.success : app.applicationStatus === 'Rejected_by_Institute' ? T.rose : T.warn }}>
+                      {app.applicationStatus === 'Locked_by_Student' ? 'Pending Review' : app.applicationStatus.replace(/_/g, " ")}
+                    </di

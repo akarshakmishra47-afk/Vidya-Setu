@@ -1,0 +1,246 @@
+function AppWithProviders() {
+      const [splashDone, setSplashDone] = useState(false);
+      const [isLoggedIn, setIsLoggedIn] = useState(false);
+      const [isAdmin, setIsAdmin] = useState(false);
+      const [showLandingPage, setShowLandingPage] = useState(true);
+      const [sessionChecked, setSessionChecked] = useState(false);
+      const [showSessionWarning, setShowSessionWarning] = useState(false);
+      const [user, setUser] = useState(() => {
+        // Initialise user state — real hydration happens in useEffect below
+        return {
+          name: "Dev Kumar",
+          initials: "DK",
+          branch: "CSE",
+          year: "1st",
+          dbt: false,
+          scholarshipStage: 1,
+          rollNo: "250164152002",
+          email: "",
+          University: "University — Lucknow",
+          valid: "May 2026",
+        };
+      });
+      const [toasts, setToasts] = useState([]);
+
+      const addToast = (title, sub = "", icon = <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>check_circle</span>, accent = T.orange) => {
+        const id = Date.now() + Math.random();
+        setToasts(p => [...p, { id, title, sub, icon, accent }]);
+        setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 3600);
+      };
+
+      const saveToStorage = (data) => {
+        try {
+          const lean = { ...data };
+          // Remove heavy Base64 strings before saving to localStorage
+          const heavyFields = ['aadhaarDocument', 'class10Document', 'class12Document', 'incomeDocument', 'feeReceiptDocument', 'profilePhoto'];
+          heavyFields.forEach(f => delete lean[f]);
+          localStorage.setItem("studentData", JSON.stringify(lean));
+        } catch (e) {
+          console.error("Storage error:", e);
+          localStorage.removeItem('studentData'); // Safe removal instead of clear
+        }
+      };
+
+      const updateUser = patch => setUser(p => {
+        const updated = { ...p, ...patch };
+        saveToStorage(updated);
+        return updated;
+      });
+
+      const refreshUser = async () => {
+        if (!user.rollNo) return;
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/users/search/${user.rollNo}`);
+          if (res.ok) {
+            const freshData = await res.json();
+            const updated = { ...user, ...freshData };
+            setUser(updated);
+            saveToStorage(updated);
+          }
+        } catch (e) { console.error("Sync failed", e); }
+      };
+
+
+
+      // ── PERSISTENCE: Session Validation via Backend ──
+      useEffect(() => {
+        const checkSession = async () => {
+          try {
+            // Check local storage first so we can survive 3rd-party cookie blocking
+            const localData = localStorage.getItem('studentData');
+            if (localData) {
+              const fetchedData = JSON.parse(localData);
+              const inits = (fetchedData.name || "DK").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+              setUser({ ...fetchedData, initials: inits, isAdmin: fetchedData.isAdmin || false });
+              setIsAdmin(fetchedData.isAdmin || false);
+              setIsLoggedIn(true);
+            }
+
+            const res = await fetch(`${API_BASE_URL}/api/users/refresh`, {
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.user) {
+                const fetchedData = data.user;
+                const inits = (fetchedData.name || "DK").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                
+                setUser({
+                  ...fetchedData,
+                  initials: inits,
+                  isAdmin: fetchedData.isAdmin || false
+                });
+                setIsAdmin(fetchedData.isAdmin || false);
+                setIsLoggedIn(true);
+              }
+            } else if (!localData) {
+              localStorage.removeItem('studentData');
+            }
+          } catch (e) {
+            console.error("Session check failed", e);
+          } finally {
+            setSessionChecked(true);
+          }
+        };
+        checkSession();
+      }, []);
+
+      const isLoggingOutRef = useRef(false);
+
+      const performSecureLogout = async (silent = false) => {
+        if (isLoggingOutRef.current) return;
+        isLoggingOutRef.current = true;
+        
+        try {
+          await fetch(`${API_BASE_URL}/api/users/logout`, {
+            method: 'POST',
+            credentials: 'include'
+          });
+        } catch (e) { console.error("Logout API failed", e); }
+        finally {
+          // Guaranteed local cleanup without destroying unrelated keys
+          localStorage.removeItem('vidyasetu_last_activity');
+          localStorage.removeItem('vidyasetu_tab_active');
+          localStorage.removeItem('studentData');
+          sessionStorage.removeItem('vidyasetu_tab_active');
+          
+          // Broadcast logout to other tabs
+          localStorage.setItem('vidyasetu_logout', Date.now().toString());
+          
+          setIsLoggedIn(false);
+          setShowSessionWarning(false);
+          setUser({});
+          setIsAdmin(false);
+          window.location.href = '/'; 
+        }
+      };
+
+      // ── SECURE AUTO LOGOUT & KEEP-ALIVE (Production Grade) ──
+      useEffect(() => {
+        if (!isLoggedIn) return;
+        
+        const INACTIVITY_LIMIT_OPEN_TAB_MS = 5 * 60 * 1000; // 5 minutes
+        const WARNING_LIMIT_MS = 4 * 60 * 1000; // 4 minutes
+        const INACTIVITY_LIMIT_CLOSED_TAB_MS = 20 * 60 * 1000; // 20 minutes
+        const ACTIVITY_KEY = 'vidyasetu_last_activity';
+        
+        let inactivityChecker = null;
+        let keepAliveInterval = null;
+        let debounceTimer = null;
+
+        // Initialize activity timestamp safely
+        let initialActivity = localStorage.getItem(ACTIVITY_KEY);
+        if (!initialActivity || isNaN(parseInt(initialActivity, 10)) || parseInt(initialActivity, 10) > Date.now()) {
+          initialActivity = Date.now().toString();
+          localStorage.setItem(ACTIVITY_KEY, initialActivity);
+        }
+
+        // Check if we've exceeded the inactivity limit
+        const checkInactivity = (isInitialMount = false) => {
+          if (isLoggingOutRef.current) return false;
+          
+          const rawActivity = localStorage.getItem(ACTIVITY_KEY);
+          if (!rawActivity) return false;
+          
+          let lastActivity = parseInt(rawActivity, 10);
+          
+          if (isNaN(lastActivity)) {
+             // Corrupted string
+             performSecureLogout(true);
+             return true;
+          }
+
+          if (lastActivity > Date.now() + 60000) {
+             // Maliciously set future timestamp or severe clock drift
+             performSecureLogout(true);
+             return true;
+          }
+
+          const timeSinceLastActivity = Date.now() - lastActivity;
+          const isNewTabSession = isInitialMount && !sessionStorage.getItem('vidyasetu_tab_active');
+
+          if (isNewTabSession) {
+            // Tab was closed and is now being reopened
+            if (timeSinceLastActivity >= INACTIVITY_LIMIT_CLOSED_TAB_MS) {
+              performSecureLogout(true);
+              return true;
+            }
+          } else {
+            // Tab is currently open
+            if (timeSinceLastActivity >= INACTIVITY_LIMIT_OPEN_TAB_MS) {
+              performSecureLogout(true); // Silent here, warning handled earlier via modal
+              return true;
+            } else if (timeSinceLastActivity >= WARNING_LIMIT_MS) {
+              setShowSessionWarning(true);
+            } else {
+              setShowSessionWarning(false);
+            }
+          }
+          return false;
+        };
+        
+        // Immediately check on mount in case they returned after a long time (e.g. from hibernation)
+        if (checkInactivity(true)) return;
+        
+        // If this is a new tab session, reset their activity so they get a fresh 5 minutes
+        if (!sessionStorage.getItem('vidyasetu_tab_active')) {
+          localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
+          sessionStorage.setItem('vidyasetu_tab_active', 'true');
+        }
+
+        // Update the timestamp on interaction (debounced to avoid performance hits)
+        const updateActivity = () => {
+          if (isLoggingOutRef.current) return;
+          
+          const rawActivity = localStorage.getItem(ACTIVITY_KEY);
+          let lastActivity = parseInt(rawActivity || '0', 10);
+          
+          // Allow update if warning is shown, so they can dismiss it by interacting
+          // Only block update if we've completely exceeded the 5 min limit
+          if (!isNaN(lastActivity) && Date.now() - lastActivity >= INACTIVITY_LIMIT_OPEN_TAB_MS) {
+            checkInactivity(false);
+            return;
+          }
+          
+          if (debounceTimer) return;
+          debounceTimer = setTimeout(() => {
+            localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
+            setShowSessionWarning(false); // Interaction removes warning
+            debounceTimer = null;
+          }, 1000);
+        };
+
+        // Run the inactivity check every 10 seconds
+        inactivityChecker = setInterval(() => checkInactivity(false), 10000);
+
+        // Ping the backend every 4 minutes to keep the session alive ONLY IF active
+        keepAliveInterval = setInterval(async () => {
+          if (isLoggingOutRef.current) return;
+          const rawActivity = localStorage.getItem(ACTIVITY_KEY);
+          let lastActivity = parseInt(rawActivity || '0', 10);
+          // Only extend the session if the user was active recently
+          if (!isNaN(lastActivity) && Date.now() - lastActivity < WARNING_LIMIT_MS) {
+            try {
+              const res = await fetch(`${API_BASE_URL}/api/users/refresh`, { credentials: 'include' });
+              if (res.status === 40

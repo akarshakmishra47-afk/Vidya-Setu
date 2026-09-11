@@ -352,7 +352,8 @@ Student Profile:
 - Semester: ${userContext?.semester || 'N/A'}
 
 Exam Context:
-- Exam: ${exam}
+- Preparation Type: ${['CS', 'DA', 'ECE'].includes(exam) ? 'GATE Preparation' : 'University Exam'}
+- Exam / GATE Paper: ${exam}
 - Subject: ${subject}
 - Total Verified PYQs Analyzed: ${stats?.totalQuestions || 0}
 - Years Covered: ${stats?.yearsCovered || 0}

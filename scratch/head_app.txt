@@ -1,0 +1,221 @@
+function App({ onLogout }) {
+      const { user } = useUser();
+      const addToast = useToast();
+      const [tab, setTab] = useState(() => window.location.hash.replace("#", "") || "home");
+      
+      useEffect(() => {
+        const handleHashChange = () => setTab(window.location.hash.replace("#", "") || "home");
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+      }, []);
+      const [search, setSearch] = useState("");
+      const [profileOpen, setProfileOpen] = useState(false);
+      const [sidebarOpen, setSidebarOpen] = useState(false);
+      const [navVisible, setNavVisible] = useState(true);
+      const ref = useRef(null);
+
+      const lastScrollY = useRef(0);
+
+      useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+
+        const handleScroll = (e) => {
+          const currentScrollY = e.target.scrollTop;
+
+          if (currentScrollY > lastScrollY.current) {
+            // Scrolling down (User requested to SHOW here)
+            setNavVisible(true);
+          } else if (currentScrollY < lastScrollY.current) {
+            // Scrolling up (User requested to HIDE here)
+            setNavVisible(false);
+          }
+          lastScrollY.current = currentScrollY;
+        };
+
+        el.addEventListener('scroll', handleScroll, { passive: true });
+        return () => el.removeEventListener('scroll', handleScroll);
+      }, []);
+
+      const go = t => { window.location.hash = t; if (ref.current) ref.current.scrollTop = 0; setSidebarOpen(false); };
+
+      const screens = {
+        home: <Home go={go} />,
+        hub: <ScholarshipHub />,
+        vidya: <VidyaSetu />,
+        chhatra: <ChhatraLabh />,
+        prashna: <ExamAnalytics />,
+        bazaar: <TechBazaar search={search} />,
+        community: <CommunityForum search={search} />,
+        karya: <KaryaDisha />,
+        jobs: <InternshipJobs search={search} />,
+      };
+
+      const handleSearch = val => {
+        setSearch(val);
+      };
+
+      return (
+        <div className="vs-shell">
+          {/* Sidebar Overlay (mobile) */}
+          <div className={`sidebar-overlay ${sidebarOpen ? "open" : ""}`} onClick={() => setSidebarOpen(false)} />
+
+          {/* ── SIDEBAR ── */}
+          <aside className={`vs-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+            <div className="sidebar-brand">
+              <div className="brand-logo brand-logo-enhanced" style={{ position: "relative" }}>
+                <svg width="20" height="20" viewBox="0 0 44 44" fill="none" style={{ position: "relative", zIndex: 1 }}>
+                  <defs>
+                    <linearGradient id="sideGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#FF4F1F" />
+                      <stop offset="50%" stopColor="#FF7044" />
+                      <stop offset="100%" stopColor="#FFC700" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M22 8 L38 16 L22 24 L6 16 Z" fill="url(#sideGrad)" />
+                  <path d="M11 23 L 11 30 C 11 35 15 39 22 41 C 29 39 33 35 33 30 L 33 23" stroke="url(#sideGrad)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                </svg>
+              </div>
+              <div>
+                <div className="brand-text-name">Vidya-Setu</div>
+                <div className="brand-text-sub">Student Web Portal</div>
+              </div>
+            </div>
+
+            <nav className="sidebar-nav">
+              <div className="sidebar-section-label">Navigation</div>
+              {MAIN_NAV.map(t => {
+                const active = tab === t.id;
+                return (
+                  <button key={t.id} onClick={() => go(t.id)} className={`sidebar-nav-item ${active ? "active" : ""}`}>
+                    <span className="nav-icon">{t.icon}</span>
+                    <span className="nav-label">{t.label}</span>
+                    {active && <div className="nav-dot" />}
+                  </button>
+                );
+              })}
+
+              <div className="sidebar-section-label" style={{ marginTop: 8 }}>Tools</div>
+              {TOOLS_NAV.map(t => {
+                const active = tab === t.id;
+                return (
+                  <button key={t.id} onClick={() => go(t.id)} className={`sidebar-nav-item ${active ? "active" : ""}`}>
+                    <span className="nav-icon">{t.icon}</span>
+                    <span className="nav-label">{t.label}</span>
+                    {active && <div className="nav-dot" />}
+                  </button>
+                );
+              })}
+            </nav>
+
+            <div className="sidebar-footer">
+              <div onClick={() => setProfileOpen(true)} className="sidebar-user-card">
+                <div className="user-ava" style={user.profilePhoto ? { background: "transparent", overflow: "hidden", padding: 0 } : {}}>{user.profilePhoto ? <img src={user.profilePhoto} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 8 }} alt="" /> : (user.initials || "DK")}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="user-nm">{user.name || "Dev Kumar"}</div>
+                  <div className="user-mt">{user.branch || "CSE"} • {user.year || "1st Year"}</div>
+                </div>
+
+              </div>
+            </div>
+          </aside>
+
+          {/* ── MAIN PANEL ── */}
+          <div className="vs-main">
+            {/* Header */}
+            <header className="vs-header">
+              <button className="mobile-menu-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</button>
+
+              <div className="header-logo-mobile">
+                <div className="brand-logo brand-logo-enhanced" style={{ width: 30, height: 30, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #FF4F1F, #FFC700)", boxShadow: "0 4px 12px rgba(255,79,31,0.2)" }}>
+                  <svg width="16" height="16" viewBox="0 0 44 44" fill="none">
+                    <path d="M22 6 L6 14 L22 22 L38 14 Z" fill="#FFFFFF" opacity="0.95" />
+                    <path d="M10 18 V28 C10 32 16 36 22 38 C28 36 34 32 34 28 V18" stroke="#FFFFFF" strokeWidth="4" fill="none" strokeLinecap="round" />
+                    <path d="M22 22 V38" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <span style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontWeight: 900, fontSize: 14, color: T.text }}>Vidya-Setu</span>
+              </div>
+
+              <div className="header-search-wrap" style={{ position: "relative" }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 20, color: "#1E3A8A", flexShrink: 0, fontWeight: 300, cursor: "default" }}>search</span>
+                <input
+                  type="text"
+                  className="header-search-input"
+                  placeholder="Search portal services..."
+                  value={search}
+                  onChange={e => handleSearch(e.target.value)}
+                  style={{ fontSize: 13 }}
+                />
+                {search && <span className="material-symbols-outlined" onClick={() => setSearch("")} style={{ color: T.muted, cursor: "pointer", fontSize: 16 }}>close</span>}
+
+                {/* Search Dropdown Panel */}
+                {search && (
+                  <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0, background: "#FFF", borderRadius: 12, boxShadow: "0 10px 40px rgba(0,0,0,0.12)", border: "1px solid #E8E8E8", zIndex: 100, overflow: "hidden", animation: "fadeUp 0.2s ease" }}>
+                    <div style={{ padding: "10px 14px", borderBottom: "1px solid #F0F0F0" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: 0.5 }}>Jump to Module</span>
+                    </div>
+                    <div>
+                      {[
+                        ...MAIN_NAV,
+                        ...TOOLS_NAV
+                      ].filter(m => m.label.toLowerCase().includes(search.toLowerCase()))
+                        .map(m => (
+                          <div key={m.id} onClick={() => { go(m.id); setSearch(""); }} style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", transition: "background 0.2s", ":hover": { background: "#F9F9F9" }, borderBottom: "1px solid rgba(0,0,0,0.02)" }} className="search-res-item">
+                            <div style={{ color: "#1E3A8A", display: "flex", alignItems: "center" }}>{m.icon}</div>
+                            <div style={{ fontWeight: 600, fontSize: 13, color: T.text }}>{m.label}</div>
+                          </div>
+                        ))}
+                      {[...MAIN_NAV, ...TOOLS_NAV].filter(m => m.label.toLowerCase().includes(search.toLowerCase())).length === 0 && (
+                        <div style={{ padding: "24px 14px", textAlign: "center", color: T.muted, fontSize: 13 }}>No results found for "{search}"</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="header-actions">
+
+
+              </div>
+            </header>
+
+            {/* Content */}
+            <div ref={ref} className="vs-content">
+              <div className="fade-up" key={tab}>{screens[tab]}</div>
+              <VidyaSetuAssistant />
+            </div>
+          </div>
+
+          {/* Mobile Bottom Nav */}
+          <div className="mobile-bottom-nav" style={{
+            transform: navVisible ? "translateY(0)" : "translateY(120%)",
+            opacity: navVisible ? 1 : 0,
+            transition: "transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease"
+          }}>
+            {TABS.map(t => {
+              const active = tab === t.id;
+              return (
+                <button key={t.id} onClick={() => go(t.id)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "none", border: "none", cursor: "pointer", padding: "4px 2px" }}>
+                  <div style={{ width: 40, height: 28, borderRadius: 10, background: active ? "rgba(255,79,31,0.12)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .22s cubic-bezier(0.16,1,0.3,1)", transform: active ? "scale(1.08)" : "scale(1)" }}>
+                    <span style={{ fontSize: active ? 20 : 17 }}>{t.icon}</span>
+                  </div>
+                  <span style={{ fontSize: 9, fontWeight: active ? 700 : 400, color: active ? T.orange : T.muted, letterSpacing: .3 }}>{t.label}</span>
+                  {active && <div style={{ width: 5, height: 5, borderRadius: "50%", background: T.orange, marginTop: -2 }} />}
+                </button>
+              );
+            })}
+          </div>
+
+          <UserProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} onLogout={onLogout} />
+        </div>
+      );
+    }
+
+    /* ══════════════════════════════════════
+      LOGIN
+    ══════════════════════════════════════ */
+    /* ══════════════════════════════════════
+      LOGIN
+    ══════════════════════════════════════ */
+    

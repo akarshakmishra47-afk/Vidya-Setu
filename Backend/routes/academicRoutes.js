@@ -163,7 +163,7 @@ router.get('/pyqs/analytics', async (req, res) => {
       let priority = 'Low';
       if (relativeFrequency >= 75) priority = 'High';
       else if (relativeFrequency >= 50) priority = 'Medium';
-      
+
       return { ...t, relativeFrequency, priority };
     }).sort((a, b) => {
       // Sort by relative frequency first, then by probability
@@ -225,6 +225,108 @@ router.get('/pyqs/questions', async (req, res) => {
   } catch (err) {
     console.error('PYQ Questions Error:', err.message);
     res.status(500).json({ error: 'Server error fetching PYQ questions' });
+  }
+});
+
+// ============================================================
+// GATE Insights Endpoints
+// ============================================================
+
+// GET /api/academic/gate/filters
+router.get('/gate/filters', async (req, res) => {
+  try {
+    const pyqs = await PYQ.find({ gatePaper: { $exists: true } }, 'gatePaper subject topic year');
+    const taxonomyMap = {};
+
+    pyqs.forEach(q => {
+      const p = q.gatePaper;
+      const s = q.subject;
+      const t = q.topic;
+      const y = q.year;
+
+      if (!taxonomyMap[p]) taxonomyMap[p] = {};
+      if (!taxonomyMap[p][s]) taxonomyMap[p][s] = { topics: new Set(), years: new Set() };
+      
+      taxonomyMap[p][s].topics.add(t);
+      taxonomyMap[p][s].years.add(y);
+    });
+
+    const taxonomy = Object.keys(taxonomyMap).map(paper => ({
+      paper,
+      subjects: Object.keys(taxonomyMap[paper]).map(subject => ({
+        subject,
+        topics: Array.from(taxonomyMap[paper][subject].topics).sort(),
+        years: Array.from(taxonomyMap[paper][subject].years).sort((a, b) => b - a)
+      }))
+    }));
+
+    res.json({ taxonomy });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error fetching GATE filters' });
+  }
+});
+
+// GET /api/academic/gate/analytics
+router.get('/gate/analytics', async (req, res) => {
+  try {
+    const { paper, subject, topic, year } = req.query;
+    if (!paper || !subject) return res.status(400).json({ error: 'Paper and subject required' });
+
+    const query = { gatePaper: paper, subject, isVerified: true };
+    if (topic) query.topic = topic;
+    if (year) query.year = Number(year);
+
+    const pyqs = await PYQ.find(query);
+    const distinctYears = new Set(pyqs.map(q => q.year));
+    
+    // We'll show analytics even for a few questions because this is imported GATE data.
+    const topicsMap = {};
+    pyqs.forEach(q => {
+      if (!topicsMap[q.topic]) {
+        topicsMap[q.topic] = { t: q.topic, yearsSet: new Set(), frequency: 0 };
+      }
+      topicsMap[q.topic].yearsSet.add(q.year);
+      topicsMap[q.topic].frequency += 1;
+    });
+
+    const yearsCovered = distinctYears.size;
+    let maxFreq = 0;
+    Object.values(topicsMap).forEach(t => { if (t.frequency > maxFreq) maxFreq = t.frequency; });
+
+    const topics = Object.values(topicsMap).map(t => {
+      const relativeFrequency = maxFreq > 0 ? Math.round((t.frequency / maxFreq) * 100) : 0;
+      let priority = 'Low';
+      if (relativeFrequency >= 75) priority = 'High';
+      else if (relativeFrequency >= 50) priority = 'Medium';
+      
+      return { t: t.t, relativeFrequency, priority, frequency: t.frequency };
+    }).sort((a, b) => b.relativeFrequency - a.relativeFrequency);
+
+    res.json({
+      sufficientData: pyqs.length > 0,
+      totalQuestions: pyqs.length,
+      yearsCovered,
+      topics
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error generating GATE analytics' });
+  }
+});
+
+// GET /api/academic/gate/questions
+router.get('/gate/questions', async (req, res) => {
+  try {
+    const { paper, subject, topic, year } = req.query;
+    if (!paper || !subject) return res.status(400).json({ error: 'Paper and subject required' });
+
+    const query = { gatePaper: paper, subject };
+    if (topic) query.topic = topic;
+    if (year) query.year = Number(year);
+
+    const pyqs = await PYQ.find(query).sort({ year: -1, questionNumber: 1 });
+    res.json(pyqs);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error fetching GATE questions' });
   }
 });
 

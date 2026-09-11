@@ -1,0 +1,103 @@
+return () => {
+          if (inactivityChecker) clearInterval(inactivityChecker);
+          if (keepAliveInterval) clearInterval(keepAliveInterval);
+          if (debounceTimer) clearTimeout(debounceTimer);
+          events.forEach(e => window.removeEventListener(e, updateActivity));
+          document.removeEventListener('visibilitychange', handleVisibilityChange);
+          window.removeEventListener('storage', handleStorage);
+          window.removeEventListener('vidyasetu_force_logout', handleForceLogout);
+        };
+      }, [isLoggedIn]);
+
+      // ── LOGOUT: Shared manual and auto logout flow ──
+      const handleLogout = () => {
+        performSecureLogout(true);
+      };
+
+      const handleStayLoggedIn = () => {
+        localStorage.setItem('vidyasetu_last_activity', Date.now().toString());
+        setShowSessionWarning(false);
+      };
+
+      if (!splashDone || !sessionChecked) return <SplashScreen onDone={() => setSplashDone(true)} />;
+
+      if (!isLoggedIn) {
+        if (showLandingPage) {
+          return <LandingPage onLoginClick={() => setShowLandingPage(false)} />;
+        }
+        return <Login onLogin={(data) => {
+          const fetchedData = data.user || data; 
+          setIsLoggedIn(true);
+          if (fetchedData) {
+            const inits = (fetchedData.name || "DK").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+            const finalUser = {
+              ...fetchedData,
+              initials: inits,
+              isAdmin: fetchedData.isAdmin || false
+            };
+            setUser(finalUser);
+            saveToStorage(finalUser);
+            setIsAdmin(fetchedData.isAdmin || false);
+          }
+        }} />;
+      }
+
+
+
+      if (isAdmin) {
+        return (
+          <ToastContext.Provider value={addToast}>
+            <SessionWarningModal open={showSessionWarning} onStayLoggedIn={handleStayLoggedIn} onLogout={handleLogout} />
+            <AdminDashboard onLogout={handleLogout} />
+            <ToastSystem toasts={toasts} />
+          </ToastContext.Provider>
+        );
+      }
+
+      return (
+        <UserContext.Provider value={{ user, updateUser, refreshUser }}>
+          <ToastContext.Provider value={addToast}>
+            <SessionWarningModal open={showSessionWarning} onStayLoggedIn={handleStayLoggedIn} onLogout={handleLogout} />
+            <App onLogout={handleLogout} />
+            <ToastSystem toasts={toasts} />
+          </ToastContext.Provider>
+        </UserContext.Provider>
+      );
+    }
+
+    class ErrorBoundary extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null, errorInfo: null };
+      }
+      static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+      }
+      componentDidCatch(error, errorInfo) {
+        this.setState({ errorInfo });
+      }
+      render() {
+        if (this.state.hasError) {
+          return (
+            <div style={{ padding: '20px', background: '#fee', color: '#c00', margin: '20px', fontFamily: 'monospace' }}>
+              <h2>React Crash</h2>
+              <p><strong>{this.state.error && this.state.error.toString()}</strong></p>
+              <pre style={{ whiteSpace: 'pre-wrap', marginTop: '10px' }}>
+                {this.state.errorInfo && this.state.errorInfo.componentStack}
+              </pre>
+            </div>
+          );
+        }
+        return this.props.children;
+      }
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(
+      <ErrorBoundary>
+        <AppWithProviders />
+      </ErrorBoundary>
+    );
+  </script>
+</body>
+
+</html>

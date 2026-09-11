@@ -1,0 +1,1 @@
+import subprocess; result = subprocess.run(['git', 'diff', 'Frontend/index.html'], capture_output=True, text=True, encoding='utf-8'); f = open('scratch/diff2.txt', 'w', encoding='utf-8'); f.write(result.stdout)
