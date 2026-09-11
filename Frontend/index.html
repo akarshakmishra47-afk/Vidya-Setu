@@ -3162,7 +3162,7 @@
 
               {/* Resume Section */}
               <div style={{ borderTop: "1px dashed #E2E8F0", paddingTop: 16 }}>
-                {user.resume && user.resume.url ? (
+                {user.resume && user.resume.filename ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px", background: "#fff", border: "1px solid #E2E8F0", borderRadius: 10 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -7423,7 +7423,7 @@
     /* ══════════════════════════════════════
       LOGIN
     ══════════════════════════════════════ */
-    function Login({ onLogin }) {
+    function Login({ onLogin, onBack }) {
       const [email, setEmail] = useState("");
       const [pass, setPass] = useState("");
       const [showPass, setShowPass] = useState(false);
@@ -7561,6 +7561,13 @@
       return (
         <div className="login-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #7a1120, #3a0a10)', minHeight: '100vh', padding: '20px' }}>
           <div className="login-modal" style={{ background: '#fff', borderRadius: 24, padding: '48px 40px', width: '100%', maxWidth: 460, boxShadow: '0 24px 60px rgba(0,0,0,0.35)', position: 'relative' }}>
+            
+            {onBack && (
+              <button type="button" onClick={onBack} style={{ position: 'absolute', top: 24, left: 24, background: 'none', border: 'none', color: '#6b5f57', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: 4 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>
+                Home
+              </button>
+            )}
 
             <div style={{ marginBottom: 32, textAlign: "center" }}>
               <div style={{ width: 44, height: 44, borderRadius: 11, background: `linear-gradient(135deg, #7a1120, #3a0a10)`, display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 20, boxShadow: `0 6px 18px rgba(122, 17, 32, 0.2)` }}>
@@ -9664,7 +9671,9 @@
         if (showLandingPage) {
           return <LandingPage onLoginClick={() => setShowLandingPage(false)} />;
         }
-        return <Login onLogin={(data) => {
+        return <Login 
+          onBack={() => setShowLandingPage(true)}
+          onLogin={(data) => {
           const fetchedData = data.user || data;
           setIsLoggedIn(true);
 
