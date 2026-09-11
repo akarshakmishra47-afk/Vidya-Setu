@@ -9483,6 +9483,7 @@
           // Broadcast logout to other tabs
           localStorage.setItem('vidyasetu_logout', Date.now().toString());
 
+          setShowLandingPage(true);
           setIsLoggedIn(false);
           setShowSessionWarning(false);
           setUser({});
@@ -9626,6 +9627,7 @@
               localStorage.removeItem('vidyasetu_last_activity');
               localStorage.removeItem('vidyasetu_tab_active');
               localStorage.removeItem('studentData');
+              setShowLandingPage(true);
               setIsLoggedIn(false);
               setShowSessionWarning(false);
               setUser({});
