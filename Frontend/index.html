@@ -9492,134 +9492,11 @@
         }
       };
 
-      // ── SECURE AUTO LOGOUT & KEEP-ALIVE (Production Grade) ──
+      // ── SESSION SYNC & SECURITY ──
       useEffect(() => {
         if (!isLoggedIn) return;
 
-        const INACTIVITY_LIMIT_OPEN_TAB_MS = 5 * 60 * 1000; // 5 minutes
-        const WARNING_LIMIT_MS = 4 * 60 * 1000; // 4 minutes
-        const INACTIVITY_LIMIT_CLOSED_TAB_MS = 20 * 60 * 1000; // 20 minutes
-        const ACTIVITY_KEY = 'vidyasetu_last_activity';
-
-        let inactivityChecker = null;
-        let keepAliveInterval = null;
-        let debounceTimer = null;
-
-        // Initialize activity timestamp safely
-        let initialActivity = localStorage.getItem(ACTIVITY_KEY);
-        if (!initialActivity || isNaN(parseInt(initialActivity, 10)) || parseInt(initialActivity, 10) > Date.now()) {
-          initialActivity = Date.now().toString();
-          localStorage.setItem(ACTIVITY_KEY, initialActivity);
-        }
-
-        // Check if we've exceeded the inactivity limit
-        const checkInactivity = (isInitialMount = false) => {
-          if (isLoggingOutRef.current) return false;
-
-          const rawActivity = localStorage.getItem(ACTIVITY_KEY);
-          if (!rawActivity) return false;
-
-          let lastActivity = parseInt(rawActivity, 10);
-
-          if (isNaN(lastActivity)) {
-            // Corrupted string
-            performSecureLogout(true);
-            return true;
-          }
-
-          if (lastActivity > Date.now() + 60000) {
-            // Maliciously set future timestamp or severe clock drift
-            performSecureLogout(true);
-            return true;
-          }
-
-          const timeSinceLastActivity = Date.now() - lastActivity;
-          const isNewTabSession = isInitialMount && !sessionStorage.getItem('vidyasetu_tab_active');
-
-          if (isNewTabSession) {
-            // Tab was closed and is now being reopened
-            if (timeSinceLastActivity >= INACTIVITY_LIMIT_CLOSED_TAB_MS) {
-              performSecureLogout(true);
-              return true;
-            }
-          } else {
-            // Tab is currently open
-            if (timeSinceLastActivity >= INACTIVITY_LIMIT_OPEN_TAB_MS) {
-              performSecureLogout(true); // Silent here, warning handled earlier via modal
-              return true;
-            } else if (timeSinceLastActivity >= WARNING_LIMIT_MS) {
-              setShowSessionWarning(true);
-            } else {
-              setShowSessionWarning(false);
-            }
-          }
-          return false;
-        };
-
-        // Immediately check on mount in case they returned after a long time (e.g. from hibernation)
-        if (checkInactivity(true)) return;
-
-        // If this is a new tab session, reset their activity so they get a fresh 5 minutes
-        if (!sessionStorage.getItem('vidyasetu_tab_active')) {
-          localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
-          sessionStorage.setItem('vidyasetu_tab_active', 'true');
-        }
-
-        // Update the timestamp on interaction (debounced to avoid performance hits)
-        const updateActivity = () => {
-          if (isLoggingOutRef.current) return;
-
-          const rawActivity = localStorage.getItem(ACTIVITY_KEY);
-          let lastActivity = parseInt(rawActivity || '0', 10);
-
-          // Allow update if warning is shown, so they can dismiss it by interacting
-          // Only block update if we've completely exceeded the 5 min limit
-          if (!isNaN(lastActivity) && Date.now() - lastActivity >= INACTIVITY_LIMIT_OPEN_TAB_MS) {
-            checkInactivity(false);
-            return;
-          }
-
-          if (debounceTimer) return;
-          debounceTimer = setTimeout(() => {
-            localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
-            setShowSessionWarning(false); // Interaction removes warning
-            debounceTimer = null;
-          }, 1000);
-        };
-
-        // Run the inactivity check every 10 seconds
-        inactivityChecker = setInterval(() => checkInactivity(false), 10000);
-
-        // Ping the backend every 4 minutes to keep the session alive ONLY IF active
-        keepAliveInterval = setInterval(async () => {
-          if (isLoggingOutRef.current) return;
-          const rawActivity = localStorage.getItem(ACTIVITY_KEY);
-          let lastActivity = parseInt(rawActivity || '0', 10);
-          // Only extend the session if the user was active recently
-          if (!isNaN(lastActivity) && Date.now() - lastActivity < WARNING_LIMIT_MS) {
-            try {
-              const res = await fetch(`${API_BASE_URL}/api/users/refresh`, { credentials: 'include' });
-              if (res.status === 401 || res.status === 403) {
-                // Backend rejected the session (e.g. expired or revoked)
-                performSecureLogout(true);
-              }
-            } catch (err) { console.error("Keep-alive failed", err); }
-          }
-        }, 4 * 60 * 1000);
-
-        // Listen for modern events to track activity accurately and without duplicates
-        const events = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'];
-        events.forEach(e => window.addEventListener(e, updateActivity, { passive: true }));
-
-        // Listen for visibility change (e.g. returning from sleep or switching tabs back)
-        const handleVisibilityChange = () => {
-          if (document.visibilityState === 'visible') {
-            checkInactivity(false);
-          }
-        };
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        // Multi-tab session synchronization
+        // Multi-tab session synchronization (logout in one tab logs out everywhere)
         const handleStorage = (e) => {
           if (e.key === 'vidyasetu_logout') {
             if (!isLoggingOutRef.current) {
@@ -9634,8 +9511,6 @@
               setIsAdmin(false);
               window.location.href = '/';
             }
-          } else if (e.key === ACTIVITY_KEY) {
-            checkInactivity(false);
           }
         };
         window.addEventListener('storage', handleStorage);
@@ -9647,11 +9522,6 @@
         window.addEventListener('vidyasetu_force_logout', handleForceLogout);
 
         return () => {
-          if (inactivityChecker) clearInterval(inactivityChecker);
-          if (keepAliveInterval) clearInterval(keepAliveInterval);
-          if (debounceTimer) clearTimeout(debounceTimer);
-          events.forEach(e => window.removeEventListener(e, updateActivity));
-          document.removeEventListener('visibilitychange', handleVisibilityChange);
           window.removeEventListener('storage', handleStorage);
           window.removeEventListener('vidyasetu_force_logout', handleForceLogout);
         };
