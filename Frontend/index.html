@@ -9488,7 +9488,7 @@
           setShowSessionWarning(false);
           setUser({});
           setIsAdmin(false);
-          window.location.href = '/';
+          window.history.replaceState(null, '', '/');
         }
       };
 
@@ -9509,7 +9509,7 @@
               setShowSessionWarning(false);
               setUser({});
               setIsAdmin(false);
-              window.location.href = '/';
+              window.history.replaceState(null, '', '/');
             }
           }
         };
