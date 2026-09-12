@@ -11,21 +11,26 @@ Vidya Setu is a comprehensive, full-stack platform designed to bridge the gap be
 - **🤖 AI-Powered Resume Analyzer:** Upload your resume and receive instant, actionable feedback and ATS optimization suggestions powered by the Groq LLM API.
 - **💼 Job & Internship Portal:** A curated, easily searchable database of early-career opportunities, hackathons, and internships.
 - **🎓 Scholarship Tracking:** Stay on top of financial aid with a centralized dashboard for tracking, applying, and monitoring active scholarships.
+- **🛒 Community & Marketplace:** Built-in community interactions and a marketplace for students.
 - **🔐 Secure Authentication:** Production-grade JWT authentication with strict route protection and role-based access control (RBAC).
 - **📊 Real-Time Analytics & Admin Dashboard:** Comprehensive insights into platform usage, application statuses, and active opportunities.
 
 ## 🛠️ Tech Stack
 
 **Frontend:**
-- [React.js](https://reactjs.org/) - Component-driven UI.
-- Context API - State management.
+- [React.js](https://reactjs.org/) - UI Library.
+- [Vite](https://vitejs.dev/) - Next-generation frontend tooling.
 - HTML5 / CSS3 - Modern, responsive styling.
+- NProgress - Minimalist progress bar.
 
 **Backend:**
 - [Node.js](https://nodejs.org/) & [Express.js](https://expressjs.com/) - RESTful API architecture.
 - [MongoDB](https://www.mongodb.com/) & Mongoose - NoSQL database and schema management.
 - [Groq LLM API](https://groq.com/) - High-speed AI inference for resume analysis.
 - [JSON Web Tokens (JWT)](https://jwt.io/) & [Bcrypt.js](https://www.npmjs.com/package/bcryptjs) - Authentication and password hashing.
+- [Cloudinary](https://cloudinary.com/) - Cloud image and asset storage.
+- PDF-Parse & PDFKit - For handling and analyzing resume PDFs.
+- Cheerio - For web scraping and parsing.
 
 ---
 
@@ -36,22 +41,20 @@ The project is structured into two main directories, keeping the client and serv
 ```text
 Vidya Setu/
 ├── Backend/                 # Express.js REST API
-│   ├── config/              # Database and environment configurations
-│   ├── controllers/         # Request handling and business logic
 │   ├── middleware/          # JWT auth, error handling, and rate limiting
 │   ├── models/              # Mongoose schemas (User, Job, Scholarship, etc.)
-│   ├── routes/              # API route definitions (userRoutes, jobRoutes, etc.)
+│   ├── routes/              # API route definitions & controllers (userRoutes, etc.)
 │   ├── scripts/             # Database seeding and migration scripts
+│   ├── services/            # External service integrations
+│   ├── cloudinaryConfig.js  # Cloudinary configuration
 │   └── server.js            # Node.js entry point
 │
-└── Frontend/                # React.js Client
+└── Frontend/                # React.js Client (Vite)
+    ├── public/              # Static assets (images, icons)
     ├── src/
-    │   ├── components/      # Reusable UI components (Navbar, Cards, Modals)
-    │   ├── context/         # React Context for global state (AuthContext)
-    │   ├── pages/           # Main route views (Dashboard, Jobs, ResumeAnalyzer)
-    │   ├── services/        # API client modules
-    │   └── App.js           # Main React component and router
-    └── public/              # Static assets (images, icons)
+    │   └── main.jsx         # Single-file React application (Contains all UI/Logic)
+    ├── index.html           # Main HTML template
+    └── vite.config.js       # Vite configuration
 ```
 
 ---
@@ -83,6 +86,11 @@ PORT=5000
 MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=your_super_secret_jwt_key
 GROQ_API_KEY=your_groq_llm_api_key
+
+# Cloudinary Config
+CLOUDINARY_CLOUD_NAME=your_cloudinary_name
+CLOUDINARY_API_KEY=your_cloudinary_key
+CLOUDINARY_API_SECRET=your_cloudinary_secret
 ```
 
 ### 4. Frontend Setup
@@ -92,10 +100,7 @@ cd Frontend
 npm install
 ```
 
-Create a `.env` file in the `Frontend` directory (if required by your setup) to point to the backend URL:
-```env
-REACT_APP_API_URL=http://localhost:5000/api
-```
+*(Note: The frontend does not currently require a `.env` file, as the API URL is dynamically determined based on the environment (`localhost:5000` for local dev).)*
 
 ### 5. Running the Application
 
@@ -109,9 +114,9 @@ npm run dev
 **Start the Frontend Development Server:**
 ```bash
 cd Frontend
-npm start
+npm run dev
 ```
-*(The React app will open in your browser at `http://localhost:3000`)*
+*(The React app will start with Vite. Check the terminal for the exact localhost URL, usually `http://localhost:5173`)*
 
 ---
 
