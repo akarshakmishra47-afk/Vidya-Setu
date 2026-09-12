@@ -1,5 +1,26 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import NProgress from 'nprogress';
+import 'nprogress/nprogress.css';
+
+NProgress.configure({ showSpinner: false, speed: 400, minimum: 0.1 });
+
+// Inject custom orange color for NProgress
+const style = document.createElement('style');
+style.innerHTML = `
+  #nprogress .bar {
+    background: #f97316 !important;
+    height: 3px !important;
+  }
+  #nprogress .peg {
+    box-shadow: 0 0 10px #f97316, 0 0 5px #f97316 !important;
+  }
+  #nprogress .spinner-icon {
+    border-top-color: #f97316 !important;
+    border-left-color: #f97316 !important;
+  }
+`;
+document.head.appendChild(style);
 
     const isLocal =
       window.location.hostname === 'localhost' ||
@@ -13,6 +34,7 @@ import ReactDOM from 'react-dom/client';
     // Global fetch override to always send credentials (cookies) to the API
     let isRefreshing = false;
     let refreshPromise = null;
+    let activeFetchRequests = 0;
 
     const originalFetch = window.fetch;
     window.fetch = async function (resource, config) {
@@ -44,9 +66,22 @@ import ReactDOM from 'react-dom/client';
       }
 
       // 3. First execution
-      const response = await originalFetch(requestToFetch, config);
+      activeFetchRequests++;
+      if (activeFetchRequests === 1) {
+        NProgress.start();
+      }
+
+      let response;
+      try {
+        response = await originalFetch(requestToFetch, config);
+      } catch (err) {
+        activeFetchRequests--;
+        if (activeFetchRequests === 0) NProgress.done();
+        throw err;
+      }
 
       // 4. Implement 401 -> Refresh -> Retry exactly once
+
       const isAuthEndpoint = url.includes('/api/users/refresh') ||
         url.includes('/api/users/login') ||
         url.includes('/api/users/logout');
@@ -73,21 +108,30 @@ import ReactDOM from 'react-dom/client';
             if (retryResponse.status === 401 || retryResponse.status === 403) {
               window.dispatchEvent(new Event('vidyasetu_force_logout'));
             }
+            activeFetchRequests--;
+            if (activeFetchRequests === 0) NProgress.done();
             return retryResponse;
           } else {
             // Refresh explicitly failed
             window.dispatchEvent(new Event('vidyasetu_force_logout'));
+            activeFetchRequests--;
+            if (activeFetchRequests === 0) NProgress.done();
             return response; // Return original 401
           }
         } catch (err) {
           window.dispatchEvent(new Event('vidyasetu_force_logout'));
+          activeFetchRequests--;
+          if (activeFetchRequests === 0) NProgress.done();
           return response;
         }
       }
 
+      activeFetchRequests--;
+      if (activeFetchRequests === 0) NProgress.done();
       return response;
     };
     const { useState, useEffect, useRef, createContext, useContext } = React;
+
 
     // Temporary Global Error Handler for Debugging Whitescreen
     window.addEventListener('error', (event) => {
