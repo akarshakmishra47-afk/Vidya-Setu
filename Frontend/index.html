@@ -9355,8 +9355,12 @@
 
     function AppWithProviders() {
       const [splashDone, setSplashDone] = useState(false);
-      const [isLoggedIn, setIsLoggedIn] = useState(false);
-      const [isAdmin, setIsAdmin] = useState(false);
+      
+      // Initialize synchronously from localStorage to prevent flicker and allow instant render
+      const initialLocalData = localStorage.getItem('studentData');
+      const [isLoggedIn, setIsLoggedIn] = useState(!!initialLocalData);
+      const [isAdmin, setIsAdmin] = useState(() => initialLocalData ? (JSON.parse(initialLocalData).isAdmin || false) : false);
+
       const [showLandingPage, setShowLandingPage] = useState(true);
       const [sessionChecked, setSessionChecked] = useState(false);
       const [showSessionWarning, setShowSessionWarning] = useState(false);
@@ -9449,11 +9453,17 @@
                 setIsAdmin(fetchedData.isAdmin || false);
                 setIsLoggedIn(true);
               }
-            } else if (!localData) {
+            } else {
+              // Token expired or invalid on backend
               localStorage.removeItem('studentData');
+              setIsLoggedIn(false);
+              setIsAdmin(false);
             }
           } catch (e) {
             console.error("Session check failed", e);
+            localStorage.removeItem('studentData');
+            setIsLoggedIn(false);
+            setIsAdmin(false);
           } finally {
             setSessionChecked(true);
           }
@@ -9545,8 +9555,7 @@
         setShowSessionWarning(false);
       };
 
-      if (!splashDone || !sessionChecked) return <SplashScreen onDone={() => setSplashDone(true)} />;
-
+      // 1. Instantly render Landing or Login if not authenticated (Bypasses splash & blocking APIs)
       if (!isLoggedIn) {
         if (showLandingPage) {
           return <LandingPage onLoginClick={() => setShowLandingPage(false)} />;
@@ -9575,7 +9584,8 @@
         }} />;
       }
 
-
+      // 2. Wait for session validation and splash screen ONLY if they have an active local session
+      if (!splashDone || !sessionChecked) return <SplashScreen onDone={() => setSplashDone(true)} />;
 
       if (isAdmin) {
         return (
