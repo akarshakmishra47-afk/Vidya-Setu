@@ -2,31 +2,17 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 
-// ── Bug 15: Per-user AI rate limiting ──
-const aiRateLimits = new Map();
-const AI_RATE_WINDOW_MS = 60 * 1000; // 1 minute
-const AI_RATE_MAX = 20; // 20 requests per minute per user
+// ── Bug 15: Per-user AI rate limiting (Updated to Production Standard) ──
+const rateLimit = require('express-rate-limit');
 
-function checkAiRateLimit(userId) {
-  const now = Date.now();
-  const key = String(userId);
-  const entry = aiRateLimits.get(key);
-  if (!entry || now - entry.windowStart > AI_RATE_WINDOW_MS) {
-    aiRateLimits.set(key, { windowStart: now, count: 1 });
-    return true;
-  }
-  if (entry.count >= AI_RATE_MAX) return false;
-  entry.count++;
-  return true;
-}
-
-// Cleanup stale entries every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of aiRateLimits.entries()) {
-    if (now - entry.windowStart > AI_RATE_WINDOW_MS * 2) aiRateLimits.delete(key);
-  }
-}, 5 * 60 * 1000);
+const aiRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20, // 20 requests per minute
+  message: { success: false, message: 'Too many AI requests. Please wait.' },
+  keyGenerator: (req) => req.user ? req.user.userId : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // ── Bug 19: Safe Groq API call wrapper ──
 const axios = require('axios');
@@ -89,6 +75,16 @@ function getApiKey() {
   return key;
 }
 
+// Middleware to enforce API key presence
+const requireApiKey = (req, res, next) => {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    return res.status(500).json({ success: false, message: "AI service is not configured." });
+  }
+  req.groqApiKey = apiKey;
+  next();
+};
+
 // Custom optional auth for chat so guests can use it
 const optionalAuth = (req, res, next) => {
   let token = null;
@@ -105,29 +101,24 @@ const optionalAuth = (req, res, next) => {
     secret = process.env.JWT_REFRESH_SECRET;
   }
 
-  if (!token) return next();
+  if (!token || !secret) return next();
   
   const jwt = require('jsonwebtoken');
-  jwt.verify(token, secret, (err, user) => {
-    if (!err) req.user = user;
+  try {
+    jwt.verify(token, secret, (err, user) => {
+      if (!err) req.user = user;
+      next();
+    });
+  } catch (err) {
     next();
-  });
+  }
 };
 
 // Bug 15: AI endpoints require authentication (except chat which is optional)
-router.post('/chat', optionalAuth, async (req, res) => {
+router.post('/chat', optionalAuth, aiRateLimiter, requireApiKey, async (req, res) => {
     try {
-        // Bug 15: Rate limiting
-        const rateLimitKey = req.user ? req.user.userId : req.ip;
-        if (!checkAiRateLimit(rateLimitKey)) {
-          return res.status(429).json({ success: false, message: 'Too many AI requests. Please wait.' });
-        }
-
         const { message, userContext } = req.body;
-        const apiKey = getApiKey();
-        if (!apiKey) {
-            return res.status(500).json({ success: false, message: "AI service is not configured." });
-        }
+        const apiKey = req.groqApiKey;
 
         // Bug 16: Input validation
         if (!message || !validateString(message, 2000)) {
@@ -136,7 +127,7 @@ router.post('/chat', optionalAuth, async (req, res) => {
 
         // Bug 17: Wrap user content in delimiters
         const systemPrompt = `
-You are the "Vidya-Setu AI Assistant", the official friendly AI for students of the Vidya-Setu platform, designed specifically for AKTU (Dr. A.P.J. Abdul Kalam Technical University) students.
+You are the "Vidya-Setu AI Assistant", the official friendly AI for students of the Vidya-Setu platform, designed for college students nationwide.
 
 IDENTITY & MISSION:
 - Your primary goal is to assist students in navigating their academic and career journey using Vidya-Setu's tools.
@@ -145,10 +136,10 @@ IDENTITY & MISSION:
 
 KNOWLEDGE OF VIDYA-SETU FEATURES:
 When relevant to the user's query, you MUST mention and guide users to these specific sections of Vidya-Setu:
-1. **Jobs & Internships**: We offer dedicated sections for Paid Internships, Free Internships, and AKTU-specific Engineering Jobs.
+1. **Jobs & Internships**: We offer dedicated sections for Paid Internships, Free Internships, and Engineering Jobs.
 2. **Scholarship Center**: A hub for finding and applying to various student scholarships.
-3. **Academic Resources**: Students can access AKTU Notes, Syllabus, and Previous Year Questions (PYQs) right here.
-4. **Exam & Result Updates**: We provide real-time updates on AKTU results, date sheets, and important notifications.
+3. **Academic Resources**: Students can access Notes, Syllabus, and Previous Year Questions (PYQs) right here.
+4. **Exam & Result Updates**: We provide real-time updates on university results, date sheets, and important notifications.
 5. **Marketplace**: A place for students to buy, sell, or donate academic materials like books or drafters.
 6. **Student Perks**: Exclusive discounts and deals curated for the student community.
 
@@ -192,18 +183,10 @@ Student Context:
     }
 });
 
-router.post('/career-analyze', optionalAuth, async (req, res) => {
+router.post('/career-analyze', optionalAuth, aiRateLimiter, requireApiKey, async (req, res) => {
     try {
-        const rateLimitKey = req.user ? req.user.userId : req.ip;
-        if (!checkAiRateLimit(rateLimitKey)) {
-          return res.status(429).json({ success: false, message: 'Too many AI requests. Please wait.' });
-        }
-
         const { type, role, skills, missingSkills, coreSkills, bonusSkills, readiness, userContext } = req.body;
-        const apiKey = getApiKey();
-        if (!apiKey) {
-            return res.status(500).json({ success: false, message: "AI service is not configured." });
-        }
+        const apiKey = req.groqApiKey;
 
         // Bug 16: Input validation
         if (!role || !validateString(role, 200)) {
@@ -274,18 +257,10 @@ Task: ${taskPrompt}
     }
 });
 
-router.post('/exam-analyze', optionalAuth, async (req, res) => {
+router.post('/exam-analyze', optionalAuth, aiRateLimiter, requireApiKey, async (req, res) => {
     try {
-        const rateLimitKey = req.user ? req.user.userId : req.ip;
-        if (!checkAiRateLimit(rateLimitKey)) {
-          return res.status(429).json({ success: false, message: 'Too many AI requests. Please wait.' });
-        }
-
         const { type, exam, subject, topics, stats, userContext, specificTopic } = req.body;
-        const apiKey = getApiKey();
-        if (!apiKey) {
-            return res.status(500).json({ success: false, message: "AI service is not configured." });
-        }
+        const apiKey = req.groqApiKey;
 
         // Bug 16: Input validation
         if (!exam || !validateString(exam, 200)) {
@@ -394,23 +369,17 @@ Task: ${taskPrompt}
 });
 
 // Resume Analysis Endpoint — Bug 15,16,17,18,19
-router.post('/resume/analyze', optionalAuth, async (req, res) => {
+// Use authenticateToken since saving analysis requires an authenticated user
+router.post('/resume/analyze', authenticateToken, aiRateLimiter, requireApiKey, async (req, res) => {
     try {
-        const rateLimitKey = req.user ? req.user.userId : req.ip;
-        if (!checkAiRateLimit(rateLimitKey)) {
-          return res.status(429).json({ success: false, message: 'Too many AI requests. Please wait.' });
-        }
-
         const { userContext } = req.body;
         const User = require('../models/User');
-        // Bug 8: Use authenticated user, not rollNo from body
-        const user = req.user ? await User.findById(req.user.userId) : null;
+        
+        // Ensure user exists and has a resume text
+        const user = await User.findById(req.user.userId);
         const resumeText = user ? user.resumeText : null;
         
-        const apiKey = getApiKey();
-        if (!apiKey) {
-            return res.status(500).json({ success: false, message: "AI service is not configured." });
-        }
+        const apiKey = req.groqApiKey;
         
         if (!resumeText) {
             return res.status(400).json({ success: false, message: "Resume text is missing. Please upload a resume first." });
@@ -507,7 +476,7 @@ Required JSON Structure:
         }
     } catch (error) {
         console.error('Groq Resume Analyze Error:', error.message);
-        res.status(500).json({ success: false, message: error.message, stack: error.stack });
+        res.status(500).json({ success: false, message: getGroqErrorMessage(error) });
     }
 });
 

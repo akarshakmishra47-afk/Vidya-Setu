@@ -15,9 +15,6 @@ function authenticateToken(req, res, next) {
   } else if (req.cookies && req.cookies.accessToken) {
     token = req.cookies.accessToken;
     secret = process.env.JWT_ACCESS_SECRET;
-  } else if (req.cookies && req.cookies.refreshToken) {
-    token = req.cookies.refreshToken;
-    secret = process.env.JWT_REFRESH_SECRET;
   }
 
   if (!token) {

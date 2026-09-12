@@ -36,15 +36,21 @@ const router = express.Router();
 let refreshInterval       = null;
 let isAutoRefreshRunning  = false;
 
-// ── SOURCE NAMES (for stale cleanup — only clean sources that responded) ──────
 const API_SOURCES = ['remotive', 'arbeitnow', 'himalayas', 'govtRss', 'hackathon'];
 
-// ── Bug 23: Escape regex metacharacters in user input ─────────────────────────
+/**
+ * Escapes regex metacharacters in user input to prevent ReDoS.
+ * @param {string} str - The string to escape.
+ * @returns {string} The escaped string.
+ */
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// ── UTILITY: Perform job refresh ─────────────────────────────────────────────
+/**
+ * Triggers a full job refresh from external sources.
+ * @returns {Object} Refresh result and statistics.
+ */
 async function performJobRefresh() {
   if (isRefreshing()) {
     return { status: 'skipped', reason: 'Refresh already in progress' };
@@ -78,18 +84,13 @@ async function performJobRefresh() {
   }
 }
 
-// ── UTILITY: Build Filter from Request ───────────────────────────────────────
+/**
+ * Constructs a MongoDB filter object from query parameters.
+ * @param {Object} query - The request query object.
+ * @returns {Object} The MongoDB filter object.
+ */
 function buildJobFilter(query) {
-  /**
-   * Bug 30: Source exclusion list explanation.
-   * These sources are INTENTIONALLY excluded from default job listings because:
-   * - 'greenhouse', 'lever': Legacy adapters that were disabled due to API changes/reliability
-   * - 'govtRss': Government RSS feed adapter disabled (unreliable data quality)
-   * - 'manual': Manually added jobs — excluded from default filter to avoid stale manual entries
-   * - 'web': Generic web-scraped jobs — disabled due to data quality concerns
-   * - 'arbeitnow', 'himalayas': External API adapters disabled (see jobFetcher.js for status)
-   * All these are marked as "Disabled" in the jobFetcher source stats.
-   */
+  // Exclude legacy/disabled sources from default results
   let filter = { 
     isIndiaLocation: { $ne: false }, 
     isActive: { $ne: false },
@@ -127,7 +128,7 @@ function buildJobFilter(query) {
     if (disabledSources.includes(query.source.toLowerCase())) {
       filter.source = '__DISABLED__';
     } else {
-      // Bug 23: Escape regex metacharacters in source filter
+
       filter.source = new RegExp(`^${escapeRegex(query.source)}$`, 'i');
     }
   }
@@ -142,7 +143,7 @@ function buildJobFilter(query) {
     if (query.location.toLowerCase() === 'remote') {
       locationConditions.push({ location: { $regex: /remote/i } });
     } else {
-      // Bug 23: Escape user input before using in regex
+
       locationConditions.push({ location: { $regex: new RegExp(escapeRegex(query.location), 'i') } });
     }
   }
@@ -172,7 +173,7 @@ function buildJobFilter(query) {
   }
 
   if (query.search) {
-    // Bug 23: Escape regex metacharacters and limit search length
+
     const sanitizedSearch = escapeRegex(String(query.search).substring(0, 100));
     const searchRegex = new RegExp(sanitizedSearch, 'i');
     filter.$or = [
@@ -188,7 +189,11 @@ function buildJobFilter(query) {
   return filter;
 }
 
-// ── UTILITY: Get live counts from DB ─────────────────────────────────────────
+/**
+ * Fetches live job statistics and counts from the database.
+ * @param {Object} query - Optional filter query.
+ * @returns {Object} Statistics and counts.
+ */
 async function getLiveCounts(query = {}) {
   const baseQuery = { ...query };
   delete baseQuery.primaryType;
@@ -239,7 +244,9 @@ async function getLiveCounts(query = {}) {
   };
 }
 
-// ── START / STOP AUTO-REFRESH ─────────────────────────────────────────────────
+/**
+ * Starts the auto-refresh interval for fetching jobs.
+ */
 function startAutoRefresh() {
   if (isAutoRefreshRunning) return;
   isAutoRefreshRunning = true;
@@ -254,6 +261,9 @@ function startAutoRefresh() {
   }, AUTO_REFRESH_MS);
 }
 
+/**
+ * Stops the auto-refresh interval for fetching jobs.
+ */
 function stopAutoRefresh() {
   if (refreshInterval) {
     clearInterval(refreshInterval);
@@ -263,20 +273,21 @@ function stopAutoRefresh() {
   }
 }
 
+/**
+ * Initializes the auto-refresh mechanism.
+ */
 function initializeJobRefresh() {
   startAutoRefresh();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ROUTES — Bug 24: Specific routes BEFORE /:id parameterized route
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// ── GET /api/jobs — List with filters, search, pagination ─────────────────────
+/**
+ * Retrieves a paginated list of jobs based on filters and search.
+ * @route GET /api/jobs
+ * @access Public
+ */
 router.get('/', async (req, res) => {
   try {
     const filter = buildJobFilter(req.query);
-
-    // Bug 37: Validate pagination params
     const rawLimit = parseInt(req.query.limit);
     const limit = Math.min(Math.max(isNaN(rawLimit) ? 20 : rawLimit, 1), 300);
     const rawPage = parseInt(req.query.page);
@@ -318,7 +329,7 @@ router.get('/', async (req, res) => {
 
     const totalPages = Math.ceil(total / limit);
 
-    res.json({ 
+    res.status(200).json({ 
       success: true, 
       jobs, 
       count: jobs.length, 
@@ -333,43 +344,59 @@ router.get('/', async (req, res) => {
   }
 });
 
-// ── Bug 24: /stats/summary BEFORE /:id ────────────────────────────────────────
+/**
+ * Retrieves aggregated summary statistics for jobs.
+ * @route GET /api/jobs/stats/summary
+ * @access Public
+ */
 router.get('/stats/summary', async (req, res) => {
   try {
     const counts = await getLiveCounts();
-    res.json(counts);
+    res.status(200).json(counts);
   } catch (err) {
     console.error('[GET /api/jobs/stats/summary] Error:', err.message);
     res.status(500).json({ success: false, message: 'Failed to get stats' });
   }
 });
 
-// ── GET /api/jobs/stats — Live category counters ──────────────────────────────
+/**
+ * Retrieves live category statistics based on query parameters.
+ * @route GET /api/jobs/stats
+ * @access Public
+ */
 router.get('/stats', async (req, res) => {
   try {
     const counts = await getLiveCounts(req.query);
-    res.json({ success: true, ...counts, lastRefreshTime: getLastRefreshTime() });
+    res.status(200).json({ success: true, ...counts, lastRefreshTime: getLastRefreshTime() });
   } catch (err) {
     console.error('[GET /api/jobs/stats] Error:', err.message);
     res.status(500).json({ success: false, message: 'Failed to get stats' });
   }
 });
 
-// ── GET /api/jobs/source-status — Live source statuses ──────────────────────────
+/**
+ * Retrieves the status of external job sources.
+ * @route GET /api/jobs/source-status
+ * @access Public
+ */
 router.get('/source-status', (req, res) => {
   try {
     const stats = getLastSourceStats();
-    res.json({ success: true, sources: stats });
+    res.status(200).json({ success: true, sources: stats });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to get source status' });
   }
 });
 
-// ── GET /api/jobs/status — Refresh status + DB stats ─────────────────────────
+/**
+ * Retrieves overall system status, including refresh state and DB stats.
+ * @route GET /api/jobs/status
+ * @access Public
+ */
 router.get('/status', async (req, res) => {
   try {
     const counts = await getLiveCounts();
-    res.json({
+    res.status(200).json({
       success: true,
       stats: counts,
       refresh: {
@@ -388,7 +415,11 @@ router.get('/status', async (req, res) => {
   }
 });
 
-// ── POST /api/jobs/fetch-latest — Bug 1: Admin only ──────────────────────────
+/**
+ * Manually triggers a job refresh.
+ * @route POST /api/jobs/fetch-latest
+ * @access Private/Admin
+ */
 router.post('/fetch-latest', authenticateToken, requireAdmin, async (req, res) => {
   try {
     if (isRefreshing()) {
@@ -401,7 +432,7 @@ router.post('/fetch-latest', authenticateToken, requireAdmin, async (req, res) =
     console.log('[POST /api/jobs/fetch-latest] Manual refresh triggered');
     const result = await performJobRefresh();
 
-    res.json({
+    res.status(200).json({
       success: result.status !== 'error',
       ...result
     });
@@ -411,20 +442,28 @@ router.post('/fetch-latest', authenticateToken, requireAdmin, async (req, res) =
   }
 });
 
-// ── POST /api/jobs/refresh — Alias, Bug 1: Admin only ────────────────────────
+/**
+ * Alias for manual job refresh.
+ * @route POST /api/jobs/refresh
+ * @access Private/Admin
+ */
 router.post('/refresh', authenticateToken, requireAdmin, async (req, res) => {
   try {
     if (isRefreshing()) {
       return res.status(429).json({ success: false, message: 'Refresh already in progress.' });
     }
     const result = await performJobRefresh();
-    res.json({ success: result.status !== 'error', ...result });
+    res.status(200).json({ success: result.status !== 'error', ...result });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Refresh failed' });
   }
 });
 
-// ── POST /api/jobs — Create manual job, Bug 1: Admin only ────────────────────
+/**
+ * Creates a new manual job entry.
+ * @route POST /api/jobs
+ * @access Private/Admin
+ */
 router.post('/', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const jobData = { ...req.body, source: 'manual' };
@@ -439,22 +478,29 @@ router.post('/', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-// ── GET /api/jobs/:id — Single job (Bug 24: AFTER specific routes) ───────────
+/**
+ * Retrieves a single job by ID.
+ * @route GET /api/jobs/:id
+ * @access Public
+ */
 router.get('/:id', async (req, res) => {
   try {
-    // Bug 37: Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: 'Invalid job ID' });
     }
     const job = await Job.findById(req.params.id).lean();
     if (!job) return res.status(404).json({ success: false, message: 'Job not found' });
-    res.json({ success: true, job });
+    res.status(200).json({ success: true, job });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to fetch job' });
   }
 });
 
-// ── DELETE /api/jobs/:id — Delete job, Bug 1: Admin only ─────────────────────
+/**
+ * Deletes a job by ID.
+ * @route DELETE /api/jobs/:id
+ * @access Private/Admin
+ */
 router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -462,13 +508,13 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
     }
     const deleted = await Job.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ success: false, message: 'Job not found' });
-    res.json({ success: true, message: 'Job deleted' });
+    res.status(200).json({ success: true, message: 'Job deleted' });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to delete job' });
   }
 });
 
-// ── EXPORTS ───────────────────────────────────────────────────────────────────
+
 module.exports = router;
 module.exports.initializeJobRefresh = initializeJobRefresh;
 module.exports.stopAutoRefresh = stopAutoRefresh;

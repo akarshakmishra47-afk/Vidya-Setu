@@ -4,6 +4,7 @@ const Perk = require('../models/Perk');
 const User = require('../models/User');
 const { fetchAllPerks } = require('../services/perks/perkFetcher');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const mongoose = require('mongoose');
 
 let lastRefresh = null;
 let refreshInProgress = false;
@@ -12,7 +13,6 @@ let autoRefreshTimer = null;
 // Initialize & Migrate DB on startup
 async function initializePerks() {
   try {
-    const mongoose = require('mongoose');
     if (mongoose.connection.readyState !== 1) return; // Wait for connection
 
     const db = mongoose.connection.db;
@@ -62,16 +62,19 @@ async function triggerPerkFetch() {
     const newPerks = await fetchAllPerks();
     let inserted = 0;
     
-    // Insert new external perks
+    // Insert new external perks securely using upsert to avoid race conditions
     for (const perk of newPerks) {
       try {
-        const existing = await Perk.findOne({ deduplicationKey: perk.deduplicationKey });
-        if (!existing) {
-          await Perk.create(perk);
+        const result = await Perk.updateOne(
+          { deduplicationKey: perk.deduplicationKey },
+          { $setOnInsert: perk },
+          { upsert: true }
+        );
+        if (result.upsertedCount > 0) {
           inserted++;
         }
       } catch (e) {
-        if (e.code !== 11000) console.error('[PerkRoutes] Insert error:', e);
+        console.error('[PerkRoutes] Insert error:', e);
       }
     }
     
@@ -89,7 +92,11 @@ autoRefreshTimer = setInterval(() => {
   triggerPerkFetch();
 }, 12 * 60 * 60 * 1000);
 
-// GET all perks — public
+/**
+ * Retrieves all active perks.
+ * @route GET /api/perks
+ * @access Public
+ */
 router.get('/', async (req, res) => {
   try {
     const perks = await Perk.find({ status: 'active' }).sort({ createdAt: -1 });
@@ -100,7 +107,11 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET perks status — public
+/**
+ * Retrieves platform perk statistics.
+ * @route GET /api/perks/status
+ * @access Public
+ */
 router.get('/status', async (req, res) => {
   try {
     const total = await Perk.countDocuments();
@@ -120,7 +131,11 @@ router.get('/status', async (req, res) => {
   }
 });
 
-// POST trigger manual fetch — Bug 1: admin only
+/**
+ * Manually triggers a fetch of the latest perks.
+ * @route POST /api/perks/fetch-latest
+ * @access Private/Admin
+ */
 router.post('/fetch-latest', authenticateToken, requireAdmin, async (req, res) => {
   if (refreshInProgress) {
     return res.status(429).json({ success: false, message: 'Refresh already in progress' });
@@ -129,21 +144,30 @@ router.post('/fetch-latest', authenticateToken, requireAdmin, async (req, res) =
   res.json({ success: true, message: 'Refresh triggered successfully' });
 });
 
-// POST claim a perk — Bug 3: use authenticateToken instead of manual jwt.verify with wrong secret
+/**
+ * Claims a specific perk for the authenticated user.
+ * @route POST /api/perks/claim/:id
+ * @access Private
+ */
 router.post('/claim/:id', authenticateToken, async (req, res) => {
   try {
+    const perkId = req.params.id;
+    if (!perkId || !mongoose.Types.ObjectId.isValid(perkId)) {
+      return res.status(400).json({ success: false, message: 'Invalid perk ID format' });
+    }
+
+    const perk = await Perk.findById(perkId);
+    if (!perk) return res.status(404).json({ success: false, message: 'Perk not found' });
+    
     const user = await User.findById(req.user.userId);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-    
-    const perk = await Perk.findById(req.params.id);
-    if (!perk) return res.status(404).json({ success: false, message: 'Perk not found' });
     
     if (!user.claimedPerks.includes(perk._id.toString())) {
       user.claimedPerks.push(perk._id.toString());
       await user.save();
     }
     
-    res.json({ success: true, message: 'Perk claimed successfully', officialUrl: perk.officialUrl });
+    res.status(200).json({ success: true, message: 'Perk claimed successfully', officialUrl: perk.officialUrl });
   } catch (error) {
     console.error('[PerkRoutes] Claim error:', error.message);
     res.status(500).json({ success: false, message: 'Failed to claim perk' });

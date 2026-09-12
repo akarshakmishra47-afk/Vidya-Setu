@@ -1,4 +1,4 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 const dns = require('dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
@@ -57,6 +57,7 @@ app.use('/api/academic', academicRoutes);
 app.use('/api/scholarships', scholarshipRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/community', communityRoutes);
+app.use('/api/admin-pyq', require('./routes/adminPyqRoutes'));
 
 // Global Error Handler
 app.use((err, req, res, next) => {
@@ -67,24 +68,24 @@ app.use((err, req, res, next) => {
 const mongoURI = process.env.MONGO_URI ? process.env.MONGO_URI.trim() : null;
 
 if (!mongoURI) {
-  console.error("âŒ ERROR: MONGO_URI is missing in your .env file!");
+  console.error("❌ ERROR: MONGO_URI is missing in your .env file!");
   process.exit(1);
 }
 
 mongoose.connect(mongoURI)
   .then(() => {
-    console.log('âœ… Database Connected');
+    console.log('✅ Database Connected');
     
     // Initialize automatic job refresh after DB connection
     try {
       jobRoutes.initializeJobRefresh();
-      console.log('âœ… Automatic job refresh initialized');
+      console.log('✅ Automatic job refresh initialized');
     } catch (error) {
-      console.error('âš ï¸  Failed to initialize job refresh:', error.message);
+      console.error('⚠️ Failed to initialize job refresh:', error.message);
     }
   })
   .catch(err => {
-    console.error('âŒ Database Connection Error:');
+    console.error('❌ Database Connection Error:');
     console.error(err.message);
   });
 

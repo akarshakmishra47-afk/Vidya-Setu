@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const Scholarship = require('../models/Scholarship');
 const ScholarshipApplication = require('../models/ScholarshipApplication');
 const User = require('../models/User');
+const ScholarshipIssue = require('../models/ScholarshipIssue');
 const AktuStudentOtr = require('../models/AktuStudentOtr');
 const AktuScholarshipApplication = require('../models/AktuScholarshipApplication');
 const { fetchAllScholarships } = require('../services/scholarships/scholarshipFetcher');
@@ -52,15 +53,17 @@ async function triggerScholarshipFetch() {
 
     for (const s of newScholarships) {
       try {
-        const existing = await Scholarship.findOne({ deduplicationKey: s.deduplicationKey });
-        if (!existing) {
-          await Scholarship.create(s);
-          inserted++;
-        } else {
-          await Scholarship.findByIdAndUpdate(existing._id, { status: 'active', lastVerifiedAt: Date.now() });
-        }
+        const result = await Scholarship.updateOne(
+          { deduplicationKey: s.deduplicationKey },
+          { 
+            $setOnInsert: s, 
+            $set: { status: 'active', lastVerifiedAt: Date.now() } 
+          },
+          { upsert: true }
+        );
+        if (result.upsertedCount > 0) inserted++;
       } catch (e) {
-        if (e.code !== 11000) console.error('[ScholarshipRoutes] Insert error:', e);
+        console.error('[ScholarshipRoutes] Insert error:', e);
       }
     }
     
@@ -78,18 +81,26 @@ autoRefreshTimer = setInterval(() => {
   triggerScholarshipFetch();
 }, 12 * 60 * 60 * 1000);
 
-// GET all available scholarships — public
+/**
+ * Retrieves all active scholarships.
+ * @route GET /api/scholarships
+ * @access Public
+ */
 router.get('/', async (req, res) => {
   try {
     const scholarships = await Scholarship.find({ status: 'active', isActive: true }).sort({ createdAt: -1 });
-    res.json(scholarships);
+    res.status(200).json(scholarships);
   } catch (err) {
     console.error('Scholarship fetch error:', err.message);
     res.status(500).json({ success: false, message: "Failed to fetch scholarships" });
   }
 });
 
-// GET scholarships pipeline status — public
+/**
+ * Retrieves pipeline status and statistics for scholarships.
+ * @route GET /api/scholarships/status
+ * @access Public
+ */
 router.get('/status', async (req, res) => {
   try {
     const total = await Scholarship.countDocuments();
@@ -97,7 +108,7 @@ router.get('/status', async (req, res) => {
     const stale = await Scholarship.countDocuments({ status: 'stale' });
     const sources = await Scholarship.distinct('source');
     
-    res.json({
+    res.status(200).json({
       success: true,
       total,
       active,
@@ -111,21 +122,27 @@ router.get('/status', async (req, res) => {
   }
 });
 
-// GET all user-reported issues — public
+/**
+ * Retrieves all user-reported scholarship issues.
+ * @route GET /api/scholarships/issues
+ * @access Public
+ */
 router.get('/issues', async (req, res) => {
   try {
-    const ScholarshipIssue = require('../models/ScholarshipIssue');
     const issues = await ScholarshipIssue.find().sort({ createdAt: -1 });
-    res.json(issues);
+    res.status(200).json(issues);
   } catch (err) {
     res.status(500).json({ success: false, message: "Failed to fetch issues" });
   }
 });
 
-// POST new user-reported issue — require auth
+/**
+ * Submits a new user-reported issue.
+ * @route POST /api/scholarships/issues
+ * @access Private
+ */
 router.post('/issues', authenticateToken, async (req, res) => {
   try {
-    const ScholarshipIssue = require('../models/ScholarshipIssue');
     const { title, desc } = req.body;
     if (!title || typeof title !== 'string' || title.length > 200) {
       return res.status(400).json({ success: false, message: "Valid title is required (max 200 characters)" });
@@ -141,21 +158,28 @@ router.post('/issues', authenticateToken, async (req, res) => {
   }
 });
 
-// POST trigger manual fetch — Bug 1: admin only
+/**
+ * Manually triggers a scholarship pipeline fetch.
+ * @route POST /api/scholarships/fetch-latest
+ * @access Private/Admin
+ */
 router.post('/fetch-latest', authenticateToken, requireAdmin, async (req, res) => {
   if (refreshInProgress) {
     return res.status(429).json({ success: false, message: 'Refresh already in progress' });
   }
   triggerScholarshipFetch();
-  res.json({ success: true, message: 'Refresh triggered successfully' });
+  res.status(200).json({ success: true, message: 'Refresh triggered successfully' });
 });
 
-// GET applications for authenticated user — Bug 11: require auth, verify ownership
+/**
+ * Retrieves applications for a specific user.
+ * @route GET /api/scholarships/my-applications/:identifier
+ * @access Private
+ */
 router.get('/my-applications/:identifier', authenticateToken, async (req, res) => {
   try {
-    // Bug 11: Must match authenticated user
     const user = await User.findById(req.user.userId);
-    if (!user) return res.json([]);
+    if (!user) return res.status(200).json([]);
 
     // Verify the identifier matches the authenticated user
     const identifier = req.params.identifier;
@@ -167,20 +191,24 @@ router.get('/my-applications/:identifier', authenticateToken, async (req, res) =
     }
 
     const targetUser = (isOwnId || isOwnRoll) ? user : 
-      (identifier.length === 24 ? await User.findById(identifier) : await User.findOne({ rollNo: identifier }));
+      (mongoose.Types.ObjectId.isValid(identifier) ? await User.findById(identifier) : await User.findOne({ rollNo: identifier }));
     
-    if (!targetUser) return res.json([]);
+    if (!targetUser) return res.status(200).json([]);
 
     const applications = await ScholarshipApplication.find({ studentId: targetUser._id })
       .populate('scholarshipId');
-    res.json(applications);
+    res.status(200).json(applications);
   } catch (err) {
     console.error('My applications error:', err.message);
     res.status(500).json({ success: false, message: "Failed to fetch applications" });
   }
 });
 
-// POST apply to a scholarship — Bug 11: use authenticated identity
+/**
+ * Applies to a scholarship using authenticated user identity.
+ * @route POST /api/scholarships/apply
+ * @access Private
+ */
 router.post('/apply', authenticateToken, async (req, res) => {
   try {
     const { scholarshipId, documents } = req.body;
@@ -189,7 +217,7 @@ router.post('/apply', authenticateToken, async (req, res) => {
       return res.status(400).json({ success: false, message: "Valid scholarship ID required" });
     }
 
-    // Bug 11: Use authenticated user ID, not from request body
+
     const user = await User.findById(req.user.userId);
     const scholarship = await Scholarship.findById(scholarshipId);
 
@@ -239,21 +267,29 @@ router.post('/apply', authenticateToken, async (req, res) => {
   }
 });
 
-// ADMIN: Get all applications — Bug 1: admin only
+/**
+ * Retrieves all scholarship applications.
+ * @route GET /api/scholarships/admin/all
+ * @access Private/Admin
+ */
 router.get('/admin/all', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const apps = await ScholarshipApplication.find()
       .sort({ submittedAt: -1 })
       .populate('studentId', 'name rollNo branch')
       .populate('scholarshipId', 'title category amount');
-    res.json(apps);
+    res.status(200).json(apps);
   } catch (err) {
     console.error('Admin fetch applications error:', err.message);
     res.status(500).json({ success: false, message: "Failed to fetch all applications" });
   }
 });
 
-// ADMIN: Update application status — Bug 1: admin only
+/**
+ * Updates the status of a specific scholarship application.
+ * @route PUT /api/scholarships/admin/application/:id
+ * @access Private/Admin
+ */
 router.put('/admin/application/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { status } = req.body;
@@ -270,14 +306,18 @@ router.put('/admin/application/:id', authenticateToken, requireAdmin, async (req
       { new: true }
     );
     if (!application) return res.status(404).json({ success: false, message: "Application not found" });
-    res.json(application);
+    res.status(200).json(application);
   } catch (err) {
     console.error('Admin update application error:', err.message);
     res.status(500).json({ success: false, message: "Failed to update application" });
   }
 });
 
-// AKTU: Save OTR — Bug 9: hash securityPin, Bug 10: use authenticated userId
+/**
+ * Saves AKTU OTR (One Time Registration) data securely.
+ * @route POST /api/scholarships/aktu-otr
+ * @access Private
+ */
 router.post('/aktu-otr', authenticateToken, async (req, res) => {
   try {
     const { aadhaarNumber, fullName, dob, mobileNumber, category, securityPin, otrStatus } = req.body;
@@ -294,7 +334,7 @@ router.post('/aktu-otr', authenticateToken, async (req, res) => {
     if (student) {
       if (student.otrStatus) return res.status(400).json({ success: false, message: "OTR is permanently locked." });
       
-      // Bug 9: Hash the security PIN if provided
+
       const updateData = { fullName, dob, mobileNumber, category, otrStatus };
       if (securityPin) {
         updateData.securityPin = await bcrypt.hash(securityPin, 10);
@@ -303,7 +343,7 @@ router.post('/aktu-otr', authenticateToken, async (req, res) => {
     } else {
       const studentId = 'AKTU' + Date.now().toString().slice(-6);
       
-      // Bug 9: Hash the security PIN before storing
+
       const hashedPin = securityPin ? await bcrypt.hash(securityPin, 10) : undefined;
       
       student = new AktuStudentOtr({
@@ -319,7 +359,7 @@ router.post('/aktu-otr', authenticateToken, async (req, res) => {
       await student.save();
     }
 
-    // Bug 10: Use authenticated user ID, not from request body
+
     await User.findByIdAndUpdate(req.user.userId, {
       aadhaarNumber,
       dob,
@@ -327,7 +367,7 @@ router.post('/aktu-otr', authenticateToken, async (req, res) => {
       casteCategory: category || 'General'
     });
 
-    // Bug 9: Never return securityPin in response
+
     const safeStudent = student.toObject();
     delete safeStudent.securityPin;
 
@@ -338,7 +378,11 @@ router.post('/aktu-otr', authenticateToken, async (req, res) => {
   }
 });
 
-// AKTU: Save Application Form — Bug 11: verify ownership
+/**
+ * Saves AKTU Scholarship Application Form data.
+ * @route POST /api/scholarships/aktu-application
+ * @access Private
+ */
 router.post('/aktu-application', authenticateToken, async (req, res) => {
   try {
     const { studentReference, applicationStatus, ...applicationData } = req.body;
@@ -347,7 +391,7 @@ router.post('/aktu-application', authenticateToken, async (req, res) => {
       return res.status(400).json({ success: false, message: "Student reference required" });
     }
 
-    // Bug 11: Verify the studentReference belongs to authenticated user
+
     const otr = await AktuStudentOtr.findOne({ studentId: studentReference });
     if (!otr) return res.status(404).json({ success: false, message: "Student OTR not found" });
 
@@ -388,13 +432,17 @@ router.post('/aktu-application', authenticateToken, async (req, res) => {
   }
 });
 
-// AKTU: Get Application — Bug 11: verify ownership or admin
+/**
+ * Retrieves AKTU Scholarship Application by student reference.
+ * @route GET /api/scholarships/aktu-application/:studentRef
+ * @access Private
+ */
 router.get('/aktu-application/:studentRef', authenticateToken, async (req, res) => {
   try {
     const app = await AktuScholarshipApplication.findOne({ studentReference: req.params.studentRef });
-    if (!app) return res.json({ success: false });
+    if (!app) return res.status(200).json({ success: false });
 
-    // Bug 11: Verify ownership
+
     if (!req.user.isAdmin) {
       const otr = await AktuStudentOtr.findOne({ studentId: req.params.studentRef });
       if (otr) {
@@ -405,7 +453,7 @@ router.get('/aktu-application/:studentRef', authenticateToken, async (req, res) 
       }
     }
 
-    res.json({ success: true, app });
+    res.status(200).json({ success: true, app });
   } catch (err) {
     console.error('AKTU application fetch error:', err.message);
     res.status(500).json({ success: false, message: "Failed to fetch AKTU application" });

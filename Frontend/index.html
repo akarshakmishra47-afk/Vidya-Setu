@@ -9489,6 +9489,11 @@
           setUser({});
           setIsAdmin(false);
           window.history.replaceState(null, '', '/');
+          
+          // Reset the lock so the user can log in and out again without a page refresh
+          setTimeout(() => {
+            isLoggingOutRef.current = false;
+          }, 300);
         }
       };
 
@@ -9510,6 +9515,9 @@
               setUser({});
               setIsAdmin(false);
               window.history.replaceState(null, '', '/');
+              setTimeout(() => {
+                isLoggingOutRef.current = false;
+              }, 300);
             }
           }
         };
