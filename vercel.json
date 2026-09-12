@@ -1,6 +1,6 @@
 {
-  "buildCommand": "echo 'Static site - no build needed'",
-  "outputDirectory": "Frontend",
+  "buildCommand": "cd Frontend && npm install && npm run build",
+  "outputDirectory": "Frontend/dist",
   "trailingSlash": false,
   "rewrites": [
     {

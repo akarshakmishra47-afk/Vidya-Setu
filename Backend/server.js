@@ -26,6 +26,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5500',
   'http://127.0.0.1:5500', 'http://127.0.0.1:5501', 'http://127.0.0.1:5502', 'http://localhost:5501', 'http://localhost:5502',
   'http://127.0.0.1:3000',
+  'http://localhost:4173', 'http://localhost:5173',
   null, 'null' // file:// protocol (local file open)
 ];
 
