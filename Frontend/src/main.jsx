@@ -2422,17 +2422,7 @@ document.head.appendChild(style);
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
                   <div style={{ width: 44, height: 44, borderRadius: 12, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px rgba(255,79,31,0.25)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                    <svg width="24" height="24" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: "drop-shadow(0 0 10px rgba(255,79,31,0.65))" }}>
-                      <defs>
-                        <linearGradient id="storeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#FF4F1F" />
-                          <stop offset="50%" stopColor="#FF7044" />
-                          <stop offset="100%" stopColor="#FFC700" />
-                        </linearGradient>
-                      </defs>
-                      <path d="M22 8 L38 16 L22 24 L6 16 Z" fill="url(#storeGrad)" />
-                      <path d="M11 23 L 11 30 C 11 35 15 39 22 41 C 29 39 33 35 33 30 L 33 23" stroke="url(#storeGrad)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                    </svg>
+                    <img src="/images/logo.png" style={{ width: "100%", height: "100%", objectFit: "cover", position: "relative", zIndex: 1, borderRadius: "inherit" }} alt="Vidya-Setu Logo" />
                   </div>
                   <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, marginTop: 12, lineHeight: 1.15, color: T.text, letterSpacing: '-0.4px' }}>Campus Store</h1>
                   <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>{items.length} items from verified students</p>
@@ -5153,17 +5143,7 @@ document.head.appendChild(style);
             <div className="screen-hero-inner">
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
                 <div style={{ width: 42, height: 42, borderRadius: 12, background: "linear-gradient(145deg, #1A1A1A, #0D0D0D)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 18px rgba(255,79,31,0.25), 0 0 0 1.5px rgba(255,79,31,0.35), inset 0 1px 0 rgba(255,255,255,0.06)" }}>
-                  <svg width="20" height="20" viewBox="0 0 44 44" fill="none">
-                    <defs>
-                      <linearGradient id="heroGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#FF4F1F" />
-                        <stop offset="50%" stopColor="#FF7044" />
-                        <stop offset="100%" stopColor="#FFC700" />
-                      </linearGradient>
-                    </defs>
-                    <path d="M22 8 L38 16 L22 24 L6 16 Z" fill="url(#heroGrad)" />
-                    <path d="M11 23 L 11 30 C 11 35 15 39 22 41 C 29 39 33 35 33 30 L 33 23" stroke="url(#heroGrad)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                  </svg>
+                  <img src="/images/logo.png" style={{ width: "100%", height: "100%", objectFit: "cover", position: "relative", zIndex: 1, borderRadius: "inherit" }} alt="Vidya-Setu Logo" />
                 </div>
                 <div>
                   <div style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 16, fontWeight: 900, lineHeight: 1, color: "#1A1A1A" }}>Vidya-Setu</div>
@@ -5307,17 +5287,7 @@ document.head.appendChild(style);
           <aside className={`vs-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
             <div className="sidebar-brand">
               <div className="brand-logo brand-logo-enhanced" style={{ position: "relative" }}>
-                <svg width="20" height="20" viewBox="0 0 44 44" fill="none" style={{ position: "relative", zIndex: 1 }}>
-                  <defs>
-                    <linearGradient id="sideGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#FF4F1F" />
-                      <stop offset="50%" stopColor="#FF7044" />
-                      <stop offset="100%" stopColor="#FFC700" />
-                    </linearGradient>
-                  </defs>
-                  <path d="M22 8 L38 16 L22 24 L6 16 Z" fill="url(#sideGrad)" />
-                  <path d="M11 23 L 11 30 C 11 35 15 39 22 41 C 29 39 33 35 33 30 L 33 23" stroke="url(#sideGrad)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                </svg>
+                <img src="/images/logo.png" style={{ width: "100%", height: "100%", objectFit: "cover", position: "relative", zIndex: 1, borderRadius: "inherit" }} alt="Vidya-Setu Logo" />
               </div>
               <div>
                 <div className="brand-text-name">Vidya-Setu</div>
@@ -5371,11 +5341,7 @@ document.head.appendChild(style);
 
               <div className="header-logo-mobile">
                 <div className="brand-logo brand-logo-enhanced" style={{ width: 30, height: 30, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #FF4F1F, #FFC700)", boxShadow: "0 4px 12px rgba(255,79,31,0.2)" }}>
-                  <svg width="16" height="16" viewBox="0 0 44 44" fill="none">
-                    <path d="M22 6 L6 14 L22 22 L38 14 Z" fill="#FFFFFF" opacity="0.95" />
-                    <path d="M10 18 V28 C10 32 16 36 22 38 C28 36 34 32 34 28 V18" stroke="#FFFFFF" strokeWidth="4" fill="none" strokeLinecap="round" />
-                    <path d="M22 22 V38" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round" />
-                  </svg>
+                  <img src="/images/logo.png" style={{ width: "100%", height: "100%", objectFit: "cover", position: "relative", zIndex: 1, borderRadius: "inherit" }} alt="Vidya-Setu Logo" />
                 </div>
                 <span style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontWeight: 900, fontSize: 14, color: T.text }}>Vidya-Setu</span>
               </div>
@@ -5609,11 +5575,7 @@ document.head.appendChild(style);
 
             <div style={{ marginBottom: 32, textAlign: "center" }}>
               <div style={{ width: 44, height: 44, borderRadius: 11, background: `linear-gradient(135deg, #7a1120, #3a0a10)`, display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 20, boxShadow: `0 6px 18px rgba(122, 17, 32, 0.2)` }}>
-                <svg width="24" height="24" viewBox="0 0 44 44" fill="none">
-                  <path d="M22 6 L6 14 L22 22 L38 14 Z" fill="#FFFFFF" opacity="0.95" />
-                  <path d="M10 18 V28 C10 32 16 36 22 38 C28 36 34 32 34 28 V18" stroke="#FFFFFF" strokeWidth="4" fill="none" strokeLinecap="round" />
-                  <path d="M22 22 V38" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round" />
-                </svg>
+                <img src="/images/logo.png" style={{ width: "100%", height: "100%", objectFit: "cover", position: "relative", zIndex: 1, borderRadius: "inherit" }} alt="Vidya-Setu Logo" />
               </div>
               <h2 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 28, fontWeight: 900, color: T.text }}>{isRegister ? "Create Account" : "Welcome back"}</h2>
               <p style={{ color: T.muted, fontSize: 14, marginTop: 6 }}>{isRegister ? "Sign up to join your campus ecosystem" : "Log in to access your dashboard"}</p>
@@ -6561,11 +6523,7 @@ document.head.appendChild(style);
           <aside className={`vs-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
             <div className="sidebar-brand">
               <div className="brand-logo brand-logo-enhanced" style={{ position: "relative" }}>
-                <svg width="20" height="20" viewBox="0 0 44 44" fill="none" style={{ position: "relative", zIndex: 1 }}>
-                  <path d="M22 6 L6 14 L22 22 L38 14 Z" fill="#FF4F1F" opacity="0.95" />
-                  <path d="M10 18 V28 C10 32 16 36 22 38 C28 36 34 32 34 28 V18" stroke="#FF4F1F" strokeWidth="4" fill="none" strokeLinecap="round" />
-                  <path d="M22 22 V38" stroke="#FF4F1F" strokeWidth="4" strokeLinecap="round" />
-                </svg>
+                <img src="/images/logo.png" style={{ width: "100%", height: "100%", objectFit: "cover", position: "relative", zIndex: 1, borderRadius: "inherit" }} alt="Vidya-Setu Logo" />
               </div>
               <div>
                 <div className="brand-text-name">Vidya-Setu</div>
@@ -7187,12 +7145,7 @@ document.head.appendChild(style);
             <div className="nav-inner">
               <a className="brand" href="#">
                 <span className="brand-mark" aria-hidden="true">
-                  <svg width="20" height="20" viewBox="0 0 48 48" fill="none">
-                    <path d="M24 10 L42 19 L24 28 L6 19 Z" fill="#ff5a1f" />
-                    <path d="M14 23 V32 Q24 38 34 32 V23" stroke="#ff5a1f" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                    <line x1="42" y1="19" x2="42" y2="30" stroke="#ffc94d" strokeWidth="2.5" strokeLinecap="round" />
-                    <circle cx="42" cy="32" r="2.2" fill="#ffc94d" />
-                  </svg>
+                  <img src="/images/logo.png" style={{ width: "100%", height: "100%", objectFit: "cover", position: "relative", zIndex: 1, borderRadius: "inherit" }} alt="Vidya-Setu Logo" />
                 </span>
                 <span>
                   <span className="brand-word">Vidya Setu</span><br />
@@ -7349,12 +7302,7 @@ document.head.appendChild(style);
               <div className="footer-brand">
                 <a className="brand" href="#">
                   <span className="brand-mark" aria-hidden="true">
-                    <svg width="20" height="20" viewBox="0 0 48 48" fill="none">
-                      <path d="M24 10 L42 19 L24 28 L6 19 Z" fill="#ff5a1f" />
-                      <path d="M14 23 V32 Q24 38 34 32 V23" stroke="#ff5a1f" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                      <line x1="42" y1="19" x2="42" y2="30" stroke="#ffc94d" strokeWidth="2.5" strokeLinecap="round" />
-                      <circle cx="42" cy="32" r="2.2" fill="#ffc94d" />
-                    </svg>
+                    <img src="/images/logo.png" style={{ width: "100%", height: "100%", objectFit: "cover", position: "relative", zIndex: 1, borderRadius: "inherit" }} alt="Vidya-Setu Logo" />
                   </span>
                   <span className="brand-word">Vidya-Setu</span>
                 </a>
