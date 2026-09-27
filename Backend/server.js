@@ -14,6 +14,7 @@ const academicRoutes = require('./routes/academicRoutes');
 const scholarshipRoutes = require('./routes/scholarshipRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const communityRoutes = require('./routes/communityRoutes');
+const gatePaperRoutes = require('./routes/gatePaperRoutes');
 
 const app = express();
 app.use(cookieParser());
@@ -59,6 +60,7 @@ app.use('/api/scholarships', scholarshipRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/admin-pyq', require('./routes/adminPyqRoutes'));
+app.use('/api/gate-papers', gatePaperRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

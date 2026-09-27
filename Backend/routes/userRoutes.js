@@ -42,34 +42,6 @@ setInterval(() => {
 
 const SAFE_USER_SELECT = '-password -securityAnswer -resumeBase64 -resumeText';
 
-/**
- * Retrieves aggregate platform statistics for admin dashboard.
- * @route GET /api/users/admin/stats
- * @access Private/Admin
- */
-router.get('/admin/stats', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const totalEnrolled = await require('../models/AktuStudentOtr').countDocuments();
-    const totalRegistered = await User.countDocuments();
-    const profileEditRequests = await User.countDocuments({ profileEditRequested: true });
-
-    const pendingScholarships = await require('../models/ScholarshipApplication').countDocuments({ status: 'Applied' });
-
-    const totalPendingRequests = profileEditRequests + pendingScholarships;
-
-    res.status(200).json({
-      totalEnrolled,
-      totalRegistered,
-      totalPendingRequests,
-      loginUpdateRequests: 0,
-      profileUpdateRequests: profileEditRequests,
-      otherRequests: pendingScholarships
-    });
-  } catch (error) {
-    console.error('Admin stats error:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to fetch admin stats' });
-  }
-});
 
 /**
  * Registers a new student user.
@@ -540,96 +512,8 @@ router.post('/request-profile-edit', authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * Retrieves all pending profile edit requests.
- * @route GET /api/users/admin/profile-edit-requests
- * @access Private/Admin
- */
-router.get('/admin/profile-edit-requests', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const requests = await ProfileEditRequest.find({}).populate('userId', 'name rollNo branch year email').sort({ requestedAt: -1 });
-    res.status(200).json(requests);
-  } catch (error) {
-    console.error('Fetch profile edit requests error:', error.message);
-    res.status(500).json({ success: false, message: "Failed to fetch requests" });
-  }
-});
 
-/**
- * Approves a student's profile edit request.
- * @route POST /api/users/admin/approve-profile-edit
- * @access Private/Admin
- */
-router.post('/admin/approve-profile-edit', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const { requestId } = req.body;
-    if (!requestId || !mongoose.Types.ObjectId.isValid(requestId)) {
-      return res.status(400).json({ success: false, message: "Valid request ID required" });
-    }
 
-    const editReq = await ProfileEditRequest.findById(requestId);
-    if (!editReq) return res.status(404).json({ success: false, message: "Request not found" });
-    if (editReq.status !== 'Pending') return res.status(400).json({ success: false, message: "Request is not pending" });
-
-    const user = await User.findById(editReq.userId);
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
-
-    const allowedFields = ['name', 'branch', 'year', 'mobileNumber', 'email', 'casteCategory', 'familyIncome', 'isFeeWaiver', 'domicileState', 'hasIncomeCertificate', 'course'];
-    const updatePayload = {};
-    for (const key of allowedFields) {
-      if (editReq.requestedChanges[key] !== undefined) {
-        updatePayload[key] = editReq.requestedChanges[key];
-      }
-    }
-
-    updatePayload.profileEditedOnce = false;
-    updatePayload.profileEditRequested = false;
-
-    await User.updateOne({ _id: user._id }, { $set: updatePayload });
-
-    editReq.status = 'Approved';
-    editReq.reviewedAt = new Date();
-    editReq.reviewedBy = 'Admin';
-    await editReq.save();
-
-    res.status(200).json({ success: true, message: "Profile edit approved successfully." });
-  } catch (error) {
-    console.error('Approve profile edit error:', error.message);
-    res.status(500).json({ success: false, message: "Failed to approve request" });
-  }
-});
-
-/**
- * Rejects a student's profile edit request.
- * @route POST /api/users/admin/reject-profile-edit
- * @access Private/Admin
- */
-router.post('/admin/reject-profile-edit', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const { requestId, rejectionReason } = req.body;
-    if (!rejectionReason) return res.status(400).json({ success: false, message: "Rejection reason required" });
-    if (!requestId || !mongoose.Types.ObjectId.isValid(requestId)) {
-      return res.status(400).json({ success: false, message: "Valid request ID required" });
-    }
-
-    const editReq = await ProfileEditRequest.findById(requestId);
-    if (!editReq) return res.status(404).json({ success: false, message: "Request not found" });
-    if (editReq.status !== 'Pending') return res.status(400).json({ success: false, message: "Request is not pending" });
-
-    editReq.status = 'Rejected';
-    editReq.rejectionReason = rejectionReason;
-    editReq.reviewedAt = new Date();
-    editReq.reviewedBy = 'Admin';
-    await editReq.save();
-
-    await User.updateOne({ _id: editReq.userId }, { $set: { profileEditRequested: false } });
-
-    res.status(200).json({ success: true, message: "Profile edit rejected." });
-  } catch (error) {
-    console.error('Reject profile edit error:', error.message);
-    res.status(500).json({ success: false, message: "Failed to reject request" });
-  }
-});
 
 /**
  * Updates a student's administrative status (scholarship, tokens, etc).

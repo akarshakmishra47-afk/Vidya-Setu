@@ -5,8 +5,6 @@ const Scholarship = require('../models/Scholarship');
 const ScholarshipApplication = require('../models/ScholarshipApplication');
 const User = require('../models/User');
 const ScholarshipIssue = require('../models/ScholarshipIssue');
-const AktuStudentOtr = require('../models/AktuStudentOtr');
-const AktuScholarshipApplication = require('../models/AktuScholarshipApplication');
 const { fetchAllScholarships } = require('../services/scholarships/scholarshipFetcher');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
@@ -16,30 +14,6 @@ let lastRefresh = null;
 let refreshInProgress = false;
 let autoRefreshTimer = null;
 
-// Initialize & Migrate DB on startup
-async function initializeScholarships() {
-  try {
-    if (mongoose.connection.readyState !== 1) return;
-    
-    const oldScholarships = await Scholarship.find({ source: { $exists: false } });
-    if (oldScholarships.length > 0) {
-      console.log(`[ScholarshipRoutes] Found ${oldScholarships.length} un-migrated scholarships. Migrating...`);
-      for (const old of oldScholarships) {
-        const deduplicationKey = `manual::${String(old.title).toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-        await Scholarship.findByIdAndUpdate(old._id, {
-          source: 'manual',
-          sourceId: old._id.toString(),
-          deduplicationKey,
-          status: 'active'
-        });
-      }
-      console.log('[ScholarshipRoutes] Migration complete.');
-    }
-  } catch (error) {
-    console.error('[ScholarshipRoutes] Migration error:', error);
-  }
-}
-setTimeout(initializeScholarships, 3000);
 
 // Fetch Latest Integration
 async function triggerScholarshipFetch() {
@@ -313,151 +287,5 @@ router.put('/admin/application/:id', authenticateToken, requireAdmin, async (req
   }
 });
 
-/**
- * Saves AKTU OTR (One Time Registration) data securely.
- * @route POST /api/scholarships/aktu-otr
- * @access Private
- */
-router.post('/aktu-otr', authenticateToken, async (req, res) => {
-  try {
-    const { aadhaarNumber, fullName, dob, mobileNumber, category, securityPin, otrStatus } = req.body;
-
-    if (!aadhaarNumber || typeof aadhaarNumber !== 'string' || aadhaarNumber.length !== 12) {
-      return res.status(400).json({ success: false, message: "Valid 12-digit Aadhaar number required" });
-    }
-    if (securityPin && (typeof securityPin !== 'string' || securityPin.length < 4 || securityPin.length > 20)) {
-      return res.status(400).json({ success: false, message: "Security PIN must be 4-20 characters" });
-    }
-
-    let student = await AktuStudentOtr.findOne({ aadhaarNumber });
-    
-    if (student) {
-      if (student.otrStatus) return res.status(400).json({ success: false, message: "OTR is permanently locked." });
-      
-
-      const updateData = { fullName, dob, mobileNumber, category, otrStatus };
-      if (securityPin) {
-        updateData.securityPin = await bcrypt.hash(securityPin, 10);
-      }
-      student = await AktuStudentOtr.findOneAndUpdate({ aadhaarNumber }, updateData, { new: true });
-    } else {
-      const studentId = 'AKTU' + Date.now().toString().slice(-6);
-      
-
-      const hashedPin = securityPin ? await bcrypt.hash(securityPin, 10) : undefined;
-      
-      student = new AktuStudentOtr({
-        studentId,
-        aadhaarNumber,
-        fullName,
-        dob,
-        mobileNumber,
-        category,
-        securityPin: hashedPin,
-        otrStatus
-      });
-      await student.save();
-    }
-
-
-    await User.findByIdAndUpdate(req.user.userId, {
-      aadhaarNumber,
-      dob,
-      mobileNumber,
-      casteCategory: category || 'General'
-    });
-
-
-    const safeStudent = student.toObject();
-    delete safeStudent.securityPin;
-
-    res.status(201).json({ success: true, student: safeStudent });
-  } catch (err) {
-    console.error('AKTU OTR error:', err.message);
-    res.status(500).json({ success: false, message: "Failed to save OTR data" });
-  }
-});
-
-/**
- * Saves AKTU Scholarship Application Form data.
- * @route POST /api/scholarships/aktu-application
- * @access Private
- */
-router.post('/aktu-application', authenticateToken, async (req, res) => {
-  try {
-    const { studentReference, applicationStatus, ...applicationData } = req.body;
-
-    if (!studentReference || typeof studentReference !== 'string') {
-      return res.status(400).json({ success: false, message: "Student reference required" });
-    }
-
-
-    const otr = await AktuStudentOtr.findOne({ studentId: studentReference });
-    if (!otr) return res.status(404).json({ success: false, message: "Student OTR not found" });
-
-    // Verify ownership: check if this user's aadhaar matches the OTR
-    const user = await User.findById(req.user.userId);
-    if (!user || user.aadhaarNumber !== otr.aadhaarNumber) {
-      if (!req.user.isAdmin) {
-        return res.status(403).json({ success: false, message: "Forbidden: Not your OTR record" });
-      }
-    }
-
-    let app = await AktuScholarshipApplication.findOne({ studentReference });
-
-    if (app && app.applicationStatus !== 'Draft' && app.applicationStatus !== 'Rejected_by_Institute') {
-      return res.status(400).json({ success: false, message: "Application is locked and cannot be edited." });
-    }
-
-    if (app) {
-      app = await AktuScholarshipApplication.findOneAndUpdate(
-        { studentReference }, 
-        { ...applicationData, applicationStatus, draftSavedAt: Date.now(), finalLockedAt: applicationStatus !== 'Draft' ? Date.now() : null }, 
-        { new: true }
-      );
-    } else {
-      const applicationNumber = 'UP' + new Date().getFullYear() + Date.now().toString().slice(-6);
-      app = new AktuScholarshipApplication({
-        applicationNumber,
-        studentReference,
-        applicationStatus,
-        ...applicationData
-      });
-      await app.save();
-    }
-    res.status(201).json({ success: true, application: app });
-  } catch (err) {
-    console.error('AKTU application error:', err.message);
-    res.status(500).json({ success: false, message: "Failed to save application data" });
-  }
-});
-
-/**
- * Retrieves AKTU Scholarship Application by student reference.
- * @route GET /api/scholarships/aktu-application/:studentRef
- * @access Private
- */
-router.get('/aktu-application/:studentRef', authenticateToken, async (req, res) => {
-  try {
-    const app = await AktuScholarshipApplication.findOne({ studentReference: req.params.studentRef });
-    if (!app) return res.status(200).json({ success: false });
-
-
-    if (!req.user.isAdmin) {
-      const otr = await AktuStudentOtr.findOne({ studentId: req.params.studentRef });
-      if (otr) {
-        const user = await User.findById(req.user.userId);
-        if (!user || user.aadhaarNumber !== otr.aadhaarNumber) {
-          return res.status(403).json({ success: false, message: "Forbidden: Not your application" });
-        }
-      }
-    }
-
-    res.status(200).json({ success: true, app });
-  } catch (err) {
-    console.error('AKTU application fetch error:', err.message);
-    res.status(500).json({ success: false, message: "Failed to fetch AKTU application" });
-  }
-});
 
 module.exports = router;

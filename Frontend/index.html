@@ -433,6 +433,48 @@
       width: 0;
     }
 
+    .sidebar-collapsed {
+      --sidebar-w: 80px;
+    }
+    .sidebar-collapsed .nav-label,
+    .sidebar-collapsed .sidebar-section-label,
+    .sidebar-collapsed .user-info {
+      display: none !important;
+    }
+    .sidebar-collapsed .sidebar-brand > div:nth-child(2) {
+      display: none !important;
+    }
+    .sidebar-collapsed .sidebar-nav-item {
+      justify-content: center;
+      padding: 12px;
+      margin: 0 8px;
+      width: calc(100% - 16px);
+    }
+    .sidebar-collapsed .nav-icon {
+      margin: 0;
+      font-size: 18px;
+      width: auto;
+    }
+    .sidebar-collapsed .nav-dot {
+      display: none !important;
+    }
+    .sidebar-collapsed .sidebar-brand {
+      justify-content: center;
+      padding-left: 0;
+      padding-right: 0;
+    }
+    .sidebar-collapsed .sidebar-user-card {
+      justify-content: center;
+      padding: 12px;
+    }
+    .sidebar-collapsed .sidebar-user-card > div:nth-child(2) {
+      display: none !important;
+    }
+    
+    .desktop-menu-btn {
+      display: flex;
+    }
+
     .sidebar-brand {
       display: flex;
       align-items: center;
@@ -543,9 +585,9 @@
     }
 
     .sidebar-nav-item.active {
-      background: linear-gradient(135deg, rgba(255, 79, 31, 0.16), rgba(255, 79, 31, 0.07));
+      background: rgba(255, 79, 31, 0.1);
+      border-color: rgba(255, 79, 31, 0.3);
       color: #fff;
-      border-color: rgba(255, 79, 31, 0.35);
       font-weight: 700;
     }
 
@@ -563,14 +605,6 @@
 
     .nav-label {
       flex: 1;
-    }
-
-    .nav-dot {
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: #FF4F1F;
-      flex-shrink: 0;
     }
 
     .sidebar-footer {
@@ -658,7 +692,8 @@
 
     .header-search-wrap {
       flex: 1;
-      max-width: 520px;
+      max-width: 400px;
+      margin-left: 12px;
       display: flex;
       align-items: center;
       background: #F5F5F5;
@@ -751,7 +786,7 @@
     }
 
     .screen-body {
-      padding: 36px 44px 72px;
+      padding: 36px 44px 100px;
       max-width: calc(var(--content-max) + 88px);
       margin: 0 auto;
     }
@@ -987,6 +1022,9 @@
 
       .mobile-menu-btn {
         display: flex !important;
+      }
+      .desktop-menu-btn {
+        display: none !important;
       }
 
       .mobile-bottom-nav {

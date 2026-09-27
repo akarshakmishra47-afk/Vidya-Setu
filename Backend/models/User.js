@@ -7,9 +7,6 @@ const userSchema = new mongoose.Schema({
   year: { type: String, required: true },
   email: { type: String, required: true },
   password: { type: String, required: true },
-  scholarshipStage: { type: Number, default: 1 },
-  dbt: { type: Boolean, default: false },
-  ochk: { type: Object, default: { aadhaar:false, marksheet:false } },
   appliedJobs: { type: Array, default: [] },
   claimedPerks: [{ type: String }],
   tokens: { type: Number, default: 450 },
@@ -28,15 +25,13 @@ const userSchema = new mongoose.Schema({
   domicileState: { type: String, default: '' },
   hasIncomeCertificate: { type: Boolean, default: false },
   course: { type: String, default: 'B.Tech' },
-  // Administrative fields
-  role: { type: String, enum: ['student', 'super_admin'], default: 'student' },
-  
+
   // Resume Intelligence and Links
   links: {
-    type: [{ 
-      type: { type: String }, 
-      url: String, 
-      label: String 
+    type: [{
+      type: { type: String },
+      url: String,
+      label: String
     }],
     default: []
   },

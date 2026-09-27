@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { createPortal } from 'react-dom';
 import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
 
@@ -330,16 +331,19 @@ document.head.appendChild(style);
 
     const Modal = ({ open, onClose, title, children, aboveNav }) => {
       if (!open) return null;
-      return (
+      return createPortal(
         <div className={`modal-overlay ${aboveNav ? "above-nav-overlay" : ""}`} onClick={onClose}>
-          <div className={`modal-sheet ${aboveNav ? "above-nav-sheet" : ""}`} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
+          <div className={`modal-sheet ${aboveNav ? "above-nav-sheet" : ""}`} onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', maxHeight: '85vh' }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22, flexShrink: 0 }}>
               <h3 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 20, fontWeight: 800, color: T.text }}>{title}</h3>
               <button onClick={onClose} style={{ background: "#F5F5F5", border: "1px solid #E8E8E8", color: "#999", borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s ease" }}>✕</button>
             </div>
-            {children}
+            <div style={{ overflowY: 'auto', paddingRight: '4px', flex: 1 }}>
+              {children}
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       );
     };
 
@@ -1447,7 +1451,7 @@ document.head.appendChild(style);
             <div className="screen-hero-inner">
               <span style={{ display: "inline-block", background: T.indigo + "14", color: T.indigo, border: `1px solid ${T.indigo}30`, borderRadius: 12, padding: "4px 12px", fontSize: 12, fontWeight: 700, letterSpacing: 0.5 }}>🎓 University Scholarship Portal</span>
               <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, marginTop: 12, lineHeight: 1.15, color: T.text, letterSpacing: '-0.4px' }}>Scholarship Application</h1>
-              <p style={{ color: T.muted, fontSize: 14, marginTop: 8, maxWidth: 500 }}>Fill out the official form. Your data will be securely sent to the UP Scholarship Backend.</p>
+              <p style={{ color: T.muted, fontSize: 14, marginTop: 8, maxWidth: 500 }}>Fill out the official form. Your data will be securely sent to the respective Scholarship Backend.</p>
             </div>
           </div>
 
@@ -1906,11 +1910,21 @@ document.head.appendChild(style);
       const [qLoading, setQLoading] = useState(false);
       const [viewPyqs, setViewPyqs] = useState(false);
 
+      const [gatePdfs, setGatePdfs] = useState([]);
+      const [viewGatePdfs, setViewGatePdfs] = useState(false);
+      const [pdfsLoading, setPdfsLoading] = useState(false);
+      const [pdfViewerData, setPdfViewerData] = useState(null);
+
       const [aiModalOpen, setAiModalOpen] = useState(false);
       const [aiModalTitle, setAiModalTitle] = useState("");
       const [aiModalContent, setAiModalContent] = useState("");
       const [aiActionLoading, setAiActionLoading] = useState(false);
       const [aiChatInput, setAiChatInput] = useState("");
+
+      const [pdfChatHistory, setPdfChatHistory] = useState([]);
+      const [pdfChatInput, setPdfChatInput] = useState("");
+      const [pdfChatLoading, setPdfChatLoading] = useState(false);
+      const [pdfChatOpen, setPdfChatOpen] = useState(false);
 
       const availablePapers = (filtersData.taxonomy || []).map(t => t.paper);
       const selectedPaperData = (filtersData.taxonomy || []).find(t => t.paper === selPaper);
@@ -1938,7 +1952,7 @@ document.head.appendChild(style);
       const fetchAnalytics = async () => {
         if (!selPaper || !selSub) return;
         try {
-          setALoading(true); setAErr(false); setViewPyqs(false);
+          setALoading(true); setAErr(false); setViewPyqs(false); setViewGatePdfs(false);
           const q = new URLSearchParams({ paper: selPaper, subject: selSub });
           if (selTopic) q.append('topic', selTopic);
           if (selYear) q.append('year', selYear);
@@ -1975,6 +1989,24 @@ document.head.appendChild(style);
         } catch (e) {
           alert("Failed to load questions");
         } finally { setQLoading(false); }
+      };
+
+      const fetchPdfs = async () => {
+        try {
+          setPdfsLoading(true);
+          setViewGatePdfs(true);
+          setViewPyqs(false);
+          const q = new URLSearchParams({ paperCode: selPaper === 'CS' ? 'CS' : selPaper === 'DA' ? 'DA' : selPaper === 'ECE' ? 'EC' : selPaper });
+          if (selYear) q.append('year', selYear);
+          const res = await fetch(`${API_BASE_URL}/api/gate-papers?${q.toString()}`);
+          if (!res.ok) throw new Error("Failed to fetch PDFs");
+          const data = await res.json();
+          setGatePdfs(data);
+        } catch (e) {
+          alert("Failed to load Original PDFs");
+        } finally {
+          setPdfsLoading(false);
+        }
       };
 
       const executeAiAction = async (type, extraPayload = {}) => {
@@ -2025,6 +2057,49 @@ document.head.appendChild(style);
         setAiChatInput("");
         setAiModalContent("AI is thinking...");
         executeAiAction("chat", { userMessage: msg });
+      };
+
+      const handlePdfChatSubmit = async (e) => {
+        e.preventDefault();
+        if (!pdfChatInput.trim() || pdfChatLoading) return;
+        const msg = pdfChatInput;
+        setPdfChatInput("");
+        setPdfChatHistory(prev => [...prev, { sender: 'user', text: msg }]);
+        setPdfChatLoading(true);
+
+        try {
+          const payload = {
+            type: "chat",
+            exam: selPaper,
+            subject: selSub,
+            specificTopic: selTopic,
+            stats: { totalQuestions: analytics?.totalQuestions, yearsCovered: analytics?.yearsCovered },
+            topics: analytics?.topics ? analytics.topics.map(t => ({ t: t.t, p: t.relativeFrequency })) : [],
+            userMessage: msg
+          };
+          if (user) {
+            payload.userContext = { name: user.name, branch: user.branch, semester: user.semester };
+          }
+          const res = await fetch(`${API_BASE_URL}/api/ai/exam-analyze`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const text = await res.text();
+          let data;
+          try { data = JSON.parse(text); } catch (e) { throw new Error("Invalid JSON"); }
+          if (!res.ok) throw new Error(data.error || "AI failed");
+
+          if (data.reply) {
+            setPdfChatHistory(prev => [...prev, { sender: 'ai', text: data.reply }]);
+          } else {
+            setPdfChatHistory(prev => [...prev, { sender: 'ai', text: "Error: No reply" }]);
+          }
+        } catch (err) {
+          setPdfChatHistory(prev => [...prev, { sender: 'ai', text: "Error: " + err.message }]);
+        } finally {
+          setPdfChatLoading(false);
+        }
       };
 
       const pc = p => p >= 75 ? T.rose : p >= 40 ? T.yellow : T.teal;
@@ -2141,9 +2216,45 @@ document.head.appendChild(style);
                   <button onClick={() => { setAiModalTitle("What to Study First"); setAiModalContent(""); executeAiAction("what-to-study-first"); }} style={{ background: "#fff", color: T.text, border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>✨ Tell Me What to Study First</button>
                   <button onClick={() => { setAiModalTitle("Study Plan"); setAiModalContent(""); const days = prompt("Enter duration (e.g., 7 days, 15 days):", "7 days"); if (days) executeAiAction("study-plan", { duration: days }); }} style={{ background: "#fff", color: T.text, border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>✨ Generate GATE Study Plan</button>
                   <button onClick={() => { setAiModalTitle("Practice Test"); setAiModalContent(""); const count = prompt("How many questions?", "10"); if (count) executeAiAction("practice-test", { count, difficulty: "mixed" }); }} style={{ background: "#fff", color: T.text, border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>🧪 Generate GATE Practice Test</button>
-                  <button onClick={() => { setAiModalTitle(`Ask AI About ${selPaper}`); setAiModalContent(""); setAiModalOpen(true); }} style={{ background: T.indigo, color: "#fff", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>🤖 Ask AI About This GATE Paper</button>
                   <button onClick={loadQuestions} style={{ background: "#fff", border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>View All Questions</button>
+                  <button onClick={fetchPdfs} style={{ background: "#fff", border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>📄 View Original PDFs</button>
                 </div>
+
+            {viewGatePdfs && (
+              <div className="fade-up" style={{ marginTop: 24, marginBottom: 24 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <h3 style={{ fontSize: 20, fontWeight: 800 }}>Original GATE Papers</h3>
+                  <button onClick={() => setViewGatePdfs(false)} style={{ background: T.gray, border: "none", padding: "6px 12px", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700 }}>Close</button>
+                </div>
+                {pdfsLoading ? (
+                  <div style={{ padding: 40, textAlign: "center", color: T.muted }}>Loading PDFs...</div>
+                ) : gatePdfs.length === 0 ? (
+                  <div style={{ padding: 40, textAlign: "center", color: T.muted }}>No original PDFs found for this paper/year. Try importing them in the backend.</div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                    {gatePdfs.map(pdf => (
+                      <Card key={pdf._id} style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                          <div style={{ width: 40, height: 40, background: "rgba(239,68,68,0.1)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: T.rose, flexShrink: 0 }}>
+                            <span className="material-symbols-outlined">picture_as_pdf</span>
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 15 }}>{pdf.title}</div>
+                            <div style={{ fontSize: 12, color: T.muted, marginTop: 4 }}>
+                              Year: {pdf.year} {pdf.set ? `• ${pdf.set}` : ''} • {pdf.pageCount || 0} Pages
+                            </div>
+                          </div>
+                        </div>
+                        <Btn onClick={() => {
+                          setPdfViewerData({ url: pdf.pdfUrl, title: pdf.title });
+                          setPdfChatHistory([{ sender: 'ai', text: "Welcome! Ask me any doubt about the questions you see in the PDF. Example: 'Explain question 12' or 'How do I solve the aptitude analogy question?'" }]);
+                        }} variant="secondary" style={{ width: "100%", marginTop: "auto" }}>View PDF & Ask AI</Btn>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
                 <div className="two-panel">
                   <div className="section-block">
@@ -2281,6 +2392,66 @@ document.head.appendChild(style);
               </Modal>
             )}
 
+            {pdfViewerData && (
+              <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, background: '#fff', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 24px', borderBottom: '1px solid #eee', background: '#FAFAFA' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span className="material-symbols-outlined" style={{ color: T.rose }}>picture_as_pdf</span>
+                    <h2 style={{ fontSize: 18, margin: 0, fontWeight: 700 }}>{pdfViewerData.title}</h2>
+                  </div>
+                  <button onClick={() => setPdfViewerData(null)} style={{ background: T.gray, border: "none", padding: "8px 16px", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>Close</button>
+                </div>
+                
+                <div style={{ display: 'flex', flex: 1, height: '100%' }}>
+                  <iframe src={pdfViewerData.url} style={{ width: '100%', height: '100%', border: 'none' }} title="PDF Viewer" />
+                </div>
+                
+                {pdfChatOpen ? (
+                  <div style={{ position: 'fixed', top: 120, right: 24, width: 380, height: 500, maxHeight: 'calc(100vh - 140px)', background: '#fff', borderRadius: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid #eee', zIndex: 10000 }}>
+                    <div style={{ padding: '12px 16px', background: T.indigo, color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+                      <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span>🤖</span> Ask AI About This Paper
+                      </div>
+                      <button onClick={() => setPdfChatOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 24, lineHeight: 1 }}>×</button>
+                    </div>
+                    
+                    <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 12, background: '#FAFAFA' }}>
+                      {pdfChatHistory.map((msg, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
+                          <div style={{ maxWidth: '85%', padding: '12px 16px', borderRadius: 16, borderBottomRightRadius: msg.sender === 'user' ? 4 : 16, borderBottomLeftRadius: msg.sender === 'ai' ? 4 : 16, background: msg.sender === 'user' ? T.indigo : '#fff', color: msg.sender === 'user' ? '#fff' : T.text, fontSize: 14, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                            {msg.sender === 'ai' ? safeRenderMarkdown(msg.text) : msg.text}
+                          </div>
+                        </div>
+                      ))}
+                      {pdfChatLoading && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                          <div style={{ padding: '12px 16px', borderRadius: 16, borderBottomLeftRadius: 4, background: '#fff', color: T.muted, fontSize: 14, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                            🤖 AI is typing...
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <form onSubmit={handlePdfChatSubmit} style={{ display: "flex", gap: 10, borderTop: "1px solid #eee", padding: 12, background: '#fff', flexShrink: 0 }}>
+                      <input
+                        type="text"
+                        value={pdfChatInput}
+                        onChange={(e) => setPdfChatInput(e.target.value)}
+                        placeholder="Type your doubt here..."
+                        style={{ flex: 1, padding: "10px 14px", border: "1px solid #ddd", borderRadius: 24, outline: "none", fontSize: 13 }}
+                      />
+                      <button type="submit" disabled={pdfChatLoading || !pdfChatInput.trim()} style={{ background: T.indigo, color: "#fff", border: "none", padding: "0 20px", borderRadius: 24, cursor: pdfChatLoading || !pdfChatInput.trim() ? "not-allowed" : "pointer", opacity: pdfChatLoading || !pdfChatInput.trim() ? 0.6 : 1, fontWeight: 600, fontSize: 13 }}>Send</button>
+                    </form>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => setPdfChatOpen(true)}
+                    style={{ position: 'fixed', top: 120, right: 30, background: T.indigo, color: '#fff', border: 'none', padding: '14px 24px', borderRadius: 30, fontSize: 15, fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: 10, zIndex: 10000 }}>
+                    <span>🤖</span> Ask AI
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       );
@@ -3690,7 +3861,7 @@ document.head.appendChild(style);
               <div style={{ width: 24, height: 24, background: T.orange, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                 <img src="https://www.freelogovectors.net/wp-content/uploads/2025/06/grok_logo-freelogovectors.net_-768x768.png" style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
               </div>, T.orange);
-          }} className="btn-press ai-fab" style={{ width: 54, height: 54, borderRadius: "50%", background: `linear-gradient(135deg,${T.orange} 0%,${T.orangeLt} 100%)`, color: "#fff", border: "none", fontSize: 20, boxShadow: `0 8px 28px rgba(255,79,31,0.45)`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, overflow: 'hidden' }}>
+          }} className="btn-press ai-fab" style={{ width: 54, height: 54, borderRadius: "50%", background: `linear-gradient(135deg,${T.orange} 0%,${T.orangeLt} 100%)`, color: "#fff", border: "none", fontSize: 20, boxShadow: `0 4px 16px rgba(255,79,31,0.25)`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, overflow: 'hidden' }}>
             <div style={{ width: '100%', height: '100%', background: T.orange, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <img src="https://www.freelogovectors.net/wp-content/uploads/2025/06/grok_logo-freelogovectors.net_-768x768.png" alt="Grok" style={{ width: '85%', height: '85%', objectFit: 'contain' }} />
             </div>
@@ -3751,7 +3922,7 @@ document.head.appendChild(style);
       const [showAI, setShowAI] = useState(false);
       const [aiInput, setAiInput] = useState("");
       const [aiMessages, setAiMessages] = useState([
-        { sender: "ai", text: "Hello! I am Vidya AI, trained to solve UP Scholarship and University Portal issues. What problem are you facing?" }
+        { sender: "ai", text: "Hello! I am Vidya AI, trained to solve scholarship and academic portal issues. What problem are you facing?" }
       ]);
       const [aiLoading, setAiLoading] = useState(false);
 
@@ -3771,7 +3942,7 @@ document.head.appendChild(style);
           } else if (lower.includes("suspect") || lower.includes("mismatch") || lower.includes("marks") || lower.includes("enrollment")) {
             response = "If your status is 'Suspect' due to a data mismatch, check if your high school marks and University enrollment number match exactly. You'll need to wait for the Correction Window to open, update the details, and submit a hardcopy to your college.";
           } else if (lower.includes("attendance")) {
-            response = "The UP Scholarship portal strictly requires >75% attendance. If your college mistakenly reported low attendance, get a written application signed by your HOD and submit it to the scholarship cell immediately.";
+            response = "Most scholarship portals strictly require >75% attendance. If your college mistakenly reported low attendance, get a written application signed by your HOD and submit it to the scholarship cell immediately.";
           } else if (lower.includes("server") || lower.includes("crash") || lower.includes("slow") || lower.includes("500") || lower.includes("error")) {
             response = "The official portal often experiences heavy load. I recommend trying to access it late at night (between 11 PM and 5 AM) or clearing your browser cache before trying again.";
           } else if (lower.includes("pending") || lower.includes("district") || lower.includes("dswo")) {
@@ -3828,7 +3999,7 @@ document.head.appendChild(style);
           steps: [
             ["1", "Verify Enrollment No.", "Check University ERP for your exact Enrollment Number"],
             ["2", "Check Marks", "Ensure CGPA/Percentage matches your official result"],
-            ["3", "Use Correction Window", "Wait for the official UP Scholarship correction dates"],
+            ["3", "Use Correction Window", "Wait for the official scholarship correction dates"],
             ["4", "Submit Hardcopy", "Submit the corrected printout to your college admin"]
           ]
         },
@@ -3886,9 +4057,7 @@ document.head.appendChild(style);
         setLoading(true);
         try {
           const [res1, res2, res3] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/scholarships`),
-            fetch(`${API_BASE_URL}/api/scholarships/my-applications/${user.rollNo}`),
-            fetch(`${API_BASE_URL}/api/scholarships/issues`)
+            fetch(`${API_BASE_URL}/api/scholarships`), Promise.resolve({ ok: true, json: () => Promise.resolve([]) }), fetch(`${API_BASE_URL}/api/scholarships/issues`)
           ]);
           setAllScholarships(Array.isArray(await res1.clone().json()) ? await res1.json() : []);
           if (res2.ok) setMyApplications(await res2.json());
@@ -3906,10 +4075,7 @@ document.head.appendChild(style);
         if (!applyingFor) return;
         addToast("Applying...", "Verifying Eligibility", <span className="material-symbols-outlined" style={{ fontSize: 18 }}>sync</span>, T.teal);
         try {
-          const res = await fetch(`${API_BASE_URL}/api/scholarships/apply`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rollNo: user.rollNo, scholarshipId: applyingFor._id, documents: uploadedDoc })
-          });
+          const res = { ok: true, json: async () => ({ success: true, message: 'Application submitted (Mock - Backend route removed)' }) };
           const data = await res.json();
           if (data.success) {
             setApplyingFor(null); setUploadedDoc({});
@@ -4026,7 +4192,7 @@ document.head.appendChild(style);
                     <span style={{ fontSize: 20 }}>💡</span>
                     <div>
                       <div style={{ fontWeight: 700, fontSize: 13, color: "#92400E" }}>Common Scholarship Problems</div>
-                      <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>Find step-by-step solutions for the most frequent issues students face during UP Scholarship / University form filling.</div>
+                      <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>Find step-by-step solutions for the most frequent issues students face during scholarship or university form filling.</div>
                     </div>
                   </div>
 
@@ -4289,8 +4455,15 @@ document.head.appendChild(style);
             </Modal>
           )}
           {/* VIDYA AI MODAL */}
-          <Modal open={showAI} onClose={() => setShowAI(false)} title="🤖 Chat with Vidya AI" aboveNav={true}>
-            <div style={{ display: "flex", flexDirection: "column", height: "400px" }}>
+          {showAI && activeTab === "troubleshooting" && createPortal(
+            <div style={{ position: "fixed", bottom: 90, right: 24, width: 380, maxWidth: "calc(100vw - 48px)", background: "#fff", borderRadius: 16, boxShadow: "0 10px 40px rgba(0,0,0,0.15)", zIndex: 99999, overflow: "hidden", display: "flex", flexDirection: "column", border: `1px solid ${T.border}` }}>
+              <div style={{ padding: 16, background: T.indigo, color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontWeight: 800, fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span>🤖</span> Chat with Vidya AI
+                </div>
+                <button onClick={() => setShowAI(false)} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", opacity: 0.8, fontSize: 16, display: "flex" }}>✕</button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", height: "400px", background: "#fff" }}>
               <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12, padding: "10px" }}>
                 {aiMessages.map((m, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: m.sender === "user" ? "flex-end" : "flex-start" }}>
@@ -4320,8 +4493,10 @@ document.head.appendChild(style);
                   <span className="material-symbols-outlined" style={{ fontSize: 20 }}>send</span>
                 </button>
               </div>
-            </div>
-          </Modal>
+              </div>
+            </div>,
+            document.body
+          )}
 
           {/* REPORT PROBLEM MODAL */}
           <Modal open={showReportForm} onClose={() => setShowReportForm(false)} title="Report New Scholarship Problem" aboveNav={true}>
@@ -4442,7 +4617,7 @@ document.head.appendChild(style);
     /* ── SOURCE CHIP ── */
     function SourceChip({ source }) {
       const labels = { remotive: 'Remotive', himalayas: 'Himalayas', govtRss: 'Govt Portal', hackathon: 'Hackathon', manual: 'Manual', web: 'Web' };
-      return <span style={{ fontSize: 12, color: '#6B7280', background: '#F3F4F6', borderRadius: 6, padding: '2px 7px' }}>{labels[source] || source}</span>;
+      return <span style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', color: '#6B7280', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 13 }}>travel_explore</span>{labels[source] || source}</span>;
     }
 
     /* ── JOB CARD COMPONENT ── */
@@ -4521,18 +4696,18 @@ document.head.appendChild(style);
           )}
 
           {/* Meta row */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-            {postedText && <span style={{ fontSize: 12, color: T.muted, display: 'inline-flex', alignItems: 'center', gap: 3 }}><span className="material-symbols-outlined" style={{ fontSize: 13 }}>schedule</span>{postedText}</span>}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            {postedText && <span style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', color: '#6B7280', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 13 }}>schedule</span>{postedText}</span>}
             {j.deadline && j.deadline !== 'Not specified' && j.deadline !== 'Rolling' && (
-              <span style={{ fontSize: 12, color: T.rose, display: 'inline-flex', alignItems: 'center', gap: 3 }}><span className="material-symbols-outlined" style={{ fontSize: 13 }}>event</span>{j.deadline}</span>
+              <span style={{ background: '#FFF1F2', border: '1px solid #FECDD3', color: '#E11D48', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 13 }}>event</span>{j.deadline}</span>
             )}
             <SourceChip source={j.source} />
           </div>
 
           {/* Footer */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${T.border}`, paddingTop: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: j.salary && j.salary !== 'Not specified' ? T.success : T.muted, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>
-              {j.salary || 'Salary N/A'}
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#10B981', fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>
+              {j.salary && j.salary !== 'Not specified' ? j.salary : null}
             </div>
             {hasValidUrl ? (
               <a href={j.sourceUrl || j.applyUrl} target="_blank" rel="noopener noreferrer"
@@ -4804,59 +4979,8 @@ document.head.appendChild(style);
               })}
             </div>
 
-            {/* ── ACTION BAR ── */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-              <div style={{ fontSize: 13, color: '#6B7280' }}>
-                {lastUpdated && <span>Last updated: {lastUpdated.toLocaleString()} • Auto-refreshes every 24 hours</span>}
-              </div>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                {lastRefreshResult && (
-                  <button onClick={() => setShowRefreshDetails(!showRefreshDetails)}
-                    style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 6, padding: '5px 10px', fontSize: 11, color: '#6B7280', cursor: 'pointer' }}>
-                    Last sync: +{lastRefreshResult.jobsAdded} new
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* ── REFRESH DETAILS PANEL ── */}
-            {showRefreshDetails && lastRefreshResult && (
-              <div style={{ background: '#F8FAFC', border: `1px solid ${T.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 18 }}>
-                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: T.text }}>📊 Last Refresh Statistics</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(100px,1fr))', gap: 8, marginBottom: 12 }}>
-                  {[
-                    { label: 'Added', val: lastRefreshResult.jobsAdded, c: T.success },
-                    { label: 'Duplicates', val: lastRefreshResult.duplicates, c: T.orange },
-                    { label: 'Rejected', val: lastRefreshResult.rejected, c: T.rose },
-                    { label: 'Stale Removed', val: lastRefreshResult.staleRemoved, c: T.muted }
-                  ].map(s => (
-                    <div key={s.label} style={{ textAlign: 'center', background: '#fff', borderRadius: 10, padding: '8px', border: `1px solid ${T.border}` }}>
-                      <div style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontWeight: 700, fontSize: 16, color: s.c }}>{s.val ?? '—'}</div>
-                      <div style={{ fontSize: 10, color: T.muted }}>{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-                {lastRefreshResult.sources && (
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Per-Source Statistics</div>
-                    {Object.entries(lastRefreshResult.sources).map(([name, s]) => (
-                      <div key={name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${T.border}`, fontSize: 12 }}>
-                        <span style={{ fontWeight: 600, color: T.text, textTransform: 'capitalize' }}>{name}</span>
-                        <div style={{ display: 'flex', gap: 8, color: T.muted }}>
-                          <span>fetched: <b style={{ color: T.text }}>{s.fetched}</b></span>
-                          <span>accepted: <b style={{ color: T.success }}>{s.accepted}</b></span>
-                          <span>rejected: <b style={{ color: T.rose }}>{s.rejected}</b></span>
-                          {s.error && <span style={{ color: T.rose, fontSize: 10 }}>⚠️ {s.error.substring(0, 60)}</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* ── FILTER BAR ── */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14, padding: '10px 12px', background: '#FFFFFF', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 14, padding: '14px 16px', background: '#FFFFFF', borderRadius: 8, border: '1px solid #E5E7EB' }}>
               {/* Domain */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: '1 1 140px' }}>
                 <label style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Domain</label>
@@ -4920,18 +5044,56 @@ document.head.appendChild(style);
               )}
             </div>
 
-            {/* ── TAB BAR ── */}
-            <div style={{ display: 'flex', gap: 4, marginBottom: 18, flexWrap: 'wrap' }}>
-              {TABS.map(t => (
-                <button key={t.id} onClick={() => setActiveTab(t.id)}
-                  style={{ flex: '0 0 auto', background: activeTab === t.id ? '#FFF7F5' : '#F9FAFB', color: activeTab === t.id ? '#FF4F1F' : '#6B7280', border: activeTab === t.id ? '1px solid #FF4F1F' : '1px solid #E5E7EB', borderRadius: 6, padding: '6px 11px', fontSize: 13, fontWeight: activeTab === t.id ? 700 : 500, cursor: 'pointer', transition: 'all .15s ease', display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span style={{ whiteSpace: 'nowrap' }}>{t.label}</span>
-                  <span style={{ background: activeTab === t.id ? '#FF4F1F20' : '#F3F4F6', color: activeTab === t.id ? '#FF4F1F' : '#9CA3AF', borderRadius: 10, padding: '1px 6px', fontSize: 12, fontWeight: 600 }}>
-                    {loading ? '…' : t.count}
-                  </span>
-                </button>
-              ))}
+            {/* ── ACTION BAR ── */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 13, color: '#6B7280' }}>
+                {lastUpdated && <span>Last updated: {lastUpdated.toLocaleString()} • Auto-refreshes every 24 hours</span>}
+              </div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {lastRefreshResult && (
+                  <button onClick={() => setShowRefreshDetails(!showRefreshDetails)}
+                    style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 6, padding: '5px 10px', fontSize: 11, color: '#6B7280', cursor: 'pointer' }}>
+                    Last sync: +{lastRefreshResult.jobsAdded} new
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* ── REFRESH DETAILS PANEL ── */}
+            {showRefreshDetails && lastRefreshResult && (
+              <div style={{ background: '#F8FAFC', border: `1px solid ${T.border}`, borderRadius: 14, padding: '14px 16px', marginBottom: 18 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: T.text }}>📊 Last Refresh Statistics</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(100px,1fr))', gap: 8, marginBottom: 12 }}>
+                  {[
+                    { label: 'Added', val: lastRefreshResult.jobsAdded, c: T.success },
+                    { label: 'Duplicates', val: lastRefreshResult.duplicates, c: T.orange },
+                    { label: 'Rejected', val: lastRefreshResult.rejected, c: T.rose },
+                    { label: 'Stale Removed', val: lastRefreshResult.staleRemoved, c: T.muted }
+                  ].map(s => (
+                    <div key={s.label} style={{ textAlign: 'center', background: '#fff', borderRadius: 10, padding: '8px', border: `1px solid ${T.border}` }}>
+                      <div style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontWeight: 700, fontSize: 16, color: s.c }}>{s.val ?? '—'}</div>
+                      <div style={{ fontSize: 10, color: T.muted }}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+                {lastRefreshResult.sources && (
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Per-Source Statistics</div>
+                    {Object.entries(lastRefreshResult.sources).map(([name, s]) => (
+                      <div key={name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${T.border}`, fontSize: 12 }}>
+                        <span style={{ fontWeight: 600, color: T.text, textTransform: 'capitalize' }}>{name}</span>
+                        <div style={{ display: 'flex', gap: 8, color: T.muted }}>
+                          <span>fetched: <b style={{ color: T.text }}>{s.fetched}</b></span>
+                          <span>accepted: <b style={{ color: T.success }}>{s.accepted}</b></span>
+                          <span>rejected: <b style={{ color: T.rose }}>{s.rejected}</b></span>
+                          {s.error && <span style={{ color: T.rose, fontSize: 10 }}>⚠️ {s.error.substring(0, 60)}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* ── INTERNSHIP COMPENSATION SUB-FILTER (only in Internships tab) ── */}
             {activeTab === 'internships' && (
@@ -5103,10 +5265,10 @@ document.head.appendChild(style);
       }, []);
 
       const stats = [
-        [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>school</span>, dashCounts.scholarships === null ? '…' : dashCounts.scholarships, "Scholarships"],
-        [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>diamond</span>, dashCounts.perks === null ? '…' : dashCounts.perks, "Perks"],
-        [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>shopping_cart</span>, dashCounts.items === null ? '…' : dashCounts.items, "Campus Items"],
-        [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>work</span>, dashCounts.jobs === null ? '…' : dashCounts.jobs, "Active Jobs"],
+        [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em', fontVariationSettings: "'wght' 300" }}>school</span>, dashCounts.scholarships === null ? '…' : dashCounts.scholarships, "Scholarships"],
+        [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em', fontVariationSettings: "'wght' 300" }}>diamond</span>, dashCounts.perks === null ? '…' : dashCounts.perks, "Perks"],
+        [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em', fontVariationSettings: "'wght' 300" }}>shopping_cart</span>, dashCounts.items === null ? '…' : dashCounts.items, "Campus Items"],
+        [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em', fontVariationSettings: "'wght' 300" }}>work</span>, dashCounts.jobs === null ? '…' : dashCounts.jobs, "Active Jobs"],
       ];
 
       // Calculate remaining days from the current date to that deadline dynamically
@@ -5150,7 +5312,7 @@ document.head.appendChild(style);
                   <div style={{ color: T.muted, fontSize: 10, letterSpacing: .5 }}>Student Web Portal • University Ecosystem</div>
                 </div>
               </div>
-              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 36, fontWeight: 900, lineHeight: 1.2, marginBottom: 4, color: T.text, letterSpacing: "-0.5px" }}>Hi, {user.name ? user.name.split(" ")[0] : "Dev"} </h1>
+              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 36, fontWeight: 900, lineHeight: 1.2, marginBottom: 12, color: T.text, letterSpacing: "-0.5px" }}>Hi, {user.name ? user.name.split(" ")[0] : "Dev"} </h1>
 
               <p style={{ color: T.muted, fontSize: 15 }}>{user.branch || "CSE"} • {user.year || "1st Year"} • University Lucknow</p>
               <div className="home-stats">
@@ -5170,9 +5332,9 @@ document.head.appendChild(style);
 
 
             {/* Deadline Alert */}
-            <div style={{ background: "linear-gradient(135deg,rgba(255,199,0,0.13) 0%,rgba(255,79,31,0.08) 100%)", borderRadius: 16, padding: "18px 22px", display: "flex", alignItems: "center", gap: 12, border: "1px solid rgba(245,158,11,0.30)", boxShadow: "0 2px 12px rgba(245,158,11,0.10)" }}>
+            <div style={{ background: "linear-gradient(135deg,rgba(255,199,0,0.13) 0%,rgba(255,79,31,0.08) 100%)", borderRadius: 16, padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12, border: "1px solid rgba(245,158,11,0.30)", boxShadow: "0 2px 12px rgba(245,158,11,0.10)" }}>
               <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.28)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>⚠️</div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flexShrink: 1 }}>
                 <div style={{ fontWeight: 800, fontSize: 14, color: "#92400E", fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', letterSpacing: "-0.1px" }}>Scholarship Deadline Approaching</div>
                 <div style={{ color: "#78350F", fontSize: 12, marginTop: 3, opacity: 0.82 }}>{deadlineText}</div>
               </div>
@@ -5184,9 +5346,10 @@ document.head.appendChild(style);
               <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 14, color: "#AAAAAA", letterSpacing: 1.2, textTransform: "uppercase" }}>All Modules</div>
               <div className="home-modules">
                 {mods.map(m => (
-                  <div key={m.id} className="card-hover" onClick={() => go(m.id)} style={{ background: "#FFFFFF", borderRadius: 16, padding: "20px 18px", border: "1px solid #EBEBEB", cursor: "pointer", boxShadow: "0 2px 16px rgba(0,0,0,0.05)", transition: "all .22s cubic-bezier(0.16,1,0.3,1)" }}>
+                  <div key={m.id} className="card-hover" onClick={() => go(m.id)} style={{ background: "#FFFFFF", borderRadius: 16, padding: "16px", border: "1px solid #EBEBEB", cursor: "pointer", boxShadow: "0 2px 16px rgba(0,0,0,0.05)", transition: "all .22s cubic-bezier(0.16,1,0.3,1)", position: "relative" }}>
                     <div className="icon-hover" style={{ width: 46, height: 46, borderRadius: 12, background: m.c + "14", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 12, border: `1px solid ${m.c}22`, transition: "all .2s ease" }}>{m.icon}</div>
-                    <div style={{ fontWeight: 800, fontSize: 14, color: T.text, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>{m.title}</div>
+                    <div style={{ position: 'absolute', top: 20, right: 18, color: '#C0C0C0' }}><span className="material-symbols-outlined" style={{ fontSize: 20 }}>chevron_right</span></div>
+                    <div style={{ fontWeight: 800, fontSize: 14, color: T.text, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', paddingRight: 24 }}>{m.title}</div>
                     <div style={{ color: T.muted, fontSize: 12, marginTop: 5 }}>{m.sub}</div>
                   </div>
                 ))}
@@ -5234,6 +5397,7 @@ document.head.appendChild(style);
       const [search, setSearch] = useState("");
       const [profileOpen, setProfileOpen] = useState(false);
       const [sidebarOpen, setSidebarOpen] = useState(false);
+      const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
       const [navVisible, setNavVisible] = useState(true);
       const ref = useRef(null);
 
@@ -5284,7 +5448,7 @@ document.head.appendChild(style);
           <div className={`sidebar-overlay ${sidebarOpen ? "open" : ""}`} onClick={() => setSidebarOpen(false)} />
 
           {/* ── SIDEBAR ── */}
-          <aside className={`vs-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+          <aside className={`vs-sidebar ${sidebarOpen ? "sidebar-open" : ""} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
             <div className="sidebar-brand">
               <div className="brand-logo brand-logo-enhanced" style={{ position: "relative" }}>
                 <img src="/images/logo.png" style={{ width: "100%", height: "100%", objectFit: "cover", position: "relative", zIndex: 1, borderRadius: "inherit" }} alt="Vidya-Setu Logo" />
@@ -5338,6 +5502,9 @@ document.head.appendChild(style);
             {/* Header */}
             <header className="vs-header">
               <button className="mobile-menu-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</button>
+              <button className="desktop-menu-btn" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} style={{ background: 'none', border: 'none', color: T.text, fontSize: 24, cursor: 'pointer', marginRight: 16, display: 'flex', alignItems: 'center' }}>
+                <span className="material-symbols-outlined">menu</span>
+              </button>
 
               <div className="header-logo-mobile">
                 <div className="brand-logo brand-logo-enhanced" style={{ width: 30, height: 30, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #FF4F1F, #FFC700)", boxShadow: "0 4px 12px rgba(255,79,31,0.2)" }}>
@@ -5700,1242 +5867,6 @@ document.head.appendChild(style);
       );
     }
 
-    /* ══════════════════════════════════════
-      ADMIN DASHBOARD - FULLY FUNCTIONAL
-    ══════════════════════════════════════ */
-    function AdminDashboard({ onLogout }) {
-      const [activeSection, setActiveSection] = useState("overview");
-      const [sidebarOpen, setSidebarOpen] = useState(false);
-      const [studentSearch, setStudentSearch] = useState("");
-
-      // ── LIVE DATA STATE ──
-      const [students, setStudents] = useState([]);
-      const [adminScholarships, setAdminScholarships] = useState([]);
-      const [profileEditRequests, setProfileEditRequests] = useState([]);
-      const [adminStats, setAdminStats] = useState(null);
-      const [loading, setLoading] = useState(true);
-      const addToast = useToast();
-
-      // ── JOBS MANAGEMENT STATE ──
-      const [allJobsAdmin, setAllJobsAdmin] = useState([]);
-      const [jobsLoading, setJobsLoading] = useState(false);
-      const [jobStats, setJobStats] = useState({ total: 0, paid: 0, free: 0, aktuJobs: 0, webFetched: 0, manual: 0 });
-      const [fetchingJobs, setFetchingJobs] = useState(false);
-      const [addJobForm, setAddJobForm] = useState(false);
-      const [newJob, setNewJob] = useState({ title: "", company: "", location: "", salary: "", desc: "", primaryType: "Internship", secondaryType: "Paid", isAktu: false, applyUrl: "", deadline: "", experience: "Fresher", tags: "", badge: "New ✨" });
-
-      // ── MARKETPLACE & COMMUNITY STATE ──
-      const [adminMarketplace, setAdminMarketplace] = useState([]);
-      const [adminCommunity, setAdminCommunity] = useState([]);
-
-      const ADMIN_NAV = [
-        { id: "overview", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>bar_chart</span>, label: "System Overview" },
-        { id: "students", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>school</span>, label: "Student Database" },
-
-        { id: "marketplace", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>storefront</span>, label: "Marketplace" },
-        { id: "community", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>forum</span>, label: "Community Hub" },
-        { id: "jobs", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>work</span>, label: "Jobs Management" },
-        { id: "unlocks", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>lock_open</span>, label: "Profile Unlocks" },
-      ];
-
-      // ── FETCH DATA FROM MONGODB (with timeout resilience) ──
-      const fetchWithTimeout = (url, timeoutMs = 12000) => {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-        return fetch(url, { signal: controller.signal })
-          .then(res => { clearTimeout(timer); return res; })
-          .catch(err => { clearTimeout(timer); throw err; });
-      };
-
-      const fetchRealData = async () => {
-        try {
-          const results = await Promise.allSettled([
-            fetchWithTimeout(`${API_BASE_URL}/api/users/all`),
-            fetchWithTimeout(`${API_BASE_URL}/api/scholarships/admin/all`),
-            fetchWithTimeout(`${API_BASE_URL}/api/marketplace/admin/all`),
-            fetchWithTimeout(`${API_BASE_URL}/api/community`),
-            fetchWithTimeout(`${API_BASE_URL}/api/users/admin/stats`),
-            fetchWithTimeout(`${API_BASE_URL}/api/users/admin/profile-edit-requests`)
-          ]);
-
-          const [resStudents, resApps, resMarket, resPosts, resAdminStats, resEditRequests] = results;
-
-          if (resStudents.status === 'fulfilled' && resStudents.value.ok) {
-            const data = await resStudents.value.json();
-            setStudents((data || []).filter(s => (s.email || "").toLowerCase() !== "vidyasetu@aktu.ac.in"));
-          }
-          if (resApps.status === 'fulfilled' && resApps.value.ok) setAdminScholarships(await resApps.value.json() || []);
-          if (resMarket.status === 'fulfilled' && resMarket.value.ok) setAdminMarketplace(await resMarket.value.json() || []);
-          if (resPosts.status === 'fulfilled' && resPosts.value.ok) setAdminCommunity(await resPosts.value.json() || []);
-          if (resAdminStats.status === 'fulfilled' && resAdminStats.value.ok) setAdminStats(await resAdminStats.value.json());
-          if (resEditRequests.status === 'fulfilled' && resEditRequests.value.ok) setProfileEditRequests(await resEditRequests.value.json() || []);
-
-          // Report any failures
-          const failed = results.filter(r => r.status === 'rejected').length;
-          if (failed > 0) console.warn(`Admin data: ${failed} of ${results.length} API calls failed or timed out.`);
-        } catch (err) {
-          console.error("Database connection error:", err);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      useEffect(() => {
-        fetchRealData();
-      }, []);
-
-      // ── FETCH JOBS FROM MONGODB ──
-      const loadAdminJobs = async () => {
-        setJobsLoading(true);
-        try {
-          const [jobsResult, statsResult] = await Promise.allSettled([
-            fetchWithTimeout(`${API_BASE_URL}/api/jobs`),
-            fetchWithTimeout(`${API_BASE_URL}/api/jobs/stats/summary`)
-          ]);
-          if (jobsResult.status === 'fulfilled' && jobsResult.value.ok) {
-            const data = await jobsResult.value.json();
-            setAllJobsAdmin(data.jobs || data || []);
-          }
-          if (statsResult.status === 'fulfilled' && statsResult.value.ok) setJobStats(await statsResult.value.json());
-        } catch (err) { console.error("Jobs fetch error:", err); }
-        finally { setJobsLoading(false); }
-      };
-
-      useEffect(() => { loadAdminJobs(); }, []);
-
-      // ── FETCH LATEST JOBS FROM WEB ──
-      const handleFetchLatest = async () => {
-        setFetchingJobs(true);
-        addToast("Fetching from Web…", "Syncing internship & job feeds", "🌐", T.teal);
-        try {
-          const res = await fetch(`${API_BASE_URL}/api/jobs/fetch-latest`, { method: "POST" });
-          const data = await res.json();
-          if (data.success) {
-            addToast("✅ Sync Complete!", data.message, "🚀", T.success);
-            loadAdminJobs();
-          } else { addToast("⚠️ Partial", data.error || "Some feeds failed", "⚠️", T.warn); }
-        } catch (e) { addToast("Network Error", "Backend unreachable", "❌", T.rose); }
-        finally { setFetchingJobs(false); }
-      };
-
-      // ── ADD JOB (ADMIN) ──
-      const handleAddJob = async () => {
-        if (!newJob.title || !newJob.company || !newJob.location || !newJob.salary || !newJob.desc) {
-          return addToast("Missing Fields", "Fill all required fields", "⚠️", T.warn);
-        }
-        try {
-          const payload = { ...newJob, tags: (newJob.tags || "").split(",").map(t => t.trim()).filter(Boolean), source: "manual" };
-          const res = await fetch(`${API_BASE_URL}/api/jobs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-          if (res.ok) {
-            addToast("Job Added ✅", `${newJob.title} at ${newJob.company} saved to DB`, "💼", T.success);
-            setNewJob({ title: "", company: "", location: "", salary: "", desc: "", primaryType: "Internship", secondaryType: "Paid", isAktu: false, applyUrl: "", deadline: "", experience: "Fresher", tags: "", badge: "New ✨" });
-            setAddJobForm(false);
-            loadAdminJobs();
-          } else { addToast("Error", "Failed to save job", "❌", T.rose); }
-        } catch (e) { addToast("Network Error", e.message, "❌", T.rose); }
-      };
-
-      // ── DELETE JOB (ADMIN) ──
-      const handleDeleteJob = async (id, title) => {
-        if (!window.confirm(`Delete "${title}"?`)) return;
-        try {
-          const res = await fetch(`${API_BASE_URL}/api/jobs/${id}`, { method: "DELETE" });
-          if (res.ok) {
-            addToast("Deleted", `"${title}" removed from DB`, "🗑️", T.rose);
-            setAllJobsAdmin(prev => prev.filter(j => j._id !== id));
-            loadAdminJobs();
-          }
-        } catch (e) { addToast("Error", "Delete failed", "❌", T.rose); }
-      };
-
-      // ── FUNCTIONAL APPROVAL ACTION ──
-      const handleScholarshipAction = async (appId, status) => {
-        try {
-          const res = await fetch(`${API_BASE_URL}/api/scholarships/admin/application/${appId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status })
-          });
-
-          if (res.ok) {
-            setAdminScholarships(prev => prev.map(a => a._id === appId ? { ...a, status } : a));
-            addToast(`${status} ✅`, `Application ${appId.slice(-4).toUpperCase()} updated`, status === 'Approved' ? <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>check_circle</span> : <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>cancel</span>, status === 'Approved' ? T.success : T.rose);
-          }
-        } catch (err) {
-          addToast("DB Error", "Update failed", <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>cancel</span>, T.rose);
-        }
-      };
-
-      // ── DYNAMIC COUNTERS CALCULATION ──
-      const totalCount = students.length;
-      const pendingCount = adminScholarships.filter(s => s.status === 'Applied').length;
-      const approvedCount = adminScholarships.filter(s => s.status === 'Approved').length;
-      const rejectedCount = adminScholarships.filter(s => s.status === 'Rejected').length;
-
-      const statusColor = (status) => {
-        if (status === "Approved") return T.success;
-        if (status === "Rejected") return T.rose;
-        return T.warn;
-      };
-
-      const getStatus = (stage) => {
-        const stages = ["Rejected", "Applied", "Under Review", "Approved", "Credited"];
-        return (stages[stage] || "Pending");
-      };
-
-      const handleApprove = async (rollNo) => {
-        addToast("Updating Status...", "Connecting to MongoDB", "⏳", T.teal);
-        try {
-          const res = await fetch(`${API_BASE_URL}/api/users/update-status`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ rollNo, scholarshipStage: 3 })
-          });
-          if (res.ok) {
-            setStudents(prev => prev.map(s => s.rollNo === rollNo ? { ...s, scholarshipStage: 3 } : s));
-            addToast("Approved ✓", `Student ${rollNo} verified successfully.`, "✅", T.success);
-          }
-        } catch (err) {
-          addToast("Error", "Failed to update status", "❌", T.rose);
-        }
-      };
-
-      const handleReject = async (rollNo) => {
-        if (!window.confirm("Reject this student's scholarship verification?")) return;
-        addToast("Updating Status...", "Connecting to MongoDB", "⏳", T.teal);
-        try {
-          const res = await fetch(`${API_BASE_URL}/api/users/update-status`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ rollNo, scholarshipStage: 0 })
-          });
-          if (res.ok) {
-            setStudents(prev => prev.map(s => s.rollNo === rollNo ? { ...s, scholarshipStage: 0 } : s));
-            addToast("Rejected ✕", `Student ${rollNo} verification rejected.`, "❌", T.rose);
-          }
-        } catch (err) {
-          addToast("Error", "Failed to update status", "❌", T.rose);
-        }
-      };
-
-      const handleApproveUnlock = async (requestId) => {
-        try {
-          const res = await fetch(`${API_BASE_URL}/api/users/admin/approve-profile-edit`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ requestId })
-          });
-          if (res.ok) {
-            addToast("Approved ✅", `Profile edit request approved.`, "🔓", T.success);
-            fetchRealData();
-          } else {
-            const data = await res.json();
-            addToast("Error", data.error || "Failed to approve profile edit", "❌", T.rose);
-          }
-        } catch (e) {
-          addToast("Error", "Failed to approve profile edit", "❌", T.rose);
-        }
-      };
-
-      const handleRejectUnlock = async (requestId) => {
-        const rejectionReason = window.prompt("Reason for rejection:");
-        if (rejectionReason === null) return; // User cancelled
-        try {
-          const res = await fetch(`${API_BASE_URL}/api/users/admin/reject-profile-edit`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ requestId, rejectionReason })
-          });
-          if (res.ok) {
-            addToast("Rejected ✕", `Profile edit request rejected.`, "❌", T.orange);
-            fetchRealData();
-          } else {
-            const data = await res.json();
-            addToast("Error", data.error || "Failed to reject profile edit", "❌", T.rose);
-          }
-        } catch (e) {
-          addToast("Error", "Failed to reject profile edit", "❌", T.rose);
-        }
-      };
-
-      const thStyle = { padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.8, textTransform: "uppercase", whiteSpace: "nowrap" };
-
-      // Auto-dismiss loading after 15 seconds as a safety net
-      useEffect(() => {
-        if (!loading) return;
-        const fallback = setTimeout(() => {
-          setLoading(false);
-          console.warn('Admin loading forced-dismissed after 15s timeout.');
-        }, 15000);
-        return () => clearTimeout(fallback);
-      }, [loading]);
-
-      const dbConnected = students.length > 0 || adminStats !== null;
-
-      if (loading) {
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100vh', alignItems: 'center', justifyContent: 'center', background: '#FAFAFA' }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: T.orange }} className="dots">Syncing with MongoDB</div>
-            <div style={{ fontSize: 12, color: T.muted, marginTop: 12 }}>This may take a few seconds…</div>
-          </div>
-        );
-      }
-
-      const overviewContent = (
-        <div className="fade-up">
-          <div className="screen-hero">
-            <div className="screen-hero-inner">
-              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, color: T.text }}>System Overview</h1>
-              <p style={{ color: T.muted, fontSize: 14 }}>Live management of student scholarship records.</p>
-            </div>
-          </div>
-
-          <div className="screen-body">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 28 }}>
-              {[
-                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>how_to_reg</span>, label: "Total Registered", value: adminStats?.totalRegistered || totalCount, color: T.orange },
-                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>school</span>, label: "Total Enrolled", value: adminStats?.totalEnrolled || 0, color: T.indigo },
-                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>pending_actions</span>, label: "Pending Requests", value: adminStats?.totalPendingRequests || 0, color: T.warn },
-                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>manage_accounts</span>, label: "Login/Update Req", value: adminStats?.loginUpdateRequests || 0, color: T.teal },
-                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>edit_document</span>, label: "Profile Update Req", value: adminStats?.profileUpdateRequests || 0, color: T.rose },
-                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>more_horiz</span>, label: "Other Requests", value: adminStats?.otherRequests || 0, color: T.muted },
-                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>check_circle</span>, label: "Approved Schol.", value: approvedCount, color: T.success },
-                { icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>cancel</span>, label: "Rejected", value: rejectedCount, color: T.rose },
-              ].map(stat => (
-                <Card key={stat.label} style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 28, marginBottom: 8, color: stat.color }}>{stat.icon}</div>
-                  <div style={{ fontSize: 26, fontWeight: 700, color: stat.color }}>{stat.value}</div>
-                  <div style={{ color: T.muted, fontSize: 12 }}>{stat.label}</div>
-                </Card>
-              ))}
-            </div>
-
-            <Card style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ padding: "18px 22px", borderBottom: "1px solid #EBEBEB", fontWeight: 800 }}>Recent Scholarship Applications</div>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr style={{ background: "#F8F8F8" }}>{["Reference", "Student Name", "Scholarship", "Category", "Status", "Action"].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
-                <tbody>
-                  {adminScholarships.length === 0 ? (
-                    <tr><td colSpan="6" style={{ padding: "20px", textAlign: "center", color: T.muted }}>No applications found.</td></tr>
-                  ) : adminScholarships.map((s) => (
-                    <tr key={s._id} style={{ borderTop: "1px solid #F0F0F0" }}>
-                      <td style={{ padding: "13px 16px", color: T.indigo, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>#{s._id.slice(-6).toUpperCase()}</td>
-                      <td style={{ padding: "13px 16px", fontWeight: 600 }}>{s.studentId?.name || "Deleted User"}</td>
-                      <td style={{ padding: "13px 16px", color: T.muted }}>{s.scholarshipId?.title || "Unknown"}</td>
-                      <td style={{ padding: "13px 16px" }}>{s.categoryApplied}</td>
-                      <td style={{ padding: "13px 16px" }}>
-                        <Badge color={statusColor(s.status)}>{s.status}</Badge>
-                      </td>
-                      <td style={{ padding: "13px 16px", display: "flex", gap: "6px" }}>
-                        {s.status === 'Applied' ? (
-                          <>
-                            <button onClick={() => handleScholarshipAction(s._id, 'Approved')} style={{ background: T.teal, color: "#fff", border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>Approve</button>
-                            <button onClick={() => handleScholarshipAction(s._id, 'Rejected')} style={{ background: "transparent", color: T.rose, border: `1px solid ${T.rose}`, borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>Reject</button>
-                          </>
-                        ) : (
-                          <span style={{ color: T.muted, fontSize: 12 }}>Processed</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Card>
-          </div>
-        </div>
-      );
-
-      const studentsContent = (() => {
-        const filteredStudents = students.filter(s =>
-          (s.name || "").toLowerCase().includes(studentSearch.toLowerCase()) ||
-          (s.rollNo || "").includes(studentSearch) ||
-          (s.branch || "").toLowerCase().includes(studentSearch.toLowerCase())
-        );
-
-        return (
-          <div className="fade-up">
-            <div className="screen-hero">
-              <div className="screen-hero-inner">
-                <Badge color={T.indigo}>🎓 Student Database</Badge>
-                <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, color: T.text, marginTop: 12 }}>All Student Records</h1>
-                <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Complete registry of students on the Vidya-Setu platform.</p>
-              </div>
-            </div>
-            <div className="screen-body">
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 20, marginBottom: 20 }}>
-                <Card style={{ padding: "18px 22px", flex: 1, minWidth: 280, display: "flex", alignItems: "center", gap: 14 }}>
-                  <div style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 700, color: T.indigo }}>{totalCount.toLocaleString()}</div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: T.text }}>Total Registered Students</div>
-                    <div style={{ color: T.muted, fontSize: 12, marginTop: 2 }}>Across all branches and years — University Lucknow</div>
-                  </div>
-                </Card>
-
-                {/* Student Search Bar */}
-                <div style={{ flex: 1, minWidth: 280, display: "flex", alignItems: "center", background: "#FFF", border: "1px solid #E8E8E8", borderRadius: 12, padding: "0 16px", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 20, color: "#1E3A8A", flexShrink: 0, fontWeight: 300 }}>search</span>
-                  <input
-                    type="text"
-                    placeholder="Search by name, roll no, or branch..."
-                    value={studentSearch}
-                    onChange={e => setStudentSearch(e.target.value)}
-                    style={{ border: "none", outline: "none", background: "transparent", fontSize: 14, width: "100%", padding: "16px 12px", color: T.text }}
-                  />
-                  {studentSearch && <span className="material-symbols-outlined" onClick={() => setStudentSearch("")} style={{ color: T.muted, cursor: "pointer", fontSize: 16 }}>close</span>}
-                </div>
-              </div>
-
-              <Card style={{ padding: 0, overflow: "hidden" }}>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "#F8F8F8" }}>
-                        {["Name", "Roll No.", "Branch", "Income (Annual)", "FW", "Category"].map(h => <th key={h} style={thStyle}>{h}</th>)}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredStudents.length === 0 ? (
-                        <tr>
-                          <td colSpan="6" style={{ padding: "40px 20px", textAlign: "center", color: T.muted, fontSize: 14 }}>
-                            No students match "{studentSearch}"
-                          </td>
-                        </tr>
-                      ) : filteredStudents.map((s, i) => {
-                        return (
-                          <tr key={s.rollNo} style={{ borderTop: "1px solid #F0F0F0", background: i % 2 === 0 ? "#fff" : "#FAFAFA" }}>
-                            <td style={{ padding: "13px 16px", fontWeight: 600, fontSize: 13, color: T.text }}>{s.name}</td>
-                            <td style={{ padding: "13px 16px", fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 12, color: T.muted }}>{s.rollNo}</td>
-                            <td style={{ padding: "13px 16px", fontSize: 13 }}>{s.branch || "CSE"}</td>
-                            <td style={{ padding: "13px 16px", fontSize: 13, fontWeight: 700, color: T.success }}>₹{(s.familyIncome || 0).toLocaleString()}</td>
-                            <td style={{ padding: "13px 16px", fontSize: 13 }}>{s.isFeeWaiver ? <span style={{ color: T.rose, fontWeight: 800 }}>YES</span> : "No"}</td>
-                            <td style={{ padding: "13px 16px", fontSize: 13 }}><Badge color={T.indigo}>{s.casteCategory || "Gen"}</Badge></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            </div>
-          </div>
-        );
-      })();
-
-      const approvalsContent = (
-        <div className="fade-up">
-          <div className="screen-hero">
-            <div className="screen-hero-inner">
-              <Badge color={T.indigo}>🎓 Scholarships</Badge>
-              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, color: T.text, marginTop: 12 }}>Scholarship Records</h1>
-              <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>View and manage scholarship applications.</p>
-            </div>
-          </div>
-          <div className="screen-body">
-            <Card style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ padding: "18px 22px", borderBottom: "1px solid #EBEBEB", fontWeight: 800 }}>All Applications</div>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr style={{ background: "#F8F8F8" }}>{["Reference", "Student Name", "Scholarship", "Category", "Status", "Action"].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
-                <tbody>
-                  {adminScholarships.length === 0 ? (
-                    <tr><td colSpan="6" style={{ padding: "20px", textAlign: "center", color: T.muted }}>No applications found.</td></tr>
-                  ) : adminScholarships.map((s) => (
-                    <tr key={s._id} style={{ borderTop: "1px solid #F0F0F0" }}>
-                      <td style={{ padding: "13px 16px", color: T.indigo, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>#{s._id.slice(-6).toUpperCase()}</td>
-                      <td style={{ padding: "13px 16px", fontWeight: 600 }}>{s.studentId?.name || "Deleted User"}</td>
-                      <td style={{ padding: "13px 16px", color: T.muted }}>{s.scholarshipId?.title || "Unknown"}</td>
-                      <td style={{ padding: "13px 16px" }}>{s.categoryApplied}</td>
-                      <td style={{ padding: "13px 16px" }}>
-                        <Badge color={statusColor(s.status)}>{s.status}</Badge>
-                      </td>
-                      <td style={{ padding: "13px 16px", display: "flex", gap: "6px" }}>
-                        <span style={{ color: T.muted, fontSize: 12 }}>Processed</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Card>
-          </div>
-        </div>
-      );
-
-      const unlockApprovalsContent = (() => {
-        const pendingUnlocks = profileEditRequests.filter(req => req.status === 'Pending');
-        return (
-          <div className="fade-up">
-            <div className="screen-hero">
-              <div className="screen-hero-inner">
-                <Badge color={T.indigo}>🔓 Profile Edit Requests</Badge>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
-                  <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, color: T.text, margin: 0 }}>Edit Approvals</h1>
-                  <button onClick={fetchRealData} style={{ background: "#F5F5F5", border: "1px solid #E8E8E8", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", color: T.text, display: "flex", alignItems: "center", gap: 6 }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>refresh</span>
-                    Refresh Requests
-                  </button>
-                </div>
-                <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>{pendingUnlocks.length} students requesting to edit their profiles.</p>
-              </div>
-            </div>
-            <div className="screen-body">
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {pendingUnlocks.length === 0 ? (
-                  <div style={{ padding: 60, textAlign: 'center', color: T.muted, fontSize: 16 }}>
-                    <div style={{ fontSize: 48, marginBottom: 16 }}>🛡️</div>
-                    No pending edit requests.
-                  </div>
-                ) : pendingUnlocks.map((req) => (
-                  <Card key={req._id} style={{ padding: "16px 20px" }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-                      <div style={{ width: 44, height: 44, borderRadius: 11, background: `linear-gradient(135deg,${T.indigo},${T.teal})`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 18, color: "#fff", flexShrink: 0 }}>{req.userId?.name ? req.userId.name[0] : "S"}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 16, color: T.text }}>{req.userId?.name} <span style={{ color: T.muted, fontWeight: 400 }}>({req.userId?.rollNo})</span></div>
-                        <div style={{ color: T.muted, fontSize: 13, marginTop: 2 }}>{req.userId?.branch} · {req.userId?.year} Year</div>
-
-                        {req.reason && (
-                          <div style={{ marginTop: 12, padding: "8px 12px", background: "#F9FAFB", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 13 }}>
-                            <strong style={{ color: T.text }}>Reason: </strong>
-                            <span style={{ color: T.muted }}>{req.reason}</span>
-                          </div>
-                        )}
-
-                        <div style={{ marginTop: 12 }}>
-                          <strong style={{ fontSize: 12, color: T.text, textTransform: "uppercase", letterSpacing: 0.5 }}>Requested Changes:</strong>
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
-                            {Object.entries(req.requestedChanges).map(([field, newValue]) => {
-                              const currValue = req.userId[field];
-                              if (String(currValue) === String(newValue)) return null;
-                              return (
-                                <div key={field} style={{ background: "#F3F4F6", padding: "6px 10px", borderRadius: 6, fontSize: 12, display: "flex", gap: 6, alignItems: "center", border: "1px solid #E5E7EB" }}>
-                                  <span style={{ fontWeight: 600, color: "#4B5563" }}>{field}:</span>
-                                  <span style={{ color: T.rose, textDecoration: "line-through" }}>{currValue || "Empty"}</span>
-                                  <span className="material-symbols-outlined" style={{ fontSize: 14, color: T.muted }}>arrow_forward</span>
-                                  <span style={{ color: T.success, fontWeight: 600 }}>{newValue || "Empty"}</span>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
-                        <button onClick={() => handleApproveUnlock(req._id)} style={{ background: T.indigo + "12", color: T.indigo, border: `1px solid ${T.indigo}30`, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, width: "100%", justifyContent: "center" }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>check</span>
-                          Approve
-                        </button>
-                        <button onClick={() => handleRejectUnlock(req._id)} style={{ background: T.rose + "12", color: T.rose, border: `1px solid ${T.rose}30`, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, width: "100%", justifyContent: "center" }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
-                          Reject
-                        </button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      })();
-
-      // ── JOBS MANAGEMENT PANEL ──
-      const inpStyle = { width: "100%", padding: "10px 14px", background: "#F8F8F8", border: `1.5px solid ${T.border}`, borderRadius: 10, fontSize: 13, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', color: T.text, outline: "none", transition: "border-color .18s" };
-      const jobsContent = (
-        <div className="fade-up" style={{ backgroundColor: "#F9FAFB", padding: "24px" }}>
-          <div className="screen-hero">
-            <div className="screen-hero-inner">
-              <Badge color={T.orange}>💼 Jobs & Internships DB</Badge>
-              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 28, fontWeight: 700, color: '#1F2937', marginTop: 12 }}>Jobs Management</h1>
-              <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Add, fetch, and manage all job and internship listings on the platform.</p>
-              <div style={{ display: 'flex', alignItems: 'center', marginTop: 8, color: '#6B7280', fontSize: 12 }}>
-                <span>Last updated: {new Date().toLocaleString()}</span>
-                <button onClick={handleFetchLatest} style={{ background: '#FF4F1F', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 8px', fontSize: 12, marginLeft: 8, cursor: 'pointer' }}>Refresh</button>
-              </div>
-            </div>
-          </div>
-          <div className="screen-body">
-            {/* ── STATS ROW ── */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 }}>
-              {[
-                { icon: "💼", label: "Total Listings", value: jobStats.total, color: T.orange },
-
-
-              ].map(s => (
-                <Card key={s.label} style={{ backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.08)", textAlign: "center", padding: "20px 16px" }}>
-                  <div style={{ fontSize: 26, marginBottom: 6 }}>{s.icon}</div>
-                  <div style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 24, fontWeight: 700, color: s.color }}>{s.value}</div>
-                  <div style={{ color: T.muted, fontSize: 13, fontWeight: 600, marginTop: 4 }}>{s.label}</div>
-                </Card>
-              ))}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 28 }}>
-              {[
-                { icon: "⚙️", label: "University Jobs", value: jobStats.aktuJobs, color: T.indigo },
-                { icon: "🌐", label: "Web-Fetched", value: jobStats.webFetched, color: T.teal },
-                { icon: "✍️", label: "Manually Added", value: jobStats.manual, color: T.warn },
-              ].map(s => (
-                <Card key={s.label} style={{ backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.08)", textAlign: "center", padding: "20px 16px" }}>
-                  <div style={{ fontSize: 26, marginBottom: 6 }}>{s.icon}</div>
-                  <div style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 28, fontWeight: 700, color: s.color }}>{s.value}</div>
-                  <div style={{ color: T.muted, fontSize: 13, fontWeight: 600, marginTop: 4 }}>{s.label}</div>
-                </Card>
-              ))}
-            </div>
-
-            {/* ── ACTION BUTTONS ── */}
-            <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
-              <button onClick={handleFetchLatest} disabled={fetchingJobs}
-                style={{ display: "flex", alignItems: "center", gap: 8, background: fetchingJobs ? T.teal + "18" : `linear-gradient(135deg,${T.teal},#0EA5E9)`, color: fetchingJobs ? T.teal : "#fff", border: fetchingJobs ? `1px solid ${T.teal}40` : "none", borderRadius: 12, padding: "11px 22px", fontSize: 13, fontWeight: 700, cursor: fetchingJobs ? "wait" : "pointer", boxShadow: fetchingJobs ? "none" : "0 4px 14px rgba(20,184,166,0.3)", transition: "all .2s" }}>
-                <span style={{ animation: fetchingJobs ? "spin 1s linear infinite" : "none", display: "inline-block" }}>🔄</span>
-                {fetchingJobs ? "Fetching from Web…" : "Fetch Latest from Web"}
-              </button>
-              <button onClick={() => setAddJobForm(v => !v)}
-                style={{ display: "flex", alignItems: "center", gap: 8, background: addJobForm ? T.rose + "15" : `linear-gradient(135deg,${T.orange},#FF6B3D)`, color: addJobForm ? T.rose : "#fff", border: addJobForm ? `1px solid ${T.rose}40` : "none", borderRadius: 12, padding: "11px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: addJobForm ? "none" : "0 4px 14px rgba(255,79,31,0.3)", transition: "all .2s" }}>
-                {addJobForm ? "✕ Cancel" : "＋ Add Job Manually"}
-              </button>
-            </div>
-
-            {/* ── ADD JOB FORM ── */}
-            {addJobForm && (
-              <Card style={{ marginBottom: 24, background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 18, color: T.text }}>➕ Add New Listing</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.8, textTransform: "uppercase", display: "block", marginBottom: 6 }}>Job Title *</label>
-                    <input style={inpStyle} placeholder="e.g. Software Dev Intern" value={newJob.title} onChange={e => setNewJob(p => ({ ...p, title: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.8, textTransform: "uppercase", display: "block", marginBottom: 6 }}>Company *</label>
-                    <input style={inpStyle} placeholder="e.g. TCS, Infosys" value={newJob.company} onChange={e => setNewJob(p => ({ ...p, company: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.8, textTransform: "uppercase", display: "block", marginBottom: 6 }}>Location *</label>
-                    <input style={inpStyle} placeholder="e.g. Noida / Remote" value={newJob.location} onChange={e => setNewJob(p => ({ ...p, location: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.8, textTransform: "uppercase", display: "block", marginBottom: 6 }}>Salary / Stipend *</label>
-                    <input style={inpStyle} placeholder="e.g. ₹15,000/mo or ₹5 LPA" value={newJob.salary} onChange={e => setNewJob(p => ({ ...p, salary: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.8, textTransform: "uppercase", display: "block", marginBottom: 6 }}>Type</label>
-                    <select style={{ ...inpStyle, appearance: "none" }} value={newJob.primaryType} onChange={e => setNewJob(p => ({ ...p, primaryType: e.target.value, secondaryType: e.target.value === "Internship" ? "Paid" : "Full-Time" }))}>
-                      <option>Internship</option>
-                      <option>Job</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.8, textTransform: "uppercase", display: "block", marginBottom: 6 }}>Sub-Type</label>
-                    <select style={{ ...inpStyle, appearance: "none" }} value={newJob.secondaryType} onChange={e => setNewJob(p => ({ ...p, secondaryType: e.target.value }))}>
-                      {newJob.primaryType === "Internship" ? <><option>Paid</option><option>Free</option></> : <><option>Full-Time</option><option>Part-Time</option></>}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.8, textTransform: "uppercase", display: "block", marginBottom: 6 }}>Apply URL</label>
-                    <input style={inpStyle} placeholder="https://careers.company.com" value={newJob.applyUrl} onChange={e => setNewJob(p => ({ ...p, applyUrl: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.8, textTransform: "uppercase", display: "block", marginBottom: 6 }}>Deadline</label>
-                    <input style={inpStyle} placeholder="e.g. May 30, 2026" value={newJob.deadline} onChange={e => setNewJob(p => ({ ...p, deadline: e.target.value }))} />
-                  </div>
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.8, textTransform: "uppercase", display: "block", marginBottom: 6 }}>Tags (comma-separated)</label>
-                    <input style={inpStyle} placeholder="e.g. React, Node.js, MongoDB" value={newJob.tags} onChange={e => setNewJob(p => ({ ...p, tags: e.target.value }))} />
-                  </div>
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.8, textTransform: "uppercase", display: "block", marginBottom: 6 }}>Description *</label>
-                    <textarea style={{ ...inpStyle, minHeight: 80, resize: "vertical" }} placeholder="Describe the role, requirements, perks..." value={newJob.desc} onChange={e => setNewJob(p => ({ ...p, desc: e.target.value }))} />
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <input type="checkbox" id="isAktuChk" checked={newJob.isAktu} onChange={e => setNewJob(p => ({ ...p, isAktu: e.target.checked }))} style={{ width: 16, height: 16, accentColor: T.orange }} />
-                    <label htmlFor="isAktuChk" style={{ fontSize: 13, fontWeight: 600, color: T.text, cursor: "pointer" }}>⚙️ Mark as University Engineering Job</label>
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-                  <button onClick={handleAddJob} style={{ background: `linear-gradient(135deg,${T.orange},#FF6B3D)`, color: "#fff", border: "none", borderRadius: 10, padding: "11px 24px", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(255,79,31,0.3)" }}>💾 Save to Database</button>
-                  <button onClick={() => setAddJobForm(false)} style={{ background: "#F0F0F0", color: T.muted, border: "none", borderRadius: 10, padding: "11px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-                </div>
-              </Card>
-            )}
-
-            {/* ── JOBS TABLE ── */}
-            <Card style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ padding: "16px 22px", borderBottom: "1px solid #EBEBEB", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ fontWeight: 800, fontSize: 15 }}>All Listings ({allJobsAdmin.length})</div>
-                <button onClick={loadAdminJobs} disabled={jobsLoading} style={{ background: "#F5F5F5", border: "1px solid #E8E8E8", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: T.muted }}>↺ Reload</button>
-              </div>
-              {jobsLoading ? (
-                <div style={{ padding: 40, textAlign: "center", color: T.muted }}>Loading listings…</div>
-              ) : allJobsAdmin.length === 0 ? (
-                <div style={{ padding: 40, textAlign: "center", color: T.muted }}>
-                  <div style={{ fontSize: 32, marginBottom: 10 }}>📭</div>
-                  No listings yet. Click "Fetch Latest from Web" or add manually.
-                </div>
-              ) : (
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "#F8F8F8" }}>
-                        {["Title", "Company", "Type", "Salary", "Source", "University", "Deadline", "Action"].map(h => (
-                          <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: T.muted, letterSpacing: 0.8, textTransform: "uppercase", whiteSpace: "nowrap" }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allJobsAdmin.map((j, i) => (
-                        <tr key={j._id} style={{ borderTop: "1px solid #F0F0F0", background: i % 2 === 0 ? "#fff" : "#FAFAFA" }}>
-                          <td style={{ padding: "12px 16px", fontWeight: 600, fontSize: 13, color: T.text, maxWidth: 180 }}>
-                            <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.title}</div>
-                          </td>
-                          <td style={{ padding: "12px 16px", fontSize: 12, color: T.muted }}>{j.company}</td>
-                          <td style={{ padding: "12px 16px" }}>
-                            <span style={{ background: (j.secondaryType === "Paid" ? T.success : j.secondaryType === "Free" ? T.teal : T.orange) + "15", color: j.secondaryType === "Paid" ? T.success : j.secondaryType === "Free" ? T.teal : T.orange, border: `1px solid ${j.secondaryType === "Paid" ? T.success : j.secondaryType === "Free" ? T.teal : T.orange}30`, borderRadius: 10, padding: "2px 8px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
-                              {j.primaryType} · {j.secondaryType}
-                            </span>
-                          </td>
-                          <td style={{ padding: "12px 16px", fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 12, color: T.success, fontWeight: 700 }}>{j.salary}</td>
-                          <td style={{ padding: "12px 16px", fontSize: 12 }}>{j.source === "web" ? "🌐 Web" : "✍️ Manual"}</td>
-                          <td style={{ padding: "12px 16px" }}>
-                            {j.isAktu ? <span style={{ background: T.orange + "15", color: T.orange, border: `1px solid ${T.orange}30`, borderRadius: 8, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>✓ University</span> : <span style={{ color: T.muted, fontSize: 11 }}>—</span>}
-                          </td>
-                          <td style={{ padding: "12px 16px", fontSize: 11, color: T.muted, whiteSpace: "nowrap" }}>{j.deadline || "—"}</td>
-                          <td style={{ padding: "12px 16px" }}>
-                            <div style={{ display: "flex", gap: 6 }}>
-                              {j.applyUrl && j.applyUrl !== "#" && (
-                                <a href={j.applyUrl} target="_blank" rel="noopener noreferrer" style={{ background: T.teal + "15", color: T.teal, border: `1px solid ${T.teal}30`, borderRadius: 7, padding: "5px 10px", fontSize: 11, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>View ↗</a>
-                              )}
-                              <button onClick={() => handleDeleteJob(j._id, j.title)} style={{ background: T.rose + "15", color: T.rose, border: `1px solid ${T.rose}30`, borderRadius: 7, padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Delete 🗑️</button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </Card>
-          </div>
-        </div>
-      );
-
-      // ── MARKETPLACE MANAGEMENT PANEL ──
-      const marketplaceContent = (
-        <div className="fade-up">
-          <div className="screen-hero">
-            <div className="screen-hero-inner">
-              <Badge color={T.teal}>🏪 Campus Store Moderation</Badge>
-              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, color: T.text, marginTop: 12 }}>Marketplace Listings</h1>
-              <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Track and moderate all student listings on the Bazaar.</p>
-            </div>
-          </div>
-          <div className="screen-body">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 24 }}>
-              {[
-                { label: "Total Items", value: adminMarketplace.length, color: T.indigo },
-                { label: "Active Listings", value: adminMarketplace.filter(i => i.active).length, color: T.success },
-                { label: "Sold/Removed", value: adminMarketplace.filter(i => !i.active).length, color: T.muted },
-              ].map(s => (
-                <Card key={s.label} style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 26, fontWeight: 700, color: s.color }}>{s.value}</div>
-                  <div style={{ color: T.muted, fontSize: 12 }}>{s.label}</div>
-                </Card>
-              ))}
-            </div>
-            <Card style={{ padding: 0, overflow: "hidden" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr style={{ background: "#F8F8F8" }}>{["Item", "Price", "Seller", "Status", "Action"].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
-                <tbody>
-                  {adminMarketplace.map(item => (
-                    <tr key={item._id} style={{ borderTop: "1px solid #F0F0F0" }}>
-                      <td style={{ padding: "12px 16px" }}>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>{item.title}</div>
-                        <div style={{ fontSize: 11, color: T.muted }}>{item.cat}</div>
-                      </td>
-                      <td style={{ padding: "12px 16px", color: T.success, fontWeight: 700 }}>₹{item.price}</td>
-                      <td style={{ padding: "12px 16px" }}>
-                        <div style={{ fontSize: 12 }}>{item.sellerName}</div>
-                        <div style={{ fontSize: 11, color: T.muted }}>{item.sellerRoll}</div>
-                      </td>
-                      <td style={{ padding: "12px 16px" }}><Badge color={item.active ? T.success : T.muted}>{item.active ? "Active" : "Sold"}</Badge></td>
-                      <td style={{ padding: "12px 16px" }}>
-                        <Btn variant="secondary" style={{ padding: "6px 12px", fontSize: 11 }} onClick={() => addToast("Admin Note", "Moderation handled via main Bazaar", "🛡️", T.teal)}>View Details</Btn>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Card>
-          </div>
-        </div>
-      );
-
-      // ── COMMUNITY HUB MANAGEMENT PANEL ──
-      const communityContent = (
-        <div className="fade-up">
-          <div className="screen-hero">
-            <div className="screen-hero-inner">
-              <Badge color={T.indigo}>👥 Community Moderation</Badge>
-              <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, color: T.text, marginTop: 12 }}>Forum Records</h1>
-              <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Overview of student discussions, doubts, and engagement.</p>
-            </div>
-          </div>
-          <div className="screen-body">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 24 }}>
-              {[
-                { label: "Total Posts", value: adminCommunity.length, color: T.indigo },
-                { label: "Doubts Asked", value: adminCommunity.filter(p => p.category === 'Doubt').length, color: T.orange },
-                { label: "Total Comments", value: adminCommunity.reduce((acc, p) => acc + (p.comments?.length || 0), 0), color: T.success },
-              ].map(s => (
-                <Card key={s.label} style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 26, fontWeight: 700, color: s.color }}>{s.value}</div>
-                  <div style={{ color: T.muted, fontSize: 12 }}>{s.label}</div>
-                </Card>
-              ))}
-            </div>
-            <Card style={{ padding: 0, overflow: "hidden" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr style={{ background: "#F8F8F8" }}>{["Post Title", "Author", "Category", "Replies"].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
-                <tbody>
-                  {adminCommunity.map(post => (
-                    <tr key={post._id} style={{ borderTop: "1px solid #F0F0F0" }}>
-                      <td style={{ padding: "12px 16px" }}>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>{post.title}</div>
-                        <div style={{ fontSize: 11, color: T.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>{post.content}</div>
-                      </td>
-                      <td style={{ padding: "12px 16px" }}>
-                        <div style={{ fontSize: 12 }}>{post.authorName}</div>
-                        <div style={{ fontSize: 11, color: T.muted }}>{post.authorRoll}</div>
-                      </td>
-                      <td style={{ padding: "12px 16px" }}><Badge color={T.orange}>{post.category}</Badge></td>
-                      <td style={{ padding: "12px 16px", fontWeight: 700 }}>{post.comments?.length || 0}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Card>
-          </div>
-        </div>
-      );
-
-
-      const contentMap = { overview: overviewContent, students: studentsContent, approvals: approvalsContent, marketplace: marketplaceContent, community: communityContent, jobs: jobsContent, unlocks: unlockApprovalsContent };
-
-      return (
-        <div className="vs-shell">
-          <div className={`sidebar-overlay ${sidebarOpen ? "open" : ""}`} onClick={() => setSidebarOpen(false)} />
-          <aside className={`vs-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
-            <div className="sidebar-brand">
-              <div className="brand-logo brand-logo-enhanced" style={{ position: "relative" }}>
-                <img src="/images/logo.png" style={{ width: "100%", height: "100%", objectFit: "cover", position: "relative", zIndex: 1, borderRadius: "inherit" }} alt="Vidya-Setu Logo" />
-              </div>
-              <div>
-                <div className="brand-text-name">Vidya-Setu</div>
-                <div className="brand-text-sub" style={{ color: T.orange }}>Admin Panel</div>
-              </div>
-            </div>
-
-            <nav className="sidebar-nav">
-              <div className="sidebar-section-label">Administration</div>
-              {ADMIN_NAV.map(item => {
-                const active = activeSection === item.id;
-                return (
-                  <button key={item.id} onClick={() => { setActiveSection(item.id); setSidebarOpen(false); }}
-                    className={`sidebar-nav-item ${active ? "active" : ""}`}>
-                    <span className="nav-icon">{item.icon}</span>
-                    <span className="nav-label">{item.label}</span>
-                    {active && <div className="nav-dot" />}
-                  </button>
-                );
-              })}
-            </nav>
-
-            <div className="sidebar-footer">
-              <div className="sidebar-user-card">
-                <div className="user-ava" style={{ background: "linear-gradient(135deg,#6366F1,#9B6DFF)", fontSize: 11 }}>AD</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="user-nm">Administrator</div>
-                  <div className="user-mt">vidyasetu@aktu.ac.in</div>
-                </div>
-                <span style={{ fontSize: 13 }}>🛡️</span>
-              </div>
-              <button
-                onClick={onLogout}
-                style={{ marginTop: 8, width: "100%", padding: "9px 14px", background: "rgba(239,68,68,0.10)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.18s ease" }}
-              >🚪 Log Out</button>
-            </div>
-          </aside>
-
-          <main className="vs-main">
-            <header className="vs-header">
-              <button className="mobile-menu-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</button>
-              <div className="header-logo-mobile">
-                <span style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontWeight: 900, fontSize: 14, color: T.text }}>Vidya-Setu Admin</span>
-              </div>
-              <div className="header-actions" style={{ marginLeft: "auto" }}>
-                <Badge color={T.indigo}>🛡️ Super Admin</Badge>
-                <Badge color={dbConnected ? T.success : T.warn}>{dbConnected ? "Database: Live ✨" : "⚠️ Database: Offline"}</Badge>
-              </div>
-            </header>
-            <div className="vs-content">
-              <div className="fade-up" key={activeSection}>{contentMap[activeSection]}</div>
-            </div>
-          </main>
-        </div>
-      );
-    }
-
-
-    /* ══════════════════════════════════════
-      INSTITUTE ADMIN DASHBOARD (Verification Hub)
-    ══════════════════════════════════════ */
-    function InstituteAdminDashboard({ onLogout }) {
-      const [applications, setApplications] = useState([]);
-      const [loading, setLoading] = useState(true);
-      const [selectedApp, setSelectedApp] = useState(null);
-      const [remark, setRemark] = useState("");
-      const addToast = useToast();
-
-      const openDoc = (data) => {
-        if (!data || !data.startsWith('data:')) {
-          if (data) window.open(data, '_blank');
-          return;
-        }
-        try {
-          const parts = data.split(',');
-          const contentType = parts[0].split(':')[1].split(';')[0];
-          const byteCharacters = atob(parts[1]);
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
-          const byteArray = new Uint8Array(byteNumbers);
-          const blob = new Blob([byteArray], { type: contentType });
-          const url = URL.createObjectURL(blob);
-          window.open(url, '_blank');
-        } catch (e) {
-          window.open(data, '_blank');
-        }
-      };
-
-      const fetchApplications = async () => {
-        try {
-          setLoading(true);
-          const res = await fetch(`${API_BASE_URL}/api/users/institute-applications`);
-          if (res.ok) {
-            setApplications(await res.json());
-          }
-        } catch (e) {
-          console.error(e);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      useEffect(() => {
-        fetchApplications();
-      }, []);
-
-      const handleVerify = async (status) => {
-        if (status === 'Rejected_by_Institute' && !remark.trim()) {
-          return addToast("Remark Required", "Please provide a reason for rejection.", "⚠️", T.rose);
-        }
-        try {
-          const res = await fetch(`${API_BASE_URL}/api/users/verify-application`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ applicationId: selectedApp._id, status, remark })
-          });
-          if (res.ok) {
-            addToast("Success", `Application ${status === 'Verified_by_Institute' ? 'Verified' : 'Rejected'}`, "✅", T.success);
-            setSelectedApp(null);
-            setRemark("");
-            fetchApplications();
-          }
-        } catch (e) {
-          addToast("Error", "Failed to update application", "❌", T.rose);
-        }
-      };
-
-      return (
-        <div className="vs-shell" style={{ height: '100vh', overflow: 'hidden' }}>
-          <aside className="vs-sidebar sidebar-open">
-            <div className="sidebar-brand">
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-                <div>
-                  <div className="brand-text-name">Verification Hub</div>
-                  <div className="brand-text-sub" style={{ color: T.orange }}>Institute Admin</div>
-                </div>
-                <button onClick={fetchApplications} title="Refresh Data" style={{ background: "transparent", border: "none", color: "#9CA3AF", cursor: "pointer", display: "flex", alignItems: "center", padding: 4, borderRadius: 4 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 20 }}>refresh</span>
-                </button>
-              </div>
-            </div>
-            <nav className="sidebar-nav">
-              <div className="sidebar-section-label">Verification Queue</div>
-              {loading ? <div style={{ padding: 16, color: T.muted }}>Loading...</div> : applications.map(app => (
-                <button key={app._id} onClick={() => setSelectedApp(app)}
-                  className={`sidebar-nav-item ${selectedApp?._id === app._id ? "active" : ""}`}>
-                  <span className="nav-icon"><span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>description</span></span>
-                  <div style={{ textAlign: "left", flex: 1, minWidth: 0 }}>
-                    <div className="nav-label" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{app.studentReference?.name || "Unknown"}</div>
-                    <div style={{ fontSize: 10, color: app.applicationStatus === 'Verified_by_Institute' ? T.success : app.applicationStatus === 'Rejected_by_Institute' ? T.rose : T.warn }}>
-                      {app.applicationStatus === 'Locked_by_Student' ? 'Pending Review' : app.applicationStatus.replace(/_/g, " ")}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </nav>
-            <div className="sidebar-footer">
-              <button onClick={onLogout} style={{ marginTop: 8, width: "100%", padding: "9px 14px", background: "rgba(239,68,68,0.10)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.18s ease" }}>🚪 Log Out</button>
-            </div>
-          </aside>
-
-          <main className="vs-main" style={{ display: "flex", flexDirection: "column", height: "100%", background: "#F4F7FB", overflowY: "auto" }}>
-            <header className="vs-header">
-              <h2 style={{ fontSize: 18, fontWeight: 800 }}>Student Application Verification</h2>
-            </header>
-
-            {!selectedApp ? (
-              <div style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center", color: T.muted }}>
-                Select an application from the queue to verify.
-              </div>
-            ) : (
-              <div style={{ padding: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, flex: 1, overflowY: "auto" }}>
-
-                {/* LEFT SIDE: MOCK DIGILOCKER PROFILE */}
-                <Card style={{ background: "#F0F9FF", border: "1px solid #BAE6FD" }}>
-                  <div style={{ borderBottom: "1px solid #BAE6FD", paddingBottom: 12, marginBottom: 16 }}>
-                    <h3 style={{ color: "#0284C7", fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                      <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>account_balance</span>
-                      Verified Profile (DigiLocker Mock)
-                    </h3>
-                  </div>
-
-                  <div className="grid-2">
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Aadhaar Number</div>
-                      <div style={{ fontWeight: 600 }}>{selectedApp.studentReference?.aadhaarNumber || "N/A"}</div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Mobile Number</div>
-                      <div style={{ fontWeight: 600 }}>{selectedApp.studentReference?.mobileNumber || "N/A"}</div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Date of Birth</div>
-                      <div style={{ fontWeight: 600 }}>{selectedApp.studentReference?.dob || "N/A"}</div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Full Name</div>
-                      <div style={{ fontWeight: 600 }}>{selectedApp.studentReference?.name || "N/A"}</div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Family Income</div>
-                      <div style={{ fontWeight: 600 }}>₹{selectedApp.studentReference?.familyIncome || "N/A"}</div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Category</div>
-                      <div style={{ fontWeight: 600 }}>{selectedApp.studentReference?.casteCategory || "N/A"}</div>
-                    </div>
-
-                    {/* Additional Profile Data */}
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Roll Number</div>
-                      <div style={{ fontWeight: 600 }}>{selectedApp.studentReference?.rollNo || "N/A"}</div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Course & Branch</div>
-                      <div style={{ fontWeight: 600 }}>{selectedApp.studentReference?.course || "N/A"} — {selectedApp.studentReference?.branch || "N/A"}</div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Study Year</div>
-                      <div style={{ fontWeight: 600 }}>{selectedApp.studentReference?.year || "N/A"}</div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Domicile State</div>
-                      <div style={{ fontWeight: 600 }}>{selectedApp.studentReference?.domicileState || "N/A"}</div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>TFW Status</div>
-                      <div style={{ fontWeight: 600, color: selectedApp.studentReference?.isFeeWaiver ? T.success : T.muted }}>
-                        {selectedApp.studentReference?.isFeeWaiver ? "Applied ✓" : "No"}
-                      </div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Income Cert.</div>
-                      <div style={{ fontWeight: 600, color: selectedApp.studentReference?.hasIncomeCertificate ? T.success : T.rose }}>
-                        {selectedApp.studentReference?.hasIncomeCertificate ? "Verified ✓" : "Pending ⚠️"}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* DIGILOCKER VERIFIED DOCUMENTS */}
-                  <div style={{ marginTop: 16, borderTop: "1px solid #BAE6FD", paddingTop: 16 }}>
-                    <div style={{ fontSize: 11, color: "#0284C7", textTransform: "uppercase", fontWeight: 700, marginBottom: 8 }}>DigiLocker Documents</div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {[
-                        { file: "Aadhaar_Card_Verified.pdf", pending: "Aadhaar Pending", field: "aadhaarDocument" },
-                        { file: "Class_10_Marksheet_DigiLocker.pdf", pending: "Class 10 Cert Pending", field: "class10Document" },
-                        { file: "Class_12_Marksheet.pdf", pending: "Class 12 Cert Pending", field: "class12Document" },
-                        { file: "Income_Certificate.pdf", pending: "Income Cert Pending", field: "incomeDocument" },
-                        { file: "Fee_Receipt.pdf", pending: "Fee Receipt Pending", field: "feeReceiptDocument" }
-                      ].map(doc => {
-                        const url = selectedApp.studentReference?.[doc.field];
-                        if (url) {
-                          return (
-                            <div key={doc.field} onClick={() => openDoc(url)} style={{ padding: "6px 12px", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 6, fontSize: 12, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: 14, color: T.success }}>verified</span>
-                              <span style={{ color: T.success, textDecoration: "none", fontWeight: 600 }}>{doc.file}</span>
-                            </div>
-                          );
-                        } else {
-                          return (
-                            <div key={doc.field} style={{ padding: "6px 12px", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 6, fontSize: 12, display: "flex", alignItems: "center", gap: 6, color: "#EF4444" }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>error</span>
-                              <span>{doc.pending}</span>
-                            </div>
-                          );
-                        }
-                      })}
-                    </div>
-                  </div>
-                </Card>
-
-                {/* RIGHT SIDE: SCHOLARSHIP FORM */}
-                <Card style={{ background: "#FFF", border: "1px solid #E5E7EB" }}>
-                  <div style={{ borderBottom: "1px solid #E5E7EB", paddingBottom: 12, marginBottom: 16 }}>
-                    <h3 style={{ color: T.indigo, fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                      <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>assignment</span>
-                      Scholarship Application Data
-                    </h3>
-                  </div>
-
-                  <div className="grid-2">
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Enrollment No</div>
-                      <div style={{ fontWeight: 600 }}>{selectedApp.enrollmentNumber || "N/A"}</div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Course & Branch</div>
-                      <div style={{ fontWeight: 600 }}>{selectedApp.courseName} — {selectedApp.branch}</div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>District & College</div>
-                      <div style={{ fontWeight: 600 }}>{selectedApp.districtOfCollege || "N/A"} ({selectedApp.collegeName || "N/A"})</div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Entry Mode</div>
-                      <div style={{ fontWeight: 600 }}>{selectedApp.entryMode}</div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Current Year</div>
-                      <div style={{ fontWeight: 600 }}>{selectedApp.currentYearOfStudy || "N/A"}</div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>UPTAC Roll & Rank</div>
-                      <div style={{ fontWeight: 600 }}>{selectedApp.studentReference?.jeeRoll || "N/A"} (Rank: {selectedApp.studentReference?.jeeRank || "N/A"})</div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Non-Refundable Fee</div>
-                      <div style={{ fontWeight: 600, color: T.success }}>₹{selectedApp.nonRefundableFeeAmount || "0"}</div>
-                    </div>
-                  </div>
-
-                  {/* PAST EDUCATION & CERTS */}
-                  <div style={{ marginTop: 16, borderTop: "1px solid #E5E7EB", paddingTop: 16 }}>
-                    <div className="grid-2">
-                      <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: 11, color: T.indigo, textTransform: "uppercase", fontWeight: 700 }}>10th Details</div>
-                        <div style={{ fontSize: 13, marginTop: 4 }}>
-                          <b>Board:</b> {selectedApp.highSchool?.board || "N/A"}<br />
-                          <b>Year:</b> {selectedApp.highSchool?.passingYear || "N/A"} | <b>Roll:</b> {selectedApp.highSchool?.rollNumber || "N/A"}<br />
-                          <b>Marks:</b> {selectedApp.highSchool?.marksObtained || "0"} / {selectedApp.highSchool?.totalMarks || "0"}
-                        </div>
-                      </div>
-                      <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: 11, color: T.indigo, textTransform: "uppercase", fontWeight: 700 }}>12th Details</div>
-                        <div style={{ fontSize: 13, marginTop: 4 }}>
-                          <b>Board:</b> {selectedApp.intermediate?.board || "N/A"}<br />
-                          <b>Year:</b> {selectedApp.intermediate?.passingYear || "N/A"} | <b>Roll:</b> {selectedApp.intermediate?.rollNumber || "N/A"}<br />
-                          <b>Marks:</b> {selectedApp.intermediate?.marksObtained || "0"} / {selectedApp.intermediate?.totalMarks || "0"}
-                        </div>
-                      </div>
-                      <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Income Certificate</div>
-                        <div style={{ fontSize: 13, marginTop: 4 }}>
-                          <b>No:</b> {selectedApp.incomeCertificate?.number || "N/A"}<br />
-                          <b>App:</b> {selectedApp.incomeCertificate?.applicationNumber || "N/A"}
-                        </div>
-                      </div>
-                      <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700 }}>Caste Certificate</div>
-                        <div style={{ fontSize: 13, marginTop: 4 }}>
-                          <b>No:</b> {selectedApp.casteCertificate?.number || "N/A"}<br />
-                          <b>App:</b> {selectedApp.casteCertificate?.applicationNumber || "N/A"}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ marginTop: 16, borderTop: "1px solid #E5E7EB", paddingTop: 16 }}>
-                    <div style={{ fontSize: 11, color: T.muted, textTransform: "uppercase", fontWeight: 700, marginBottom: 8 }}>Uploaded Documents</div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {selectedApp.documents && Object.keys(selectedApp.documents).length > 0 ? (
-                        Object.entries(selectedApp.documents).filter(([k, v]) => !!v).map(([key, url]) => (
-                          <div key={key} style={{ padding: "6px 12px", background: "#F3F4F6", borderRadius: 6, fontSize: 12, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} onClick={() => openDoc(url)}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>attach_file</span>
-                            <span style={{ color: T.text, textDecoration: "none" }}>{key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</span>
-                          </div>
-                        ))
-                      ) : (
-                        [
-                          { name: "Passport Photo.jpg", url: "https://avatar.iran.liara.run/public" },
-                          { name: "Income Certificate.pdf", url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf" },
-                          { name: "Tenth Marksheet.pdf", url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf" },
-                          { name: "Twelfth Marksheet.pdf", url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf" },
-                          { name: "Fee Receipt.pdf", url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf" }
-                        ].map(doc => (
-                          <div key={doc.name} style={{ padding: "6px 12px", background: "#F3F4F6", borderRadius: 6, fontSize: 12, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} onClick={() => openDoc(doc.url)}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>attach_file</span>
-                            <span style={{ color: T.text, textDecoration: "none" }}>{doc.name}</span>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-
-                  {selectedApp.applicationStatus === 'Locked_by_Student' && (
-                    <div style={{ marginTop: 24, borderTop: "1px solid #E5E7EB", paddingTop: 16 }}>
-                      <h4 style={{ fontSize: 13, marginBottom: 8 }}>Action / Verification</h4>
-                      <input
-                        type="text"
-                        placeholder="Add a remark if rejecting (e.g. Income cert is blurred)"
-                        value={remark}
-                        onChange={e => setRemark(e.target.value)}
-                        style={{ width: "100%", padding: "10px", border: "1px solid #CCC", borderRadius: 8, marginBottom: 12, fontSize: 13 }}
-                      />
-                      <div style={{ display: "flex", gap: 12 }}>
-                        <Btn onClick={() => handleVerify('Verified_by_Institute')} variant="success" style={{ flex: 1 }}>✅ Verify & Forward</Btn>
-                        <Btn onClick={() => handleVerify('Rejected_by_Institute')} variant="ghost" style={{ flex: 1, borderColor: T.rose, color: T.rose }}>❌ Reject Application</Btn>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedApp.applicationStatus !== 'Locked_by_Student' && (
-                    <div style={{ marginTop: 24, padding: 12, background: selectedApp.applicationStatus === 'Verified_by_Institute' ? "#ECFDF5" : "#FEF2F2", borderRadius: 8 }}>
-                      <div style={{ fontWeight: 700, color: selectedApp.applicationStatus === 'Verified_by_Institute' ? T.success : T.rose }}>
-                        Status: {selectedApp.applicationStatus.replace(/_/g, " ")}
-                      </div>
-                      {selectedApp.instituteRemark && (
-                        <div style={{ fontSize: 13, marginTop: 4 }}><b>Remark:</b> {selectedApp.instituteRemark}</div>
-                      )}
-                    </div>
-                  )}
-
-                </Card>
-              </div>
-            )}
-          </main>
-        </div>
-      );
-    }
-    /* ══════════════════════════════════════
-          APP WITH PROVIDERS
-        ══════════════════════════════════════ */
     function SessionWarningModal({ open, onStayLoggedIn, onLogout }) {
       if (!open) return null;
       return (
@@ -7573,15 +6504,7 @@ document.head.appendChild(style);
       // 2. Wait for session validation and splash screen ONLY if they have an active local session
       if (!splashDone || !sessionChecked) return <SplashScreen onDone={() => setSplashDone(true)} />;
 
-      if (isAdmin) {
-        return (
-          <ToastContext.Provider value={addToast}>
-            <SessionWarningModal open={showSessionWarning} onStayLoggedIn={handleStayLoggedIn} onLogout={handleLogout} />
-            <AdminDashboard onLogout={handleLogout} />
-            <ToastSystem toasts={toasts} />
-          </ToastContext.Provider>
-        );
-      }
+      
 
       return (
         <UserContext.Provider value={{ user, updateUser, refreshUser }}>
