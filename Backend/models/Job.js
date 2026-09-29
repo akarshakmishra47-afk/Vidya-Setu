@@ -66,7 +66,7 @@ const jobSchema = new mongoose.Schema({
       'Software Development', 'Web Development', 'App Development', 'AI/ML',
       'Data Science', 'Cyber Security', 'Cloud Computing', 'DevOps', 'Database',
       'Electronics', 'Embedded Systems', 'Mechanical Engineering', 'Civil Engineering',
-      'Electrical Engineering', 'UI/UX Design'
+      'Electrical Engineering', 'UI/UX Design', 'General Engineering', 'Competitive Programming', 'Other'
     ]
   },
 
@@ -99,12 +99,19 @@ const jobSchema = new mongoose.Schema({
   sourceUrl:  { type: String, default: '' },
 
   // ── Dates ─────────────────────────────────────────────────────────────────
-  postedAt:   { type: Date, default: null },
-  expiresAt:  { type: Date, default: null },
-  deadline:   { type: String, default: 'Not specified' },
+  postedAt:       { type: Date, default: null },
+  expiresAt:      { type: Date, default: null },
+  deadline:       { type: String, default: null },
+  deadlineDate:   { type: Date, default: null, index: true },
+  lastVerifiedAt: { type: Date, default: Date.now },
+
+  // ── Link Verification ─────────────────────────────────────────────────────
+  lastLinkCheckedAt: { type: Date, default: null },
+  linkStatus:        { type: String, enum: ['healthy', 'broken', 'suspicious', 'unchecked'], default: 'unchecked', index: true },
+  linkCheckError:    { type: String, default: null },
 
   // ── Other Metadata ────────────────────────────────────────────────────────
-  experience:   { type: String, default: 'Fresher' },
+  experience:   { type: String, default: 'Not specified' },
   companyLogo:  { type: String, default: '' },
   isAktu:       { type: Boolean, default: false },
 
@@ -122,7 +129,8 @@ const jobSchema = new mongoose.Schema({
   hackathonTechDomain:  { type: String, default: '' },
 
   // ── Deduplication ─────────────────────────────────────────────────────────
-  deduplicationKey: { type: String, index: true, unique: true, sparse: true, default: '' },
+  deduplicationKey:      { type: String, index: true, unique: true, sparse: true, default: '' },
+  normalizedFingerprint: { type: String, index: true, sparse: true, default: '' },
 
   // ── Scoring & Housekeeping ────────────────────────────────────────────────
   isActive:       { type: Boolean, default: true },

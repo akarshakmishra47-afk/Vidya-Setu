@@ -1,11 +1,17 @@
 /**
  * jobFetcher.js
- * Main orchestrator for the Vidya-Setu Jobs & Internships module.
+ * Main orchestrator for the Vidya-Setu Jobs, Internships & Hackathons module.
+ *
+ * Implements:
+ * - Real validation on every opportunity via validateJob
+ * - Deterministic experience and domain classification
+ * - Source-safe stale record retention (preserves valid opportunities outside top 50)
+ * - Native Date deadline expiration
+ * - Zero LLM token ingestion
+ * - Background link liveness verification trigger
  */
 
 const { fetchHackathons }     = require('./sources/hackathons/hackathonAdapter');
-
-// New Adapters
 const { fetchInternshalaJobs } = require('./sources/private/internshalaAdapter');
 const { fetchLinkedInJobs }    = require('./sources/private/linkedinAdapter');
 const { fetchUnstopJobs, fetchUnstopHackathons } = require('./sources/private/unstopAdapter');
@@ -14,9 +20,11 @@ const { fetchNaukriJobs }      = require('./sources/private/naukriAdapter');
 const { fetchAicteJobs }       = require('./sources/private/aicteAdapter');
 
 const { validateJob }         = require('./utils/jobValidator');
+const { evaluateDomain, evaluateHackathon, DOMAINS } = require('./utils/domainEvaluator');
+const { verifyJobLinksBatch } = require('./utils/linkVerifier');
 const Job = require('../../models/Job');
 
-const AUTO_REFRESH_MS = 24 * 60 * 60 * 1000; // Exactly 24 hours
+const AUTO_REFRESH_MS = 24 * 60 * 60 * 1000; // Exactly 24 hours (86,400,000 ms)
 
 let _isRefreshing   = false;
 let _lastRefreshTime  = null;
@@ -31,29 +39,40 @@ function getLastRefreshError() { return _lastRefreshError; }
 function setLastRefreshError(e){ _lastRefreshError = e; }
 function getLastSourceStats()  { return _lastSourceStats; }
 
+/**
+ * Executes a full ingestion cycle from all active sources.
+ * Validates, deduplicates, and synchronizes opportunities into MongoDB.
+ * @returns {Promise<{ stats: Object, sourceStats: Object }>}
+ */
 async function fetchLatestJobs() {
   console.log('\n🚀 [JobFetcher] Starting full fetch cycle from all sources...\n');
   const startTime = Date.now();
+  const currentFetchTime = new Date();
 
+  // Run all active adapters concurrently with isolated failure handling
   const [
-    hackathonResult, internshalaResult, linkedinResult, 
-    unstopResult, unstopHackathonsResult, indeedResult, 
+    hackathonResult, internshalaResult, linkedinResult,
+    unstopResult, unstopHackathonsResult, indeedResult,
     naukriResult, aicteResult
   ] = await Promise.all([
-    fetchHackathons().catch(e    => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
-    fetchInternshalaJobs().catch(e=> ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
-    fetchLinkedInJobs().catch(e   => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
-    fetchUnstopJobs().catch(e     => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
-    fetchUnstopHackathons().catch(e => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
-    fetchIndeedJobs().catch(e     => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
-    fetchNaukriJobs().catch(e     => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
-    fetchAicteJobs().catch(e      => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } }))
+    fetchHackathons().catch(e => ({ jobs: [], stats: { error: e.message, status: 'Error' } })),
+    fetchInternshalaJobs().catch(e => ({ jobs: [], stats: { error: e.message, status: 'Error' } })),
+    fetchLinkedInJobs().catch(e => ({ jobs: [], stats: { error: e.message, status: 'Error' } })),
+    fetchUnstopJobs().catch(e => ({ jobs: [], stats: { error: e.message, status: 'Error' } })),
+    fetchUnstopHackathons().catch(e => ({ jobs: [], stats: { error: e.message, status: 'Error' } })),
+    fetchIndeedJobs().catch(e => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
+    fetchNaukriJobs().catch(e => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } })),
+    fetchAicteJobs().catch(e => ({ jobs: [], stats: { error: e.message, status: 'Unavailable' } }))
   ]);
-  
+
   const results = {
-    hackathon: hackathonResult, internshala: internshalaResult, linkedin: linkedinResult, 
-    'Unstop Jobs/Internships': unstopResult, 'Unstop Hackathons': unstopHackathonsResult,
-    indeed: indeedResult, naukri: naukriResult, 
+    hackathon: hackathonResult,
+    internshala: internshalaResult,
+    linkedin: linkedinResult,
+    'Unstop Jobs/Internships': unstopResult,
+    'Unstop Hackathons': unstopHackathonsResult,
+    indeed: indeedResult,
+    naukri: naukriResult,
     aicte: aicteResult
   };
 
@@ -66,77 +85,62 @@ async function fetchLatestJobs() {
   for (const [sourceName, result] of Object.entries(results)) {
     const jobs = result.jobs || [];
     const stats = result.stats || { error: 'Unknown error', status: 'Failed' };
-    
+
     sourceStats[sourceName] = {
       status: stats.status || (stats.error ? 'Unavailable' : 'Working'),
       fetched: stats.fetched || 0,
-      accepted: stats.accepted || 0,
+      accepted: 0,
       rejected: stats.rejected || 0,
       inserted: 0,
       updated: 0,
       reactivated: 0,
       deactivated: 0,
       error: stats.error || null,
-      lastSuccessfulSync: !stats.error ? new Date() : null
+      lastSuccessfulSync: stats.status === 'Working' ? currentFetchTime : null
     };
 
     if (sourceStats[sourceName].status === 'Working') {
       const activeKeys = new Set();
-      const currentFetchTime = new Date();
 
-      for (const job of jobs) {
-        // Validate URL requirement: must have sourceUrl (or applyUrl fallback handled inside adapter, but prefer sourceUrl)
-        if (!job.sourceUrl && !job.applyUrl) {
-          console.log(`[JobFetcher] Rejected ${job.title} because no URL`);
-          sourceStats[sourceName].rejected++;
-          continue;
-        }
-        
-        // Reject jobs that are already expired before they even enter the DB
-        if (job.deadline && job.deadline !== 'Not specified' && new Date(job.deadline) < currentFetchTime) {
-          console.log(`[JobFetcher] Rejected ${job.title} because deadline expired: ${job.deadline}`);
+      for (const rawJob of jobs) {
+        // ── Phase 2: Centralized Validation ──
+        const validation = validateJob(rawJob, currentFetchTime);
+        if (!validation.valid) {
           sourceStats[sourceName].rejected++;
           continue;
         }
 
-        const dedupKey = job.deduplicationKey || `${job.source}::${job.sourceUrl || job.applyUrl}`;
-        activeKeys.add(dedupKey);
+        const job = validation.job;
+
+        // ── Phase 10: Flexible Domain Assignment ──
+        if (job.primaryType === 'Hackathon') {
+          if (!job.domain || job.domain === 'Unknown' || job.domain === 'Other') {
+            const hEval = evaluateHackathon(job.title, job.desc || '', job.tags || []);
+            job.domain = hEval.valid ? hEval.domain : 'Competitive Programming';
+          }
+        } else {
+          // Jobs & Internships: evaluate domain if missing
+          if (!job.domain || job.domain === 'Unknown') {
+            job.domain = evaluateDomain(job.title, job.desc || '', job.tags || []) || 'Software Development';
+          }
+        }
+
+        // Ensure domain is in the supported enum
+        if (!DOMAINS.includes(job.domain)) {
+          job.domain = job.primaryType === 'Hackathon' ? 'Competitive Programming' : 'Software Development';
+        }
+
+        activeKeys.add(job.deduplicationKey);
+        sourceStats[sourceName].accepted++;
 
         const jobData = {
           ...job,
           isActive: true,
-          fetchedAt: new Date()
+          lastVerifiedAt: currentFetchTime,
+          fetchedAt: currentFetchTime
         };
 
-        const { evaluateDomain } = require('./utils/domainEvaluator');
-        
-        // Auto-assign domain if missing from the adapter
-        if (!job.domain || job.domain === 'Unknown') {
-          job.domain = evaluateDomain(job.title, job.description || '', []);
-        }
-
-        // Add domain verification to ensure ONLY technical domains are accepted
-        if (job.domain && job.domain !== 'Unknown') {
-            const validDomains = [
-              'Software Development', 'Web Development', 'App Development', 'AI/ML',
-              'Data Science', 'Cyber Security', 'Cloud Computing', 'DevOps', 'Database',
-              'Electronics', 'Embedded Systems', 'Mechanical Engineering', 'Civil Engineering',
-              'Electrical Engineering', 'UI/UX Design'
-            ];
-            
-            if (!validDomains.includes(job.domain)) {
-                console.log(`[JobFetcher] Rejected ${job.title} because invalid domain: ${job.domain}`);
-                sourceStats[sourceName].rejected++;
-                continue;
-            }
-        } else {
-            // If even evaluateDomain couldn't classify it into a tech domain, reject it
-            console.log(`[JobFetcher] Rejected ${job.title} because domain is Unknown`);
-            sourceStats[sourceName].rejected++;
-            continue;
-        }
-
-        const existing = await Job.findOne({ deduplicationKey: dedupKey });
+        const existing = await Job.findOne({ deduplicationKey: job.deduplicationKey });
         if (existing) {
           if (!existing.isActive) {
             await Job.updateOne({ _id: existing._id }, { $set: jobData });
@@ -154,39 +158,69 @@ async function fetchLatestJobs() {
         }
       }
 
-      // Source-Safe Deactivation: deactivate any jobs from THIS source that are currently active in DB but missing from this fetch
+      // ── Phase 5: Safer Stale-Opportunity Strategy ──
       const activeKeysArray = Array.from(activeKeys);
-      console.log(`[JobFetcher] ${sourceName} - Active keys to keep: ${activeKeysArray.length}`);
-      
-      let deactivationFilter = { source: jobSourceMap(sourceName), isActive: true, deduplicationKey: { $nin: activeKeysArray } };
+      const dbSourceName = jobSourceMap(sourceName);
 
-      if (sourceName === 'Unstop Jobs/Internships') {
-        deactivationFilter.primaryType = { $in: ['Job', 'Internship'] };
-      } else if (sourceName === 'Unstop Hackathons') {
-        deactivationFilter.primaryType = 'Hackathon';
+      // Distinguish limited-search scrapers (LinkedIn, Internshala) from full feeds (HackerEarth)
+      const isLimitedScraper = ['linkedin', 'internshala'].includes(dbSourceName);
+
+      let staleFilter;
+      if (isLimitedScraper) {
+        // Only expire/deactivate listings not seen in the top 50 if they haven't been seen for 7+ days,
+        // or if their deadline has genuinely passed
+        const sevenDaysAgo = new Date(currentFetchTime.getTime() - 7 * 24 * 60 * 60 * 1000);
+        staleFilter = {
+          source: dbSourceName,
+          isActive: true,
+          deduplicationKey: { $nin: activeKeysArray },
+          $or: [
+            { lastVerifiedAt: { $lt: sevenDaysAgo } },
+            { deadlineDate: { $ne: null, $lt: currentFetchTime } },
+            { linkStatus: 'broken' }
+          ]
+        };
+      } else {
+        // For API feeds, deactivate items missing from the active batch
+        staleFilter = {
+          source: dbSourceName,
+          isActive: true,
+          deduplicationKey: { $nin: activeKeysArray }
+        };
+
+        if (sourceName === 'Unstop Jobs/Internships') {
+          staleFilter.primaryType = { $in: ['Job', 'Internship'] };
+        } else if (sourceName === 'Unstop Hackathons') {
+          staleFilter.primaryType = 'Hackathon';
+        }
       }
 
-      console.log(`[JobFetcher] Deleting stale for ${sourceName} using filter:`, JSON.stringify(deactivationFilter));
-      // Hard-delete stale jobs instead of marking them inactive
-      const staleResult = await Job.deleteMany(deactivationFilter);
-      sourceStats[sourceName].deactivated = staleResult.deletedCount;
-      totalDeactivated += staleResult.deletedCount;
+      const staleResult = await Job.updateMany(staleFilter, { $set: { isActive: false } });
+      sourceStats[sourceName].deactivated = staleResult.modifiedCount || 0;
+      totalDeactivated += staleResult.modifiedCount || 0;
     }
   }
 
-  // Handle Expiry
+  // ── Phase 4: Native Date Deadline Expiration ──
   const now = new Date();
-  const allActiveWithDeadline = await Job.find({ deadline: { $ne: 'Not specified' } });
-  let expiredCount = 0;
-  for (const j of allActiveWithDeadline) {
-    if (new Date(j.deadline) < now) {
-      await Job.deleteOne({ _id: j._id });
-      expiredCount++;
-    }
-  }
+  const expiredResult = await Job.updateMany(
+    {
+      isActive: true,
+      deadlineDate: { $ne: null, $lt: now }
+    },
+    { $set: { isActive: false } }
+  );
+  const expiredCount = expiredResult.modifiedCount || 0;
   if (expiredCount > 0) {
-    console.log(`[JobFetcher] Auto-expired ${expiredCount} past-deadline jobs/internships.`);
+    console.log(`[JobFetcher] Automatically deactivated ${expiredCount} past-deadline opportunities.`);
   }
+
+  // ── Phase 6: Trigger Background Link Verification Batch ──
+  verifyJobLinksBatch(15).then(linkStats => {
+    if (linkStats.checked > 0) {
+      console.log(`[JobFetcher] Background link audit: checked=${linkStats.checked}, healthy=${linkStats.healthy}, broken=${linkStats.broken}, suspicious=${linkStats.suspicious}`);
+    }
+  }).catch(e => console.error('[JobFetcher] Link audit error:', e.message));
 
   const elapsed = Date.now() - startTime;
   console.log(`⏱️  [JobFetcher] Fetch cycle complete in ${elapsed}ms`);
@@ -200,6 +234,7 @@ async function fetchLatestJobs() {
     elapsed
   };
 
+  // Static templates for disabled / unconfigured sources
   const disabledStatsTemplate = {
     status: 'Disabled', fetched: 0, accepted: 0, rejected: 0,
     inserted: 0, updated: 0, reactivated: 0, deactivated: 0,
@@ -219,7 +254,6 @@ async function fetchLatestJobs() {
   sourceStats['web'] = { ...disabledStatsTemplate };
   sourceStats['arbeitnow'] = { ...disabledStatsTemplate };
   sourceStats['himalayas'] = { ...disabledStatsTemplate };
-  
   sourceStats['Jobicy'] = { ...unavailableStatsTemplate };
   sourceStats['The Muse'] = { ...unavailableStatsTemplate };
 
@@ -229,7 +263,6 @@ async function fetchLatestJobs() {
 }
 
 function jobSourceMap(name) {
-  // maps our results key to the DB source enum
   const map = {
     'hackathon': 'hackathon',
     'Unstop': 'Unstop',

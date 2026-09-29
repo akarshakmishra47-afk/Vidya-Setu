@@ -211,7 +211,7 @@ async function getLiveCounts(query = {}) {
     paidInternships, freeInternships, unknownInternships,
     govtJobs, privateJobs, itJobs, engineeringJobs, fresherJobs,
     productJobs, serviceJobs,
-    remotiveCount, arbeitnowCount, himalayasCount, govtRssCount, greenhouseCount, leverCount
+    hackathonCount, internshalaCount, linkedinCount, unstopCount
   ] = await Promise.all([
     Job.countDocuments({ ...baseFilter }),
     Job.countDocuments({ ...baseFilter, primaryType: 'Internship' }),
@@ -227,12 +227,10 @@ async function getLiveCounts(query = {}) {
     Job.countDocuments({ ...baseFilter, experienceLevel: { $in: ['Fresher', 'Entry-Level'] } }),
     Job.countDocuments({ ...baseFilter, companyType: 'product' }),
     Job.countDocuments({ ...baseFilter, companyType: 'service' }),
-    Job.countDocuments({ ...buildJobFilter({}), source: 'remotive' }),
-    Job.countDocuments({ ...buildJobFilter({}), source: 'arbeitnow' }),
-    Job.countDocuments({ ...buildJobFilter({}), source: 'himalayas' }),
-    Job.countDocuments({ ...buildJobFilter({}), source: 'govtRss' }),
-    Job.countDocuments({ ...buildJobFilter({}), source: 'greenhouse' }),
-    Job.countDocuments({ ...buildJobFilter({}), source: 'lever' })
+    Job.countDocuments({ ...baseFilter, source: 'hackathon' }),
+    Job.countDocuments({ ...baseFilter, source: 'internshala' }),
+    Job.countDocuments({ ...baseFilter, source: 'linkedin' }),
+    Job.countDocuments({ ...baseFilter, source: { $regex: /^unstop$/i } })
   ]);
 
   return {
@@ -240,7 +238,7 @@ async function getLiveCounts(query = {}) {
     paidInternships, freeInternships, unknownInternships,
     govtJobs, privateJobs, itJobs, engineeringJobs, fresherJobs,
     productJobs, serviceJobs,
-    sources: { remotive: remotiveCount, arbeitnow: arbeitnowCount, himalayas: himalayasCount, govtRss: govtRssCount, greenhouse: greenhouseCount, lever: leverCount }
+    sources: { hackathon: hackathonCount, internshala: internshalaCount, linkedin: linkedinCount, Unstop: unstopCount }
   };
 }
 
@@ -250,7 +248,7 @@ async function getLiveCounts(query = {}) {
 function startAutoRefresh() {
   if (isAutoRefreshRunning) return;
   isAutoRefreshRunning = true;
-  console.log(`⏰ [AutoRefresh] Enabled — interval: ${AUTO_REFRESH_MS / 3600000} minutes`);
+  console.log(`⏰ [AutoRefresh] Enabled — interval: ${AUTO_REFRESH_MS / 3600000} hours`);
 
   // Immediate first fetch
   performJobRefresh().catch(err => console.error('[AutoRefresh] Initial fetch error:', err.message));
@@ -479,6 +477,45 @@ router.post('/', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 /**
+ * Retrieves statistics on link validity for active jobs.
+ * @route GET /api/jobs/link-stats
+ * @access Public
+ */
+router.get('/link-stats', async (req, res) => {
+  try {
+    const [healthy, broken, suspicious, unchecked] = await Promise.all([
+      Job.countDocuments({ linkStatus: 'healthy' }),
+      Job.countDocuments({ linkStatus: 'broken' }),
+      Job.countDocuments({ linkStatus: 'suspicious' }),
+      Job.countDocuments({ linkStatus: 'unchecked' })
+    ]);
+    res.status(200).json({
+      success: true,
+      links: { healthy, broken, suspicious, unchecked }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to get link stats' });
+  }
+});
+
+/**
+ * Manually triggers a batch link verification.
+ * @route POST /api/jobs/verify-links
+ * @access Private/Admin
+ */
+router.post('/verify-links', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { verifyJobLinksBatch } = require('../services/jobs/utils/linkVerifier');
+    const limit = parseInt(req.body.limit) || 20;
+    const stats = await verifyJobLinksBatch(limit);
+    res.status(200).json({ success: true, stats });
+  } catch (err) {
+    console.error('[POST /api/jobs/verify-links] Error:', err.message);
+    res.status(500).json({ success: false, message: 'Link verification failed' });
+  }
+});
+
+/**
  * Retrieves a single job by ID.
  * @route GET /api/jobs/:id
  * @access Public
@@ -513,8 +550,6 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to delete job' });
   }
 });
-
-
 module.exports = router;
 module.exports.initializeJobRefresh = initializeJobRefresh;
 module.exports.stopAutoRefresh = stopAutoRefresh;

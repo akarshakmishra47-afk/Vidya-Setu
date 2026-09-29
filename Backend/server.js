@@ -1,4 +1,5 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const dns = require('dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
@@ -33,18 +34,18 @@ const ALLOWED_ORIGINS = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    const envOrigin = process.env.FRONTEND_URL;
-    if (envOrigin) {
-      if (origin === envOrigin) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    } else if (!origin || ALLOWED_ORIGINS.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    // Allow requests with no origin (e.g. direct browser visits, curl, Postman, server-to-server)
+    if (!origin) {
+      return callback(null, true);
     }
+    const envOrigin = process.env.FRONTEND_URL;
+    if (envOrigin && origin === envOrigin) {
+      return callback(null, true);
+    }
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      return callback(null, true);
+    }
+    callback(new Error('Not allowed by CORS'));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true

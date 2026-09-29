@@ -3,13 +3,16 @@
  * Source adapter for HackerEarth API (https://www.hackerearth.com/api/events/upcoming/)
  * Free public API for upcoming hackathons/events.
  *
- * Filters for India-based opportunities (if specified, otherwise assumes online/accessible).
- * Normalizes into the unified Job schema.
+ * Normalizes upcoming hackathons into the unified Job schema with proper
+ * event dates, clean URLs, and flexible technical classification.
  */
 
+const crypto = require('crypto');
 const { httpGet, safeParseJson } = require('../../utils/httpClient');
-const { generateDeduplicationKey } = require('../../utils/deduplicator');
+const { cleanUrl, generateDeduplicationKey, generateFingerprint } = require('../../utils/deduplicator');
 const { classifyBranch } = require('../../utils/branchClassifier');
+const { evaluateHackathon } = require('../../utils/domainEvaluator');
+const { parseDate } = require('../../utils/dateParser');
 
 const SOURCE_NAME = 'hackathon';
 const API_URL = 'https://www.hackerearth.com/api/events/upcoming/';
@@ -20,19 +23,28 @@ const API_URL = 'https://www.hackerearth.com/api/events/upcoming/';
 function normalizeHackathon(event) {
   const title = (event.title || '').substring(0, 200).trim();
   const desc = (event.description || '').substring(0, 800).trim();
-  const applyUrl = event.url || event.subscribe || '';
-  
-  const crypto = require('crypto');
-  const rawId = applyUrl ? crypto.createHash('md5').update(applyUrl).digest('hex') : title.replace(/\s+/g, '-').toLowerCase();
+  const applyUrl = cleanUrl(event.url || event.subscribe || '');
+
+  const rawId = applyUrl
+    ? crypto.createHash('md5').update(applyUrl).digest('hex')
+    : title.replace(/\s+/g, '-').toLowerCase();
   const sourceId = `hackerearth_${rawId}`;
-  
+
   const branch = classifyBranch(title, desc);
-  const startDate = event.start_timestamp ? new Date(event.start_utc_tz || event.start_timestamp) : null;
-  const endDate = event.end_timestamp ? new Date(event.end_utc_tz || event.end_timestamp) : null;
-  
-  // Check location if any, usually hackerearth is online.
+  const hackEvaluation = evaluateHackathon(title, desc, ['Hackathon', 'Competitive Programming']);
+  const domain = hackEvaluation.valid ? hackEvaluation.domain : 'Competitive Programming';
+
+  const startDate = parseDate(event.start_utc_tz || event.start_timestamp);
+  const endDate = parseDate(event.end_utc_tz || event.end_timestamp) || parseDate(event.end_date);
+
+  const now = new Date();
+  // If hackathon already concluded, return null to omit
+  if (endDate && endDate < now) {
+    return null;
+  }
+
+  const deadline = endDate ? endDate.toISOString().split('T')[0] : (event.end_date || null);
   const location = 'Remote / Online';
-  const indiaRegion = 'Other';
 
   return {
     title,
@@ -40,39 +52,42 @@ function normalizeHackathon(event) {
     location,
     salary: 'Not specified',
     badge: '🏆 Hackathon',
-    tags: ['Hackathon', 'Competitive Programming'],
+    tags: ['Hackathon', 'Competitive Programming', branch].filter(Boolean),
     desc,
     primaryType: 'Hackathon',
-    secondaryType: 'Unknown',
+    secondaryType: 'Online',
     category: 'Hackathon',
     govtCategory: 'Unknown',
     branch,
-    experienceLevel: 'Unknown',
+    domain,
+    experienceLevel: 'Fresher',
+    experience: 'Open to Students & Developers',
     companyType: 'unknown',
     applyUrl,
     source: SOURCE_NAME,
     sourceId,
-    sourceUrl: 'https://www.hackerearth.com',
-    postedAt: new Date(), // They don't give a posted date
+    sourceUrl: applyUrl || 'https://www.hackerearth.com',
+    postedAt: new Date(),
     expiresAt: endDate,
-    deadline: event.end_date || 'Check official notification',
-    experience: 'Fresher to Experienced',
+    deadline,
+    deadlineDate: endDate,
     companyLogo: event.thumbnail || event.cover_image || '',
     isAktu: false,
-    isIndiaLocation: true, // Assuming accessible from India
-    indiaRegion,
-    
+    isIndiaLocation: true,
+    indiaRegion: 'Other',
+
     // Hackathon specific fields
     hackathonOrganizer: 'HackerEarth',
     hackathonStartDate: startDate,
     hackathonEndDate: endDate,
-    hackathonRegistrationDeadline: startDate, // Usually starts when hackathon starts
-    hackathonEligibility: 'Open to all',
+    hackathonRegistrationDeadline: startDate || endDate,
+    hackathonEligibility: 'Open to all students & developers',
     hackathonMode: 'Online',
-    hackathonTechDomain: branch,
-    
-    deduplicationKey: generateDeduplicationKey(SOURCE_NAME, sourceId, title, 'HackerEarth (Organizer)', applyUrl),
-    relevanceScore: 0
+    hackathonTechDomain: domain,
+
+    deduplicationKey: generateDeduplicationKey(SOURCE_NAME, sourceId, title, 'HackerEarth', applyUrl),
+    normalizedFingerprint: generateFingerprint(title, 'HackerEarth', location, 'Hackathon'),
+    relevanceScore: 10
   };
 }
 
@@ -82,16 +97,17 @@ function normalizeHackathon(event) {
 async function fetchHackathons() {
   const stats = {
     fetched: 0, accepted: 0, rejected: 0, duplicates: 0,
-    error: null, url: API_URL
+    error: null, status: 'Working', url: API_URL
   };
 
   try {
     console.log(`[Hackathons] Fetching from ${API_URL}`);
     const body = await httpGet(API_URL, { timeout: 15000, retries: 2 });
-    
+
     const data = safeParseJson(body);
     if (!data || !Array.isArray(data.response)) {
       stats.error = 'API returned non-JSON response or missing response array';
+      stats.status = 'Error';
       console.warn('[Hackathons] Invalid HackerEarth response');
       return { jobs: [], stats };
     }
@@ -105,7 +121,7 @@ async function fetchHackathons() {
         stats.rejected++;
         continue;
       }
-      
+
       if (!event.title) {
         stats.rejected++;
         continue;
@@ -113,6 +129,11 @@ async function fetchHackathons() {
 
       try {
         const normalized = normalizeHackathon(event);
+        if (!normalized) {
+          // Ended or invalid
+          stats.rejected++;
+          continue;
+        }
         accepted.push(normalized);
       } catch (e) {
         console.warn(`[Hackathons] Normalization error for event ${event.title}: ${e.message}`);
@@ -126,6 +147,7 @@ async function fetchHackathons() {
 
   } catch (err) {
     stats.error = err.message;
+    stats.status = 'Error';
     console.error(`[Hackathons] Error: ${err.message}`);
     return { jobs: [], stats };
   }

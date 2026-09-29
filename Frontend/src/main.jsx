@@ -4616,7 +4616,19 @@ document.head.appendChild(style);
 
     /* ── SOURCE CHIP ── */
     function SourceChip({ source }) {
-      const labels = { remotive: 'Remotive', himalayas: 'Himalayas', govtRss: 'Govt Portal', hackathon: 'Hackathon', manual: 'Manual', web: 'Web' };
+      const labels = {
+        remotive: 'Remotive',
+        himalayas: 'Himalayas',
+        govtRss: 'Govt Portal',
+        hackathon: 'HackerEarth',
+        manual: 'Manual',
+        web: 'Web',
+        internshala: 'Internshala',
+        linkedin: 'LinkedIn',
+        Unstop: 'Unstop',
+        unstop: 'Unstop',
+        aicte: 'AICTE'
+      };
       return <span style={{ background: '#F3F4F6', border: '1px solid #E5E7EB', color: '#6B7280', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 13 }}>travel_explore</span>{labels[source] || source}</span>;
     }
 
@@ -4681,6 +4693,9 @@ document.head.appendChild(style);
             {internTag && <span style={{ background: '#F3F4F6', color: T.muted, border: `1px solid ${T.border}`, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 }}>{internTag}</span>}
             <span style={{ background: '#F3F4F6', color: T.muted, border: `1px solid ${T.border}`, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 }}>{j.domain || 'All Domains'}</span>
             <ExpBadge level={j.experienceLevel} />
+            {j.experience && j.experience !== 'Not specified' && j.experience !== 'Unknown' && j.experience !== 'Fresher' && j.experience !== j.experienceLevel && (
+              <span style={{ background: '#F3F4F6', color: '#4B5563', border: '1px solid #E5E7EB', borderRadius: 6, padding: '2px 7px', fontSize: 12, fontWeight: 600 }}>{j.experience}</span>
+            )}
           </div>
 
           {/* Description */}
@@ -4702,6 +4717,11 @@ document.head.appendChild(style);
               <span style={{ background: '#FFF1F2', border: '1px solid #FECDD3', color: '#E11D48', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 13 }}>event</span>{j.deadline}</span>
             )}
             <SourceChip source={j.source} />
+            {j.lastVerifiedAt && (
+              <span title={`Live Verified: ${new Date(j.lastVerifiedAt).toLocaleString()}`} style={{ fontSize: 11, color: '#059669', display: 'inline-flex', alignItems: 'center', gap: 3, background: '#ECFDF5', padding: '2px 6px', borderRadius: 4, border: '1px solid #A7F3D0' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>verified</span> Verified
+              </span>
+            )}
           </div>
 
           {/* Footer */}
@@ -4728,30 +4748,59 @@ document.head.appendChild(style);
     function HackathonCard({ h }) {
       const urlToUse = h.sourceUrl || h.applyUrl;
       const hasUrl = urlToUse && (urlToUse.startsWith('http://') || urlToUse.startsWith('https://'));
+      const deadlineDisplay = h.deadline || (h.hackathonEndDate ? new Date(h.hackathonEndDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : null);
+
       return (
-        <div style={{ background: '#FFFFFF', borderRadius: 8, border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: '16px', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ background: '#FFFFFF', borderRadius: 8, border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.07)', padding: '20px 20px 16px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: T.rose, borderRadius: '8px 8px 0 0' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 10, background: T.rose + '15', border: `1px solid ${T.rose}30`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 24, color: T.rose }}>emoji_events</span>
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: T.text, lineHeight: 1.35 }}>{h.title}</div>
-              <div style={{ color: T.muted, fontSize: 13, marginTop: 3 }}>{h.hackathonOrganizer || h.company}</div>
+
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
+            {h.companyLogo ? (
+              <img src={h.companyLogo} alt={h.hackathonOrganizer || h.company} onError={e => e.target.style.display = 'none'}
+                style={{ width: 42, height: 42, objectFit: 'contain', borderRadius: 8, border: `1px solid ${T.border}`, background: '#F8F8F8', padding: 3, flexShrink: 0 }} />
+            ) : (
+              <div style={{ width: 42, height: 42, borderRadius: 8, background: T.rose + '15', border: `1px solid ${T.rose}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 24, color: T.rose }}>emoji_events</span>
+              </div>
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: '#1A1A1A', lineHeight: 1.35, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>{h.title}</div>
+              <div style={{ color: '#6B7280', fontSize: 13, marginTop: 3 }}>{h.hackathonOrganizer || h.company || 'Organizer'}</div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
-            {h.hackathonMode && <span style={{ fontSize: 13, color: T.text, display: 'flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 14, color: T.rose }}>laptop</span>{h.hackathonMode}</span>}
-            {h.location && <span style={{ fontSize: 13, color: T.text, display: 'flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 14, color: T.rose }}>location_on</span>{h.location}</span>}
+
+          {/* Badges */}
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>
+            <span style={{ background: T.rose + '15', color: T.rose, border: `1px solid ${T.rose}30`, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>🏆 Hackathon</span>
+            {h.hackathonMode && <span style={{ background: '#F3F4F6', color: T.text, border: `1px solid ${T.border}`, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}><span className="material-symbols-outlined" style={{ fontSize: 13, color: T.rose }}>laptop</span>{h.hackathonMode}</span>}
+            <span style={{ background: '#F3F4F6', color: T.muted, border: `1px solid ${T.border}`, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 }}>{h.domain || h.hackathonTechDomain || 'General Tech'}</span>
+            <SourceChip source={h.source} />
           </div>
-          {h.hackathonEligibility && <div style={{ fontSize: 13, color: T.muted, marginBottom: 10 }}>👥 {h.hackathonEligibility}</div>}
-          {h.desc && <p style={{ fontSize: 14, color: T.muted, lineHeight: 1.6, marginBottom: 12 }}>{h.desc.substring(0, 150)}</p>}
-          {hasUrl && (
-            <a href={urlToUse} target="_blank" rel="noopener noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#FF4F1F', color: '#fff', borderRadius: 6, padding: '8px 16px', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>emoji_events</span> Register Now ↗
-            </a>
-          )}
+
+          <div style={{ display: 'flex', gap: 14, marginBottom: 10, flexWrap: 'wrap', fontSize: 13, color: '#4B5563' }}>
+            {h.location && <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 14, color: T.rose }}>location_on</span>{h.location}</span>}
+            {deadlineDisplay && (
+              <span style={{ background: '#FFF1F2', border: '1px solid #FECDD3', color: '#E11D48', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>event</span> Deadline: {deadlineDisplay}
+              </span>
+            )}
+          </div>
+
+          {h.hackathonEligibility && <div style={{ fontSize: 12, color: T.muted, marginBottom: 8 }}>👥 {h.hackathonEligibility}</div>}
+          {h.desc && <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.55, margin: '0 0 12px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{h.desc}</p>}
+
+          <div style={{ marginTop: 'auto', borderTop: `1px solid ${T.border}`, paddingTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
+            {hasUrl ? (
+              <a href={urlToUse} target="_blank" rel="noopener noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#FF4F1F', color: '#fff', borderRadius: 6, padding: '6px 14px', fontSize: 13, fontWeight: 700, textDecoration: 'none', transition: 'background .15s ease' }}
+                onMouseEnter={e => e.currentTarget.style.background = '#E04419'}
+                onMouseLeave={e => e.currentTarget.style.background = '#FF4F1F'}>
+                <span className="material-symbols-outlined" style={{ fontSize: 15 }}>emoji_events</span> Register Now ↗
+              </a>
+            ) : (
+              <span style={{ fontSize: 11, color: T.muted, fontStyle: 'italic' }}>Registration Link Unavailable</span>
+            )}
+          </div>
         </div>
       );
     }
@@ -4935,9 +4984,7 @@ document.head.appendChild(style);
         { label: 'Internshala', value: 'internshala' },
         { label: 'LinkedIn', value: 'linkedin' },
         { label: 'Unstop', value: 'unstop' },
-        { label: 'Indeed', value: 'indeed' },
-        { label: 'Naukri', value: 'Naukri' },
-        { label: 'AICTE', value: 'aicte' }
+        { label: 'HackerEarth', value: 'hackathon' }
       ];
       const LOCATIONS = ['All India', 'Remote', 'Bangalore', 'Hyderabad', 'Pune', 'Mumbai', 'Delhi', 'Noida', 'Gurugram', 'Chennai', 'Kolkata', 'Ahmedabad', 'Jaipur', 'Lucknow', 'Indore', 'Kochi', 'Chandigarh'];
       const COMPANY_TYPES = ['All', 'product', 'service', 'government', 'unknown'];
