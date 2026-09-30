@@ -256,7 +256,7 @@ router.get('/gate/filters', async (req, res) => {
       subjects: Object.keys(taxonomyMap[paper]).map(subject => ({
         subject,
         topics: Array.from(taxonomyMap[paper][subject].topics).sort(),
-        years: Array.from(taxonomyMap[paper][subject].years).sort((a, b) => b - a)
+        years: Array.from({length: 19}, (_, i) => 2025 - i)
       }))
     }));
 
@@ -327,6 +327,38 @@ router.get('/gate/questions', async (req, res) => {
     res.json(pyqs);
   } catch (err) {
     res.status(500).json({ error: 'Server error fetching GATE questions' });
+  }
+});
+
+// GET /api/academic/gate/generate-mock
+router.get('/gate/generate-mock', async (req, res) => {
+  try {
+    const { paper, year } = req.query;
+    if (!paper) return res.status(400).json({ error: 'Paper required' });
+
+    let query = { gatePaper: paper };
+    if (year) query.year = Number(year);
+
+    const allQuestions = await PYQ.find(query);
+
+    // User requested not to shuffle. We just sort by year descending, then questionNumber
+    const ordered = allQuestions.sort((a, b) => {
+      if (a.year !== b.year) return (b.year || 0) - (a.year || 0);
+      return (a.questionNumber || 0) - (b.questionNumber || 0);
+    });
+
+    const finalPaper = ordered.slice(0, 65);
+
+    const output = finalPaper.map((q, idx) => {
+      const obj = q.toObject ? q.toObject() : { ...q };
+      obj.questionNumber = idx + 1; // Renumber them 1 to 65
+      return obj;
+    });
+
+    res.json(output);
+  } catch (err) {
+    console.error('Mock Generation Error:', err);
+    res.status(500).json({ error: 'Server error generating mock' });
   }
 });
 

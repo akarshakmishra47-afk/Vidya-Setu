@@ -1,8 +1,8 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 
-// ── Bug 15: Per-user AI rate limiting (Updated to Production Standard) ──
+// ΓöÇΓöÇ Bug 15: Per-user AI rate limiting (Updated to Production Standard) ΓöÇΓöÇ
 const rateLimit = require('express-rate-limit');
 
 const aiRateLimiter = rateLimit({
@@ -14,7 +14,7 @@ const aiRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// ── Bug 19: Safe Groq API call wrapper ──
+// ΓöÇΓöÇ Bug 19: Safe Groq API call wrapper ΓöÇΓöÇ
 const axios = require('axios');
 async function callGroq(apiKey, body) {
   let response;
@@ -58,7 +58,7 @@ function getGroqErrorMessage(err) {
   }
 }
 
-// ── Bug 16: Validation helpers ──
+// ΓöÇΓöÇ Bug 16: Validation helpers ΓöÇΓöÇ
 function validateString(val, maxLen = 1000) {
   return typeof val === 'string' && val.length <= maxLen;
 }
@@ -298,7 +298,7 @@ router.post('/exam-analyze', optionalAuth, aiRateLimiter, requireApiKey, async (
                     break;
                 }
                 case 'practice-test':
-                    taskPrompt = `Generate a practice test of ${Math.min(req.body.count || 5, 20)} questions for "${subject}" (${exam}) at a "${req.body.difficulty || 'mixed'}" difficulty level. Focus on the high-priority topics provided: ${safeTopics.slice(0, 3).map(t => t.t).join(', ')}. IMPORTANT: Label all questions clearly with "🤖 AI Generated Practice" and do NOT claim these are official PYQs. Include brief solutions or hints at the end.`;
+                    taskPrompt = `Generate a practice test of ${Math.min(req.body.count || 5, 20)} questions for "${subject}" (${exam}) at a "${req.body.difficulty || 'mixed'}" difficulty level. Focus on the high-priority topics provided: ${safeTopics.slice(0, 3).map(t => t.t).join(', ')}. IMPORTANT: Label all questions clearly with "≡ƒñû AI Generated Practice" and do NOT claim these are official PYQs. Include brief solutions or hints at the end.`;
                     break;
                 case 'pyq-explain': {
                     const safeQuestion = validateString(req.body.question, 2000) ? req.body.question : '';
@@ -368,7 +368,7 @@ Task: ${taskPrompt}
     }
 });
 
-// Resume Analysis Endpoint — Bug 15,16,17,18,19
+// Resume Analysis Endpoint ΓÇö Bug 15,16,17,18,19
 // Use authenticateToken since saving analysis requires an authenticated user
 router.post('/resume/analyze', authenticateToken, aiRateLimiter, requireApiKey, async (req, res) => {
     try {
@@ -476,6 +476,271 @@ Required JSON Structure:
         }
     } catch (error) {
         console.error('Groq Resume Analyze Error:', error.message);
+        res.status(500).json({ success: false, message: getGroqErrorMessage(error) });
+    }
+});
+
+
+
+// Mock Grading Endpoint (AI Evaluates Student Answers)
+router.post('/grade-mock', optionalAuth, aiRateLimiter, requireApiKey, async (req, res) => {
+    try {
+        const { submissions, exam, subject } = req.body;
+        const apiKey = req.groqApiKey;
+
+        if (!Array.isArray(submissions) || submissions.length === 0) {
+            return res.status(400).json({ success: false, message: "No submissions provided." });
+        }
+
+        const PYQ = require('../models/PYQ');
+
+        // Deterministic Grading
+        let score = 0;
+        let total = submissions.length;
+        const topicCounts = {};
+        const topicCorrect = {};
+
+        const gradedSubmissions = [];
+
+        for (let sub of submissions) {
+            let isCorrect = false;
+            let correctAnswer = '';
+            let qType = 'MCQ';
+            if (sub._id) {
+                let questionDoc = null;
+                // If it's a valid MongoDB ObjectId, look it up in PYQ database
+                if (String(sub._id).length === 24) {
+                    try { questionDoc = await PYQ.findById(sub._id); } catch(e) {}
+                }
+                
+                // If it's an AI-generated mock, the frontend provides the correctAnswer and questionType directly
+                if (!questionDoc && String(sub._id).startsWith('ai_mock_')) {
+                    questionDoc = {
+                        correctAnswer: sub.correctAnswer,
+                        questionType: sub.questionType
+                    };
+                }
+
+                if (questionDoc) {
+                    correctAnswer = questionDoc.correctAnswer || '';
+                    qType = questionDoc.questionType || 'MCQ';
+                    let sAns = String(sub.studentAnswer).trim().toUpperCase();
+                    let cAns = String(correctAnswer).trim().toUpperCase();
+
+                    if (qType === 'MCQ') {
+                        isCorrect = sAns === cAns;
+                    } else if (qType === 'MSQ') {
+                        const sParts = sAns.replace(/[^A-D]/g, '').split('').sort().join('');
+                        const cParts = cAns.replace(/[^A-D]/g, '').split('').sort().join('');
+                        isCorrect = sParts === cParts && sParts !== '';
+                    } else if (qType === 'NAT') {
+                        const match = cAns.toLowerCase().match(/([\d.-]+)\s*to\s*([\d.-]+)/);
+                        if (match) {
+                            const sNum = parseFloat(sAns);
+                            const min = parseFloat(match[1]);
+                            const max = parseFloat(match[2]);
+                            if (!isNaN(sNum) && sNum >= min && sNum <= max) {
+                                isCorrect = true;
+                            }
+                        } else {
+                            isCorrect = parseFloat(sAns) === parseFloat(cAns);
+                        }
+                    }
+                }
+            }
+
+            const topic = sub.topic || 'General';
+            if (!topicCounts[topic]) topicCounts[topic] = 0;
+            if (!topicCorrect[topic]) topicCorrect[topic] = 0;
+            topicCounts[topic]++;
+
+            let questionMarks = 1;
+            let negativeMarks = 0;
+            let isAttempted = sub.studentAnswer && sub.studentAnswer !== "No answer provided" && sub.studentAnswer.trim() !== "";
+
+            if (isCorrect) {
+                score += questionMarks;
+                topicCorrect[topic]++;
+            } else if (isAttempted && (qType === 'MCQ' || !qType)) {
+                // Apply negative marking for wrong MCQs
+                negativeMarks = 0.33;
+                score -= negativeMarks;
+            }
+
+            gradedSubmissions.push({
+                question: sub.question,
+                studentAnswer: sub.studentAnswer,
+                correctAnswer: correctAnswer,
+                isCorrect: isCorrect
+            });
+        }
+
+        const allFeedback = gradedSubmissions.map(sub => ({
+            isCorrect: sub.isCorrect,
+            studentAnswer: sub.studentAnswer,
+            correctAnswer: sub.correctAnswer
+        }));
+
+        const topicPerformance = {};
+        for (const t in topicCounts) {
+            topicPerformance[t] = { total: topicCounts[t], correct: topicCorrect[t] || 0 };
+        }
+
+        score = Number(score.toFixed(2));
+        let accuracy = total > 0 ? Math.round((Math.max(score, 0) / total) * 100) : 0;
+
+        res.json({ success: true, grading: { score, total, accuracy, topicPerformance, feedback: allFeedback } });
+    } catch (error) {
+        console.error('Groq Grade Mock Error:', error.message);
+        res.status(500).json({ success: false, message: getGroqErrorMessage(error) });
+    }
+});
+
+router.post('/mock-evaluate', optionalAuth, aiRateLimiter, requireApiKey, async (req, res) => {
+    try {
+        const { score, total, accuracy, topicPerformance, exam, subject } = req.body;
+        const apiKey = req.groqApiKey;
+
+        const systemPrompt = `
+You are the "Vidya-Setu AI Performance Analyzer". A student has just completed a mock test.
+Here are their results:
+Exam: ${exam || 'GATE'} - ${subject || 'General'}
+Score: ${score} / ${total}
+Accuracy: ${accuracy}%
+Topic Performance: ${JSON.stringify(topicPerformance)}
+
+Your job is to analyze their performance and generate a strict JSON response containing:
+1. The weakest area.
+2. A brief encouraging analysis of their performance.
+3. A strict 7-day personalized study plan addressing their weak areas.
+4. Recommendation for their next mock test.
+
+Output ONLY valid JSON matching this exact structure:
+{
+  "weakestArea": "string",
+  "analysis": "string",
+  "sevenDayPlan": [
+    { "day": 1, "topic": "string", "action": "string" },
+    { "day": 2, "topic": "string", "action": "string" },
+    { "day": 3, "topic": "string", "action": "string" },
+    { "day": 4, "topic": "string", "action": "string" },
+    { "day": 5, "topic": "string", "action": "string" },
+    { "day": 6, "topic": "string", "action": "string" },
+    { "day": 7, "topic": "string", "action": "string" }
+  ],
+  "nextMock": {
+    "type": "Full Mock or Subject Mock",
+    "difficulty": "Easy/Medium/Hard",
+    "subjects": ["Subject 1", "Subject 2"]
+  }
+}
+`;
+
+        const data = await callGroq(apiKey, {
+            model: "openai/gpt-oss-120b",
+            response_format: { type: "json_object" },
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: "Generate the mock evaluation." }
+            ],
+            temperature: 0.2,
+            max_tokens: 1500
+        });
+
+        if (data.choices && data.choices[0]) {
+            let jsonString = data.choices[0].message.content;
+            jsonString = (jsonString || '').trim();
+            
+            let parsedData;
+            try {
+                parsedData = JSON.parse(jsonString);
+            } catch (e) {
+                return res.status(500).json({ success: false, message: "AI returned invalid JSON." });
+            }
+            
+            res.json({ success: true, evaluation: parsedData });
+        } else {
+            throw new Error("Groq API error");
+        }
+    } catch (error) {
+        console.error('Groq Mock Evaluate Analytics Error:', error.message);
+        res.status(500).json({ success: false, message: getGroqErrorMessage(error) });
+    }
+});
+
+
+
+
+router.post('/generate-interactive-mock', optionalAuth, aiRateLimiter, requireApiKey, async (req, res) => {
+    try {
+        const { exam, subject, topics, count, difficulty } = req.body;
+        const apiKey = req.groqApiKey;
+
+        const systemPrompt = `
+You are the "Vidya-Setu AI Test Generator". Your task is to generate an interactive practice mock test for the ${exam || 'GATE'} exam in the subject of ${subject || 'Computer Science'}.
+The test should have EXACTLY ${count || 10} questions.
+Difficulty: ${difficulty || 'mixed'}
+Focus topics (if any): ${topics ? topics.join(', ') : 'Mixed syllabus'}
+
+CRITICAL CONSTRAINTS:
+1. The \`question\` text MUST be fully self-contained and comprehensive.
+2. DO NOT generate questions that rely on images, figures, or external diagrams.
+3. If the question requires matching lists or multiple statements (e.g., I, II, III, IV), include the full text of those lists/statements INSIDE the \`question\` field with clear formatting (e.g., using \n).
+
+You MUST output ONLY valid JSON matching this exact structure:
+{
+  "questions": [
+    {
+      "question": "The question text (can include formatting)",
+      "options": {
+        "A": "Option A text",
+        "B": "Option B text",
+        "C": "Option C text",
+        "D": "Option D text"
+      },
+      "questionType": "MCQ",
+      "correctAnswer": "A, B, C, or D (ensure it varies based on the correct option)",
+      "topic": "The specific topic this question covers",
+      "marks": 1
+    }
+  ]
+}
+
+Ensure that the output is strictly valid JSON without any markdown code block formatting outside the JSON structure.
+`;
+
+        const data = await callGroq(apiKey, {
+            model: "openai/gpt-oss-120b",
+            response_format: { type: "json_object" },
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: "Generate the interactive mock test." }
+            ],
+            temperature: 0.3,
+            max_tokens: 4000
+        });
+
+        if (data.choices && data.choices[0]) {
+            let jsonString = data.choices[0].message.content;
+            jsonString = (jsonString || '').trim();
+            
+            let parsedData;
+            try {
+                parsedData = JSON.parse(jsonString);
+            } catch (e) {
+                return res.status(500).json({ success: false, message: "AI returned invalid JSON." });
+            }
+            
+            const mockWithIds = parsedData.questions.map((q, idx) => ({
+                ...q,
+                _id: 'ai_mock_' + Date.now() + '_' + idx // Generate unique string ID for frontend tracking
+            }));
+            res.json({ success: true, mock: mockWithIds });
+        } else {
+            throw new Error("Groq API error");
+        }
+    } catch (error) {
+        console.error('Groq Generate Interactive Mock Error:', error.message);
         res.status(500).json({ success: false, message: getGroqErrorMessage(error) });
     }
 });

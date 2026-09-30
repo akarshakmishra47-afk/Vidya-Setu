@@ -329,11 +329,11 @@ document.head.appendChild(style);
       </div>
     );
 
-    const Modal = ({ open, onClose, title, children, aboveNav }) => {
+    const Modal = ({ open, onClose, title, children, aboveNav, width }) => {
       if (!open) return null;
       return createPortal(
         <div className={`modal-overlay ${aboveNav ? "above-nav-overlay" : ""}`} onClick={onClose}>
-          <div className={`modal-sheet ${aboveNav ? "above-nav-sheet" : ""}`} onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', maxHeight: '85vh' }}>
+          <div className={`modal-sheet ${aboveNav ? "above-nav-sheet" : ""}`} onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', maxHeight: '85vh', width: width || '90%', maxWidth: width || 500 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22, flexShrink: 0 }}>
               <h3 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 20, fontWeight: 800, color: T.text }}>{title}</h3>
               <button onClick={onClose} style={{ background: "#F5F5F5", border: "1px solid #E8E8E8", color: "#999", borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s ease" }}>✕</button>
@@ -1488,7 +1488,7 @@ document.head.appendChild(style);
                     <div style={{ color: T.muted, fontSize: 14, marginBottom: 24 }}>Your application is currently being processed.</div>
 
                     {/* Progress Tracker */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 400, margin: "0 auto", textAlign: "left" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: "100%", margin: "0 auto", textAlign: "left" }}>
                       {[
                         { id: 'Locked_by_Student', label: 'Form Locked by Student', icon: 'lock', done: true },
                         { id: 'Verified_by_Institute', label: 'Institute Verification', icon: 'account_balance', done: aktuStatus !== 'Locked_by_Student' && aktuStatus !== 'Draft' },
@@ -1891,6 +1891,454 @@ document.head.appendChild(style);
     /* ══════════════════════════════════════
       MODULE: GATE-INSIGHTS (was PRASHNA-KOSH)
     ══════════════════════════════════════ */
+function MockTestRunner({ questions, onComplete, onCancel, results, onShowAiAnalysis }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [statuses, setStatuses] = useState(() => {
+    const init = new Array(questions.length).fill(0); // 0 = Not Visited
+    init[0] = 1; // 1 = Not Answered
+    return init;
+  });
+  const [grading, setGrading] = useState(false);
+  const [testStarted, setTestStarted] = useState(false);
+  const [instructionsRead, setInstructionsRead] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(10800); // 3 hours
+  const [showResultSummary, setShowResultSummary] = useState(true);
+
+  useEffect(() => {
+    if (!testStarted || grading || results) return;
+    const timerId = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) {
+          clearInterval(timerId);
+          handleSubmit(true);
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerId);
+  }, [testStarted, grading, results]);
+
+  const formatTime = (seconds) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const q = questions[currentIndex];
+
+  const updateStatus = (index, status) => {
+    setStatuses(prev => {
+      const next = [...prev];
+      next[index] = status;
+      return next;
+    });
+  };
+
+  const goToQuestion = (index) => {
+    if (!results) {
+      setStatuses(prev => {
+        const next = [...prev];
+        if (next[index] === 0) next[index] = 1;
+        return next;
+      });
+    }
+    setCurrentIndex(index);
+  };
+
+  const handleSaveAndNext = () => {
+    if (!results) {
+      const hasAnswer = !!(answers[q._id] && answers[q._id].trim());
+      updateStatus(currentIndex, hasAnswer ? 2 : 1);
+    }
+    if (currentIndex < questions.length - 1) goToQuestion(currentIndex + 1);
+  };
+
+  const handleMarkAndNext = () => {
+    if (!results) {
+      const hasAnswer = !!(answers[q._id] && answers[q._id].trim());
+      updateStatus(currentIndex, hasAnswer ? 4 : 3);
+    }
+    if (currentIndex < questions.length - 1) goToQuestion(currentIndex + 1);
+  };
+
+  const handleClearResponse = () => {
+    if (results) return;
+    const nextAnswers = { ...answers };
+    delete nextAnswers[q._id];
+    setAnswers(nextAnswers);
+    updateStatus(currentIndex, 1);
+  };
+
+  const handleSubmit = async (auto = false) => {
+    if (!auto && !window.confirm("Are you sure you want to submit the test?")) return;
+    setGrading(true);
+    const submissions = questions.map(q => ({
+      _id: q._id,
+      question: q.question,
+      topic: q.topic,
+      studentAnswer: answers[q._id] || "No answer provided",
+      correctAnswer: q.correctAnswer,
+      questionType: q.questionType
+    }));
+    await onComplete(submissions);
+    setGrading(false);
+  };
+
+  const renderInputArea = () => {
+    const options = ['A', 'B', 'C', 'D'];
+    
+    if (results) {
+      const fb = results.grading.feedback[currentIndex];
+      const correctAns = fb?.correctAnswer || "";
+      const isAttempted = fb?.studentAnswer && fb.studentAnswer !== "No answer provided";
+      
+      return (
+        <div style={{ borderTop: '1px dashed #ccc', paddingTop: 20, marginTop: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
+             {fb?.isCorrect ? (
+               <span style={{ color: "#1AB394", fontWeight: "bold", display: "flex", alignItems: "center", gap: 4 }}><span className="material-symbols-outlined">check_circle</span> Correct</span>
+             ) : isAttempted ? (
+               <span style={{ color: "#ED5565", fontWeight: "bold", display: "flex", alignItems: "center", gap: 4 }}><span className="material-symbols-outlined">cancel</span> Wrong</span>
+             ) : (
+               <span style={{ color: "#999", fontWeight: "bold", display: "flex", alignItems: "center", gap: 4 }}><span className="material-symbols-outlined">radio_button_unchecked</span> Not Attempted</span>
+             )}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
+            {options.map(opt => {
+               const isCorrect = correctAns === opt;
+               const isChosen = fb?.studentAnswer === opt;
+               let bg = "#fff", border = "1px solid #ccc";
+               if (isCorrect) { bg = "#e8f8f5"; border = "2px solid #1AB394"; }
+               else if (isChosen && !isCorrect) { bg = "#fdeceb"; border = "2px solid #ED5565"; }
+               
+               return (
+                 <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', border, borderRadius: 6, background: bg, maxWidth: "100%" }}>
+                   <input type="radio" checked={isChosen} readOnly style={{ width: 18, height: 18, margin: 0 }} />
+                   <span style={{ fontWeight: 'bold', fontSize: 15 }}>
+                  Option {opt} {q.options && q.options[opt] ? `: ${q.options[opt]}` : ''}
+                </span>
+                   {isCorrect && <span style={{ marginLeft: "auto", color: "#1AB394", fontSize: 12, fontWeight: "bold" }}>This is correct answer</span>}
+                   {(isChosen && !isCorrect) && <span style={{ marginLeft: "auto", color: "#ED5565", fontSize: 12, fontWeight: "bold" }}>Your answer is wrong</span>}
+                 </label>
+               );
+            })}
+          </div>
+          {(!options.includes(correctAns) && correctAns) && (
+            <div style={{ fontWeight: 'bold', marginBottom: 12, color: '#555', fontSize: 14 }}>
+              Numerical/MSQ Correct Answer: <span style={{ color: "#1AB394" }}>{correctAns}</span><br />
+              Your Answer: <span style={{ color: fb?.isCorrect ? "#1AB394" : "#ED5565" }}>{isAttempted ? fb?.studentAnswer : "Not Attempted"}</span>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ borderTop: '1px dashed #ccc', paddingTop: 20, marginTop: 20 }}>
+        <div style={{ fontWeight: 'bold', marginBottom: 16, color: '#555', fontSize: 14 }}>Select Option (For MCQ):</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
+          {options.map(opt => (
+            <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '12px 16px', border: answers[q._id] === opt ? '2px solid #1AB394' : '1px solid #ccc', borderRadius: 6, background: answers[q._id] === opt ? '#e8f8f5' : '#fff', maxWidth: "100%", transition: 'all 0.2s' }}>
+              <input 
+                type="radio" 
+                name={`q-${q._id}`} 
+                value={opt}
+                checked={answers[q._id] === opt}
+                onChange={(e) => setAnswers({ ...answers, [q._id]: e.target.value })}
+                style={{ width: 18, height: 18, margin: 0, cursor: 'pointer' }}
+              />
+              <span style={{ fontWeight: 'bold', fontSize: 15 }}>Option {opt}</span>
+            </label>
+          ))}
+        </div>
+        <div style={{ fontWeight: 'bold', marginBottom: 12, color: '#555', fontSize: 14 }}>Or Type Value (For NAT/MSQ):</div>
+        <textarea 
+          value={!options.includes(answers[q._id]) ? (answers[q._id] || '') : ''} 
+          onChange={e => setAnswers({ ...answers, [q._id]: e.target.value })}
+          placeholder="Type your numerical answer or explanation here..."
+          style={{ width: '100%', maxWidth: 600, height: 100, padding: 14, borderRadius: 6, border: '1px solid #ccc', fontFamily: 'inherit', fontSize: 15, resize: 'vertical' }}
+        />
+      </div>
+    );
+  };
+
+  if (!testStarted && !results) {
+    return createPortal(
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: '#fff', zIndex: 99999, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ background: '#3177B3', color: '#fff', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontWeight: 'bold', fontSize: 20 }}>GATE Mock Test Instructions</div>
+          <button onClick={onCancel} style={{ background: 'transparent', border: '1px solid #fff', color: '#fff', padding: '6px 16px', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' }}>Close</button>
+        </div>
+        <div style={{ flex: 1, padding: '40px', overflowY: 'auto', background: '#f5f7f9' }}>
+          <div style={{ maxWidth: 800, margin: '0 auto', background: '#fff', padding: 40, borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+            <h2 style={{ color: '#d9534f', textAlign: 'center', marginBottom: 24 }}>Please read the instructions carefully</h2>
+            <div style={{ fontSize: 15, lineHeight: 1.8, color: '#333' }}>
+              <strong>General Instructions:</strong>
+              <ol>
+                <li>Total duration of the examination is 180 minutes.</li>
+                <li>The clock will be set at the server. The countdown timer in the top right corner of the screen will display the remaining time available for you to complete the examination.</li>
+                <li>The Question Palette displayed on the right side of the screen will show the status of each question.</li>
+                <li>You can click on "Mark for Review & Next" to mark a question for review and proceed to the next question.</li>
+                <li>For multiple-choice questions (MCQs), select the correct option (A, B, C, or D). For Numerical Answer Type (NAT) questions, use the text box to enter the numeric value.</li>
+                <li style={{ color: '#d9534f', fontWeight: 'bold' }}>Negative Marking: There is a negative marking of 1/3 (0.33) marks for every incorrect answer in MCQs. NAT and MSQ questions do not have negative marking.</li>
+              </ol>
+            </div>
+            <div style={{ marginTop: 32, padding: 16, border: '1px solid #ddd', borderRadius: 4, background: '#fafafa' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+                <input type="checkbox" checked={instructionsRead} onChange={e => setInstructionsRead(e.target.checked)} style={{ width: 18, height: 18 }} />
+                <span style={{ fontWeight: 'bold' }}>I have read and understood the instructions. I agree that I am ready to begin the test.</span>
+              </label>
+            </div>
+            <div style={{ textAlign: 'center', marginTop: 32 }}>
+              <button 
+                disabled={!instructionsRead}
+                onClick={() => setTestStarted(true)}
+                style={{ background: instructionsRead ? '#1AB394' : '#ccc', color: '#fff', padding: '12px 32px', border: 'none', borderRadius: 4, fontSize: 16, fontWeight: 'bold', cursor: instructionsRead ? 'pointer' : 'not-allowed' }}
+              >
+                I am ready to begin
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  const countStatus = (val) => statuses.filter(s => s === val).length;
+  const counts = {
+    answered: countStatus(2),
+    notAnswered: countStatus(1),
+    notVisited: countStatus(0),
+    marked: countStatus(3),
+    answeredMarked: countStatus(4)
+  };
+
+  if (grading) {
+    return createPortal(
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: '#fff', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center', padding: 60, background: '#fff', borderRadius: 12, boxShadow: '0 4px 24px rgba(0,0,0,0.1)' }}>
+          <h2 style={{ color: '#2c3e50', fontSize: 28, marginBottom: 16 }}>Evaluating Your Test...</h2>
+          <p style={{ fontSize: 18, color: '#666' }}>Our AI is grading your answers and preparing your analysis.</p>
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  return createPortal(
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: '#fff', zIndex: 99999, display: 'flex', flexDirection: 'column' }}>
+      
+      {/* RESULT SUMMARY MODAL (Only when results exist) */}
+      {(results && showResultSummary) && (
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: 12, width: 400, overflow: 'hidden', boxShadow: '0 10px 40px rgba(0,0,0,0.3)' }}>
+            <div style={{ padding: '16px 20px', background: '#f5f5f5', borderBottom: '1px solid #ddd', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span className="material-symbols-outlined" style={{ color: '#555' }}>emoji_events</span>
+              <span style={{ fontWeight: 'bold', color: '#333' }}>Exam Result</span>
+            </div>
+            <div style={{ padding: 32, textAlign: 'center' }}>
+              <div style={{ width: 100, height: 100, borderRadius: '50%', border: '4px solid #E53935', margin: '0 auto 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                 <div style={{ fontSize: 24, fontWeight: 'bold', color: '#E53935' }}>{results.grading.accuracy}%</div>
+                 <div style={{ fontSize: 12, color: '#777' }}>Score</div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 24 }}>
+                <div style={{ background: '#eee', padding: '12px 16px', borderRadius: 6, flex: 1 }}>
+                  <div style={{ fontSize: 20, fontWeight: 'bold', color: '#333' }}>{results.grading.total}</div>
+                  <div style={{ fontSize: 11, color: '#666' }}>Total</div>
+                </div>
+                <div style={{ background: '#e8f8f5', padding: '12px 16px', borderRadius: 6, flex: 1 }}>
+                  <div style={{ fontSize: 20, fontWeight: 'bold', color: '#1AB394' }}>{results.stats.correct}</div>
+                  <div style={{ fontSize: 11, color: '#1AB394' }}>Correct</div>
+                </div>
+                <div style={{ background: '#fdeceb', padding: '12px 16px', borderRadius: 6, flex: 1 }}>
+                  <div style={{ fontSize: 20, fontWeight: 'bold', color: '#ED5565' }}>{results.stats.incorrect}</div>
+                  <div style={{ fontSize: 11, color: '#ED5565' }}>Wrong</div>
+                </div>
+                <div style={{ background: '#f0f0f0', padding: '12px 16px', borderRadius: 6, flex: 1 }}>
+                  <div style={{ fontSize: 20, fontWeight: 'bold', color: '#777' }}>{results.stats.unattempted}</div>
+                  <div style={{ fontSize: 11, color: '#777' }}>Skipped</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 14, color: '#333', fontWeight: 'bold', marginBottom: 8 }}>
+                Your Score: {results.grading.score} / {results.grading.total}
+              </div>
+              <div style={{ fontSize: 13, color: '#666', marginBottom: 24 }}>
+                Pass Mark: {Math.floor(results.grading.total * 0.5)} (50%)
+              </div>
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                <button onClick={() => setShowResultSummary(false)} style={{ background: '#3177B3', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>visibility</span> Review Answers
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top Header */}
+      <div style={{ background: '#3177B3', color: '#fff', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontWeight: 'bold', fontSize: 18 }}>{results ? 'Review Answers' : 'GATE Mock Test'}</div>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          {!results ? (
+            <div style={{ fontSize: 14 }}>Time Left: <span style={{ fontWeight: 'bold', fontSize: 16, background: '#fff', color: '#3177B3', padding: '4px 10px', borderRadius: 4, marginLeft: 8 }}>{formatTime(timeLeft)}</span></div>
+          ) : (
+            <div style={{ fontSize: 14 }}>Max Mark: {results.grading.total} | Pass: {Math.floor(results.grading.total * 0.5)} (50%)</div>
+          )}
+          <button onClick={onCancel} style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.4)', color: '#fff', padding: '6px 12px', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}>{results ? 'Exit Review' : 'Exit Test'}</button>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* Left Side: Question Area */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: '1px solid #ddd' }}>
+          
+          {/* Question Header */}
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid #ddd', display: 'flex', justifyContent: 'space-between', background: '#f8f9fa' }}>
+            <span style={{ fontWeight: 600, color: '#444', fontSize: 14 }}>Question Type: {q.questionType || 'MCQ/NAT'}</span>
+            <span style={{ fontWeight: 600, color: '#444', fontSize: 14 }}>Marks: {q.marks ? `+${q.marks}.00` : '+1.00'}</span>
+          </div>
+
+          {/* Question Content */}
+          <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
+            <div style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 16, color: '#333' }}>Q. {currentIndex + 1}</div>
+            <div style={{ fontSize: 16, lineHeight: 1.6, whiteSpace: 'pre-wrap', marginBottom: 32, color: '#000', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+              {q.question}
+            </div>
+            {renderInputArea()}
+          </div>
+
+          {/* Footer Controls */}
+          <div style={{ padding: '16px 20px', borderTop: '1px solid #ddd', background: '#f8f9fa', display: 'flex', justifyContent: 'space-between' }}>
+            {!results ? (
+              <>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button onClick={handleMarkAndNext} style={{ border: '1px solid #ccc', background: '#fff', padding: '8px 16px', borderRadius: 4, cursor: 'pointer', fontWeight: 600, color: '#333', fontSize: 14 }}>Mark for Review & Next</button>
+                  <button onClick={handleClearResponse} style={{ border: '1px solid #ccc', background: '#fff', padding: '8px 16px', borderRadius: 4, cursor: 'pointer', fontWeight: 600, color: '#333', fontSize: 14 }}>Clear Response</button>
+                </div>
+                <button onClick={handleSaveAndNext} style={{ border: 'none', background: '#3177B3', color: '#fff', padding: '8px 24px', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold', fontSize: 14, boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>Save & Next</button>
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button disabled={currentIndex === 0} onClick={() => setCurrentIndex(currentIndex - 1)} style={{ background: '#3177B3', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 4, cursor: currentIndex === 0 ? 'not-allowed' : 'pointer', fontWeight: 'bold', opacity: currentIndex === 0 ? 0.5 : 1 }}>&lt; Previous</button>
+                  <button disabled={currentIndex === questions.length - 1} onClick={() => setCurrentIndex(currentIndex + 1)} style={{ background: '#3177B3', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 4, cursor: currentIndex === questions.length - 1 ? 'not-allowed' : 'pointer', fontWeight: 'bold', opacity: currentIndex === questions.length - 1 ? 0.5 : 1 }}>Next &gt;</button>
+                </div>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', fontSize: 13, fontWeight: 'bold' }}>
+                   <span style={{ color: '#1AB394', display: 'flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>check_circle</span> Correct: {results.stats.correct}</span>
+                   <span style={{ color: '#ED5565', display: 'flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>cancel</span> Wrong: {results.stats.incorrect}</span>
+                   <span style={{ color: '#777', display: 'flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>radio_button_unchecked</span> Skipped: {results.stats.unattempted}</span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Right Side: Palette */}
+        <div style={{ width: 320, background: '#edf1f5', display: 'flex', flexDirection: 'column' }}>
+          
+          {/* User Profile Area */}
+          <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, background: '#fff', borderBottom: '1px solid #ddd' }}>
+            <div style={{ width: 44, height: 44, background: '#c1c9d2', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+               <span className="material-symbols-outlined" style={{ fontSize: 32, color: '#fff' }}>person</span>
+            </div>
+            <div>
+              <div style={{ fontWeight: 'bold', fontSize: 14, color: '#333' }}>Mock Test Participant</div>
+              <div style={{ fontSize: 12, color: '#666' }}>GATE Mock Practice</div>
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div style={{ padding: '16px', borderBottom: '1px solid #ddd', background: '#fff', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 4px', fontSize: 12, color: '#444' }}>
+            {!results ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 22, height: 22, background: '#1AB394', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px 4px 0 4px', fontWeight: 'bold' }}>{counts.answered}</div> Answered</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 22, height: 22, background: '#ED5565', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px 4px 4px 0', fontWeight: 'bold' }}>{counts.notAnswered}</div> Not Answered</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 22, height: 22, background: '#eee', border: '1px solid #ccc', color: '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, fontWeight: 'bold' }}>{counts.notVisited}</div> Not Visited</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 22, height: 22, background: '#5A32A1', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', fontWeight: 'bold' }}>{counts.marked}</div> Marked</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, gridColumn: '1 / span 2' }}><div style={{ width: 22, height: 22, background: '#5A32A1', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', position: 'relative', fontWeight: 'bold' }}><div style={{ position: 'absolute', bottom: -2, right: -2, width: 8, height: 8, background: '#1AB394', borderRadius: '50%' }}></div>{counts.answeredMarked}</div> Answered & Marked for Review</div>
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 22, height: 22, background: '#1AB394', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, fontWeight: 'bold' }}>{results.stats.correct}</div> Correct</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 22, height: 22, background: '#ED5565', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, fontWeight: 'bold' }}>{results.stats.incorrect}</div> Wrong</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, gridColumn: '1 / span 2' }}><div style={{ width: 22, height: 22, background: '#eee', border: '1px solid #ccc', color: '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, fontWeight: 'bold' }}>{results.stats.unattempted}</div> Not Attempted</div>
+              </>
+            )}
+          </div>
+
+          {/* Palette Grid */}
+          <div style={{ padding: 16, flex: 1, overflowY: 'auto', background: '#edf1f5' }}>
+            <div style={{ fontWeight: 'bold', marginBottom: 12, background: '#3177B3', color: '#fff', padding: '8px 12px', fontSize: 13, borderRadius: 2 }}>Questions Palette</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+              {questions.map((_, i) => {
+                let bg = '#eee';
+                let color = '#333';
+                let br = 4;
+                let border = '1px solid #ccc';
+                let hasDot = false;
+                
+                if (!results) {
+                  const st = statuses[i];
+                  if (st === 1) { bg = '#ED5565'; color = '#fff'; border = 'none'; br = '4px 4px 4px 0'; }
+                  else if (st === 2) { bg = '#1AB394'; color = '#fff'; border = 'none'; br = '4px 4px 0 4px'; }
+                  else if (st === 3) { bg = '#5A32A1'; color = '#fff'; border = 'none'; br = '50%'; }
+                  else if (st === 4) { bg = '#5A32A1'; color = '#fff'; border = 'none'; br = '50%'; hasDot = true; }
+                } else {
+                  const fb = results.grading.feedback[i];
+                  const isAttempted = fb?.studentAnswer && fb.studentAnswer !== "No answer provided";
+                  if (fb?.isCorrect) { bg = '#1AB394'; color = '#fff'; border = 'none'; }
+                  else if (isAttempted) { bg = '#ED5565'; color = '#fff'; border = 'none'; }
+                }
+
+                return (
+                  <button 
+                    key={i} 
+                    onClick={() => goToQuestion(i)}
+                    style={{ 
+                      height: 44, width: '100%',
+                      background: bg, color: color, borderRadius: br, border: border, 
+                      cursor: 'pointer', fontWeight: 'bold', fontSize: 14,
+                      position: 'relative',
+                      boxShadow: currentIndex === i ? '0 0 0 2px #3177B3' : 'none',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}
+                  >
+                    {i + 1}
+                    {hasDot && <div style={{ position: 'absolute', bottom: 0, right: 0, width: 10, height: 10, background: '#1AB394', borderRadius: '50%', border: '1px solid #fff' }}></div>}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Action Footer */}
+          <div style={{ padding: 16, background: '#e0e8f0', borderTop: '1px solid #ccc', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {!results ? (
+              <button onClick={() => handleSubmit(false)} style={{ width: '100%', padding: '14px', background: '#1AB394', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 'bold', fontSize: 16, cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>Submit Test</button>
+            ) : (
+              <>
+                 <button onClick={() => setShowResultSummary(true)} style={{ width: '100%', background: '#555', color: '#fff', border: 'none', padding: '12px', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>menu</span> Menu Summary
+                 </button>
+                 <button onClick={() => onShowAiAnalysis(results.evaluationContent)} style={{ width: '100%', background: '#6366f1', color: '#fff', border: 'none', padding: '12px', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>psychology</span> AI Analysis
+                 </button>
+              </>
+            )}
+          </div>
+
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
     function ExamAnalytics() {
       const { user } = useUser();
       const [filtersData, setFiltersData] = useState({ taxonomy: [] });
@@ -1914,6 +2362,21 @@ document.head.appendChild(style);
       const [viewGatePdfs, setViewGatePdfs] = useState(false);
       const [pdfsLoading, setPdfsLoading] = useState(false);
       const [pdfViewerData, setPdfViewerData] = useState(null);
+
+      const [viewMockRunner, setViewMockRunner] = useState(false);
+      const [mockQuestions, setMockQuestions] = useState([]);
+      const [mockResults, setMockResults] = useState(() => {
+          const saved = localStorage.getItem('vidyasetu_mock_results');
+          return saved ? JSON.parse(saved) : null;
+        });
+        const [mockHistory, setMockHistory] = useState(() => {
+          try {
+            const saved = localStorage.getItem('vidyasetu_mock_history');
+            const parsed = saved ? JSON.parse(saved) : [];
+            return Array.isArray(parsed) ? parsed : [];
+          } catch(e) { return []; }
+        });
+
 
       const [aiModalOpen, setAiModalOpen] = useState(false);
       const [aiModalTitle, setAiModalTitle] = useState("");
@@ -2059,6 +2522,170 @@ document.head.appendChild(style);
         executeAiAction("chat", { userMessage: msg });
       };
 
+      const simulateMockEvaluation = async () => {
+        if (mockResults && mockResults.evaluationContent) {
+          setAiModalContent(mockResults.evaluationContent);
+          setAiModalTitle("AI Mock Evaluation & Study Plan");
+          setAiModalOpen(true);
+        } else {
+          alert("No previous evaluation found. First go and do a mock test!");
+        }
+      };
+
+      const startLiveMockTest = async () => {
+        setQLoading(true);
+        try {
+          const q = new URLSearchParams({ paper: selPaper, limit: 65 });
+          if (selSub) q.append('subject', selSub);
+          if (selTopic) q.append('topic', selTopic);
+          const res = await fetch(`${API_BASE_URL}/api/academic/gate/questions?${q.toString()}`);
+          const data = await res.json();
+          if (data && data.length > 0) {
+            const ordered = data.sort((a, b) => (a.questionNumber || 0) - (b.questionNumber || 0)).slice(0, 65);
+            setMockQuestions(ordered);
+            setViewMockRunner(true);
+            setViewPyqs(false);
+            setViewGatePdfs(false);
+          } else {
+            alert("No questions found for this selection to create a mock test.");
+          }
+        } catch(e) {
+          alert("Error fetching mock questions");
+        } finally {
+          setQLoading(false);
+        }
+      };
+
+      
+      const generateInteractiveMock = async () => {
+        const count = prompt("How many questions?", "10");
+        if (!count) return;
+        if (!selPaper) {
+          alert("Please select a GATE Paper first!");
+          return;
+        }
+        setQLoading(true);
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/ai/generate-interactive-mock`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              exam: selPaper,
+              subject: selSub,
+              topics: analytics?.topics ? analytics.topics.slice(0, 3).map(t => t.t) : [],
+              count: parseInt(count, 10),
+              difficulty: "mixed"
+            })
+          });
+          const data = await res.json();
+          if (data.success && data.mock) {
+            setMockQuestions(data.mock);
+            setMockResults(null);
+            setViewMockRunner(true);
+            setViewPyqs(false);
+            setViewGatePdfs(false);
+          } else {
+            alert(data.message || "Failed to generate AI mock.");
+          }
+        } catch (e) {
+          alert("Error: " + e.message);
+        } finally {
+          setQLoading(false);
+        }
+      };
+const generateFullMock = async () => {
+        if (!selPaper) {
+          alert("Please select a GATE Paper (e.g. DA or CS) first!");
+          return;
+        }
+        setQLoading(true);
+        try {
+          let url = `${API_BASE_URL}/api/academic/gate/generate-mock?paper=${encodeURIComponent(selPaper)}`;
+          if (selYear) url += `&year=${selYear}`;
+          
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data && data.length > 0) {
+            setMockQuestions(data);
+            setViewMockRunner(true);
+            setViewPyqs(false);
+            setViewGatePdfs(false);
+          } else {
+            alert(`Not enough questions in database to generate a mock for ${selPaper}${selYear ? ' in ' + selYear : ''}.`);
+          }
+        } catch(e) {
+          alert("Error generating full mock test");
+        } finally {
+          setQLoading(false);
+        }
+      };
+
+      const handleMockComplete = async (submissions) => {
+        try {
+          // 1. Grade the Mock
+          const gradeRes = await fetch(`${API_BASE_URL}/api/ai/grade-mock`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ submissions, exam: selPaper, subject: selSub })
+          });
+          const gradeData = await gradeRes.json();
+          if (!gradeData.success) throw new Error(gradeData.message || "Grading failed");
+
+          const { score, total, accuracy, topicPerformance, feedback } = gradeData.grading;
+
+          // 2. Evaluate & Plan (Silent Mode)
+          const evalRes = await fetch(`${API_BASE_URL}/api/ai/mock-evaluate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ score, total, accuracy, topicPerformance, exam: selPaper, subject: selSub })
+          });
+          const evalData = await evalRes.json();
+          
+          if (evalData.success && evalData.evaluation) {
+            const ev = evalData.evaluation;
+            const attempted = submissions.filter(s => s.studentAnswer && s.studentAnswer !== "No answer provided" && s.studentAnswer.trim() !== "").length;
+            const unattempted = total - attempted;
+            const correct = feedback.filter(f => f.isCorrect).length;
+            const incorrect = attempted - correct;
+
+            let content = `### 🧠 GPT-OSS-120B Analysis\n`;
+            content += `**Weakest Area:** ${ev.weakestArea}\n\n`;
+            content += `**Strengths & Analysis:**\n${ev.analysis}\n\n`;
+
+            content += `**📅 Personalized 7-Day Plan:**\n`;
+            if (ev.sevenDayPlan) {
+              ev.sevenDayPlan.forEach(p => { content += `- **Day ${p.day} (${p.topic}):** *${p.action}*\n`; });
+            }
+            
+            content += `\n**🎯 Recommended Next Mock:**\n`;
+            if (ev.nextMock) {
+              content += `- **Type:** ${ev.nextMock.type}\n`;
+              content += `- **Difficulty:** ${ev.nextMock.difficulty}\n`;
+              content += `- **Subjects:** ${ev.nextMock.subjects ? ev.nextMock.subjects.join(', ') : ''}\n\n`;
+            }
+
+            const newMockResults = {
+              id: Date.now(),
+              date: new Date().toLocaleDateString(),
+              exam: selPaper || "GATE",
+              subject: selSub || "General",
+              grading: gradeData.grading,
+              evaluationContent: content,
+              stats: { attempted, unattempted, correct, incorrect, total, score }
+            };
+            setMockResults(newMockResults);
+            localStorage.setItem('vidyasetu_mock_results', JSON.stringify(newMockResults));
+            const newHistory = [{ ...newMockResults, questions: mockQuestions }, ...(Array.isArray(mockHistory) ? mockHistory : [])];
+            setMockHistory(newHistory);
+            localStorage.setItem('vidyasetu_mock_history', JSON.stringify(newHistory));
+            // We do NOT close the runner. It transitions to Review Mode automatically because mockResults is set.
+          }
+        } catch (e) {
+          alert(`Error: ${e.message}`);
+          setViewMockRunner(false);
+        }
+      };
+
       const handlePdfChatSubmit = async (e) => {
         e.preventDefault();
         if (!pdfChatInput.trim() || pdfChatLoading) return;
@@ -2120,9 +2747,9 @@ document.head.appendChild(style);
         <div>
           <div className="screen-hero">
             <div className="screen-hero-inner">
-              <div style={{ display: "inline-block", background: T.rose, color: "#fff", padding: "4px 10px", borderRadius: 12, fontSize: 11, fontWeight: 700, marginBottom: 12 }}>GATE PYQ Intelligence</div>
+              <div style={{ display: "inline-block", background: T.rose, color: "#fff", padding: "4px 10px", borderRadius: 12, fontSize: 11, fontWeight: 700, marginBottom: 12 }}>GATE AI Intelligence</div>
               <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, marginTop: 4, lineHeight: 1.15, color: T.text, letterSpacing: '-0.4px' }}>GATE Insights</h1>
-              <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Analyze GATE PYQs, discover high-frequency topics, and focus your preparation where it matters most.</p>
+              <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Master the GATE exam with AI-powered insights, personalized mock tests, and intelligent performance tracking.</p>
             </div>
           </div>
 
@@ -2212,13 +2839,41 @@ document.head.appendChild(style);
                   </Card>
                 </div>
 
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
-                  <button onClick={() => { setAiModalTitle("What to Study First"); setAiModalContent(""); executeAiAction("what-to-study-first"); }} style={{ background: "#fff", color: T.text, border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>✨ Tell Me What to Study First</button>
-                  <button onClick={() => { setAiModalTitle("Study Plan"); setAiModalContent(""); const days = prompt("Enter duration (e.g., 7 days, 15 days):", "7 days"); if (days) executeAiAction("study-plan", { duration: days }); }} style={{ background: "#fff", color: T.text, border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>✨ Generate GATE Study Plan</button>
-                  <button onClick={() => { setAiModalTitle("Practice Test"); setAiModalContent(""); const count = prompt("How many questions?", "10"); if (count) executeAiAction("practice-test", { count, difficulty: "mixed" }); }} style={{ background: "#fff", color: T.text, border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>🧪 Generate GATE Practice Test</button>
-                  <button onClick={loadQuestions} style={{ background: "#fff", border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>View All Questions</button>
-                  <button onClick={fetchPdfs} style={{ background: "#fff", border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>📄 View Original PDFs</button>
+                <div style={{ marginBottom: 24 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>🚀 Actions & Practice</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                    <button onClick={generateFullMock} style={{ background: "#FF4F1F", color: "#fff", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>Start Mock Test</button>
+                    <button onClick={simulateMockEvaluation} style={{ background: "#fff", color: T.text, border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>🎯 View Last Evaluation</button>
+                    <button onClick={generateInteractiveMock} style={{ background: "#fff", color: T.text, border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontWeight: 700 }}>🧪 Generate AI Practice Test</button>
+                    <button onClick={loadQuestions} style={{ background: "#fff", border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>View All Questions</button>
+                    <button onClick={fetchPdfs} style={{ background: "#fff", border: "1px solid #ddd", padding: "8px 16px", borderRadius: 8, cursor: "pointer" }}>📄 View Original PDFs</button>
+                  </div>
                 </div>
+
+                <div style={{ marginBottom: 24, background: "linear-gradient(to right, rgba(99, 102, 241, 0.05), rgba(236, 72, 153, 0.05))", padding: 16, borderRadius: 12, border: "1px solid rgba(99, 102, 241, 0.1)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                    <span style={{ fontSize: 18 }}>✨</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: T.indigo }}>Personalized AI Guidance for {user?.name.split(' ')[0]}</span>
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                    <button onClick={() => { setAiModalTitle("What to Study First"); setAiModalContent(""); executeAiAction("what-to-study-first"); }} style={{ background: T.indigo, color: "#fff", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>Tell Me What to Study First</button>
+                    <button onClick={() => { setAiModalTitle("Study Plan"); setAiModalContent(""); const days = prompt("Enter duration (e.g., 7 days, 15 days):", "7 days"); if (days) executeAiAction("study-plan", { duration: days }); }} style={{ background: "#fff", color: T.indigo, border: "1px solid " + T.indigo, padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>Generate GATE Study Plan</button>
+                  </div>
+                </div>
+
+            {viewMockRunner && (
+              <MockTestRunner 
+                questions={mockQuestions} 
+                onComplete={handleMockComplete} 
+                onCancel={() => { setViewMockRunner(false); }} 
+                results={mockResults}
+                onShowAiAnalysis={(c) => {
+                  setAiModalContent(c);
+                  setAiModalTitle("AI Mock Evaluation & Study Plan");
+                  setAiModalOpen(true);
+                }}
+              />
+            )}
 
             {viewGatePdfs && (
               <div className="fade-up" style={{ marginTop: 24, marginBottom: 24 }}>
@@ -2259,7 +2914,7 @@ document.head.appendChild(style);
                 <div className="two-panel">
                   <div className="section-block">
                     <Card style={{ overflowX: "auto" }}>
-                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14, color: T.text }}>📅 Year-wise Topic Frequency Heatmap</div>
+                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14, color: T.text }}>📅 Global Year-wise Topic Frequency Heatmap <span style={{fontSize: 11, fontWeight: 500, color: T.muted}}>(All GATE PYQs)</span></div>
                       <div style={{ minWidth: 400 }}>
                         <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 8 }}>
                           <div style={{ width: 180, fontSize: 10, color: T.muted }}>TOPIC</div>
@@ -2281,41 +2936,93 @@ document.head.appendChild(style);
                     </Card>
 
                     <Card style={{ marginTop: 16 }}>
-                      <div style={{ fontWeight: 700, marginBottom: 12, color: T.text }}>🎯 AI Recommended Focus</div>
-                      {(analytics.topics || []).slice(0, 3).map(({ t, relativeFrequency }) => (
-                        <div key={t} style={{ display: "flex", flexDirection: "column", marginBottom: 12 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <span style={{ fontSize: 16 }}>🔥</span>
-                            <span style={{ fontSize: 13, color: T.text }}>{t}</span>
-                            <span style={{ marginLeft: "auto", fontFamily: 'Inter', color: pc(relativeFrequency), fontWeight: 700 }}>{relativeFrequency}% Priority</span>
-                          </div>
-                          <div style={{ marginLeft: 30, marginTop: 4 }}>
-                            <button onClick={() => { setAiModalTitle(`Why ${t}?`); setAiModalContent(""); executeAiAction("topic-explain", { specificTopic: t, topicProbability: relativeFrequency }); }} style={{ background: "transparent", border: "none", color: T.indigo, fontSize: 12, cursor: "pointer", padding: 0, fontWeight: 600 }}>Why this topic? →</button>
-                          </div>
+                      <div style={{ fontWeight: 700, marginBottom: 12, color: T.text }}>🎯 AI Recommended Focus <span style={{fontSize: 11, fontWeight: 500, color: T.muted}}>(From your Mock)</span></div>
+                      {mockResults && mockResults.grading && mockResults.grading.topicPerformance ? (
+                        Object.entries(mockResults.grading.topicPerformance)
+                          .map(([t, stats]) => {
+                            const acc = stats.total > 0 ? (stats.correct / stats.total) * 100 : 0;
+                            return { t, acc, priority: 100 - acc }; // Lower accuracy = higher priority
+                          })
+                          .sort((a, b) => b.priority - a.priority)
+                          .slice(0, 3)
+                          .map(({ t, priority }) => (
+                            <div key={t} style={{ display: "flex", flexDirection: "column", marginBottom: 12 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <span style={{ fontSize: 16 }}>🔥</span>
+                                <span style={{ fontSize: 13, color: T.text }}>{t}</span>
+                                <span style={{ marginLeft: "auto", fontFamily: 'Inter', color: priority > 60 ? T.rose : T.yellow, fontWeight: 700 }}>{Math.round(priority)}% Priority</span>
+                              </div>
+                              <div style={{ marginLeft: 30, marginTop: 4 }}>
+                                <button onClick={() => { setAiModalTitle(`Why focus on ${t}?`); setAiModalContent(""); executeAiAction("topic-explain", { specificTopic: t, topicProbability: priority }); }} style={{ background: "transparent", border: "none", color: T.indigo, fontSize: 12, cursor: "pointer", padding: 0, fontWeight: 600 }}>How to improve? →</button>
+                              </div>
+                            </div>
+                          ))
+                      ) : (
+                        <div style={{ padding: 20, textAlign: "center", color: T.muted, fontSize: 13 }}>
+                          Take a mock test to get AI recommendations on what to study next!
                         </div>
-                      ))}
+                      )}
                     </Card>
                   </div>
 
                   <Card>
-                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14, color: T.text }}>📈 Priority Topics</div>
-                    {(analytics.topics || []).map(({ t, frequency, relativeFrequency, priority }, i) => (
-                      <div key={t} style={{ marginBottom: 14 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: 11, color: T.muted, width: 20 }}>#{i + 1}</span>
-                            <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{t}</span>
+                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14, color: T.text }}>📈 Priority Topics <span style={{fontSize: 11, fontWeight: 500, color: T.muted}}>(Based on your Mock Performance)</span></div>
+                    {mockResults && mockResults.grading && mockResults.grading.topicPerformance ? (
+                      Object.entries(mockResults.grading.topicPerformance)
+                        .map(([t, stats]) => {
+                          const acc = stats.total > 0 ? (stats.correct / stats.total) * 100 : 0;
+                          const priority = acc < 40 ? 'High' : acc < 75 ? 'Medium' : 'Low';
+                          return { t, acc, priority, total: stats.total, correct: stats.correct };
+                        })
+                        .sort((a, b) => a.acc - b.acc)
+                        .map(({ t, acc, priority, total, correct }, i) => (
+                          <div key={t} style={{ marginBottom: 14 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span style={{ fontSize: 11, color: T.muted, width: 20 }}>#{i + 1}</span>
+                                <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{t}</span>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <Badge color={acc < 40 ? T.rose : acc < 75 ? T.yellow : T.success}>{priority === 'High' ? "🔥 High" : priority === 'Medium' ? "⚡ Medium" : "✅ Low"}</Badge>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: T.muted }} title="Accuracy">{Math.round(acc)}% ({correct}/{total})</span>
+                              </div>
+                            </div>
+                            <PBar value={100 - acc} color={acc < 40 ? T.rose : acc < 75 ? T.yellow : T.success} h={6} />
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <Badge color={pc(relativeFrequency)}>{priority === 'High' ? "🔥 High" : priority === 'Medium' ? "⚡ Medium" : "✅ Lower"}</Badge>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: T.muted }} title="Questions">Q: {frequency}</span>
-                          </div>
-                        </div>
-                        <PBar value={relativeFrequency} color={pc(relativeFrequency)} h={6} />
+                        ))
+                    ) : (
+                      <div style={{ padding: 30, textAlign: "center", color: T.muted, background: T.gray, borderRadius: 8 }}>
+                        <div style={{ fontSize: 24, marginBottom: 8 }}>🎯</div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>No mock data available.</div>
+                        <div style={{ fontSize: 12, marginTop: 4 }}>Take a mock test to unlock personalized priority topics based on your weaknesses!</div>
                       </div>
-                    ))}
+                    )}
                   </Card>
                 </div>
+
+                <div style={{ marginTop: 24, marginBottom: 24 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.muted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>📚 Past Mocks History</div>
+                  {(!mockHistory || mockHistory.length === 0) ? (
+                    <div style={{ background: "#fff", border: "1px dashed #ccc", padding: 24, borderRadius: 12, textAlign: "center", color: T.muted }}>
+                      No past mocks yet. Generate an AI Practice Test or take a Full Mock to see your history here!
+                    </div>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 16 }}>
+                      {mockHistory.map((mh, idx) => (
+                        <div key={mh.id || idx} onClick={() => {
+                          setMockQuestions(mh.questions || []);
+                          setMockResults(mh);
+                          setViewMockRunner(true);
+                        }} style={{ background: "#fff", border: "1px solid #eee", padding: 16, borderRadius: 12, cursor: "pointer", transition: "transform 0.2s" }} onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
+                          <div style={{ fontSize: 12, color: T.muted, marginBottom: 4 }}>{mh.date} • {mh.exam} - {mh.subject}</div>
+                          <div style={{ fontWeight: 700, color: T.text, fontSize: 16 }}>Score: {mh.stats?.score} / {mh.stats?.total}</div>
+                          <div style={{ fontSize: 13, color: T.indigo, marginTop: 8, fontWeight: 600 }}>Review Evaluation →</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
               </div>
             )}
 
@@ -2339,7 +3046,7 @@ document.head.appendChild(style);
                       questions.map(q => (
                         <Card key={q._id}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                            <Badge color={q.isSampleData ? T.warn : T.success}>{q.isSampleData ? "⚠️ Demo Data" : "✅ Verified GATE PYQ"}</Badge>
+                            <Badge color={q.isSampleData ? T.warn : T.success}>{q.isSampleData ? "📝 Practice Question" : "✅ Verified GATE PYQ"}</Badge>
                             <span style={{ fontSize: 12, color: T.muted }}>{q.year} • {q.marks ? `${q.marks} Marks` : ''}</span>
                           </div>
                           <div style={{ fontSize: 15, fontWeight: 500, color: T.text, marginBottom: 8, whiteSpace: "pre-wrap" }}>{q.question}</div>
@@ -2361,35 +3068,48 @@ document.head.appendChild(style);
               </div>
             )}
 
-            {aiModalOpen && (
-              <Modal open={aiModalOpen} onClose={() => setAiModalOpen(false)} title={aiModalTitle}>
-                {aiActionLoading && !aiModalContent ? (
-                  <div style={{ textAlign: "center", padding: 40, color: T.muted }}>
-                    <div style={{ marginBottom: 12 }}>🤖 AI is analyzing...</div>
-                    <div style={{ fontSize: 13 }}>Applying GATE PYQ deterministic data.</div>
+            {aiModalOpen && createPortal(
+              <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999999, background: '#fff', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 32px', borderBottom: '1px solid #eee', background: '#FAFAFA' }}>
+                  <h2 style={{ fontSize: 24, margin: 0, fontWeight: 700, color: T.text }}>{aiModalTitle}</h2>
+                  <div style={{ display: 'flex', gap: 12 }}>
+
+                    <button onClick={() => setAiModalOpen(false)} style={{ background: T.gray, border: "none", padding: "8px 16px", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>Close</button>
                   </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", height: "100%", maxHeight: "60vh" }}>
-                    <div style={{ flex: 1, overflowY: "auto", paddingRight: 8, marginBottom: 16 }}>
-                      {aiModalContent ? (
-                        <div style={{ fontSize: 14, lineHeight: 1.6, color: T.text, whiteSpace: "pre-wrap" }}>
-                          {safeRenderMarkdown(aiModalContent)}
+                </div>
+                
+                <div style={{ flex: 1, padding: '32px', overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
+                  <div style={{ width: '100%', maxWidth: 900, display: 'flex', flexDirection: 'column' }}>
+                    {aiActionLoading && !aiModalContent ? (
+                      <div style={{ textAlign: "center", padding: 40, color: T.muted, marginTop: 100 }}>
+                        <div style={{ marginBottom: 12, fontSize: 24 }}>🤖 AI is analyzing...</div>
+                        <div style={{ fontSize: 16 }}>Applying GATE PYQ deterministic data.</div>
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ flex: 1, paddingRight: 8, marginBottom: 16 }}>
+                          {aiModalContent ? (
+                            <div style={{ fontSize: 16, lineHeight: 1.6, color: T.text, whiteSpace: "pre-wrap" }}>
+                              {safeRenderMarkdown(aiModalContent)}
+                            </div>
+                          ) : null}
                         </div>
-                      ) : null}
-                    </div>
-                    <form onSubmit={handleAiChatSubmit} style={{ display: "flex", gap: 10, marginTop: "auto", borderTop: "1px solid #eee", paddingTop: 16 }}>
-                      <input
-                        type="text"
-                        value={aiChatInput}
-                        onChange={(e) => setAiChatInput(e.target.value)}
-                        placeholder="Ask a follow-up question..."
-                        style={{ flex: 1, padding: "10px 14px", border: "1px solid #ddd", borderRadius: 8, outline: "none" }}
-                      />
-                      <button type="submit" disabled={aiActionLoading || !aiChatInput.trim()} style={{ background: T.indigo, color: "#fff", border: "none", padding: "0 20px", borderRadius: 8, cursor: aiActionLoading || !aiChatInput.trim() ? "not-allowed" : "pointer", opacity: aiActionLoading || !aiChatInput.trim() ? 0.6 : 1 }}>Send</button>
-                    </form>
+                        <form onSubmit={handleAiChatSubmit} style={{ display: "flex", gap: 10, marginTop: "auto", borderTop: "1px solid #eee", paddingTop: 16, paddingBottom: 32 }}>
+                          <input
+                            type="text"
+                            value={aiChatInput}
+                            onChange={(e) => setAiChatInput(e.target.value)}
+                            placeholder="Ask a follow-up question..."
+                            style={{ flex: 1, padding: "14px 20px", border: "1px solid #ddd", borderRadius: 8, outline: "none", fontSize: 16 }}
+                          />
+                          <button type="submit" disabled={aiActionLoading || !aiChatInput.trim()} style={{ background: T.indigo, color: "#fff", border: "none", padding: "0 24px", borderRadius: 8, cursor: aiActionLoading || !aiChatInput.trim() ? "not-allowed" : "pointer", opacity: aiActionLoading || !aiChatInput.trim() ? 0.6 : 1, fontSize: 16, fontWeight: 600 }}>Send</button>
+                        </form>
+                      </>
+                    )}
                   </div>
-                )}
-              </Modal>
+                </div>
+              </div>,
+              document.body
             )}
 
             {pdfViewerData && (
@@ -5261,7 +5981,7 @@ document.head.appendChild(style);
 
       const mods = [
         { id: "chhatra", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>badge</span>, title: "Student Perks", sub: "Digital ID & Perks", c: T.indigo },
-        { id: "prashna", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>fact_check</span>, title: "GATE Insights", sub: "GATE PYQ Intelligence", c: T.rose },
+        { id: "prashna", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>fact_check</span>, title: "GATE Insights", sub: "GATE AI Intelligence", c: T.rose },
         { id: "bazaar", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>storefront</span>, title: "Campus Store", sub: "Buy & Sell on Campus", c: T.teal },
         { id: "karya", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>engineering</span>, title: "Career Compass", sub: "Placement Skill Matcher", c: T.yellow },
         { id: "hub", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>account_balance</span>, title: "Scholarship Hub", sub: "Apply & Track Status", c: T.success },

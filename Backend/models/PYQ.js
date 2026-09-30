@@ -21,7 +21,8 @@ const pyqSchema = new mongoose.Schema({
   sourceType: { type: String, required: false }, // 'PDF', 'Web', etc.
   sourceFile: { type: String, required: false },
   source: { type: String, required: false }, // e.g., "Official GATE 2023 Paper", "AKTU 2021 End Sem"
-  sourceYear: { type: Number, required: false }
+  sourceYear: { type: Number, required: false },
+  correctAnswer: { type: String, required: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model("PYQ", pyqSchema);
