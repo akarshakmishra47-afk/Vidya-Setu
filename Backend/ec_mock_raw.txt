@@ -1,0 +1,1587 @@
+GATE – Electronics and Communication Engineering (EC)
+
+Organizing Institute: IIT Roorkee
+
+General Aptitude
+Q.1 – Q.5 Carry ONE mark Each
+Q.1
+
+Here are two analogous groups, Group-I and Group-II, that list words in their decreasing order of intensity. Identify the missing word in Group-II.
+
+Group-I:
+Abuse → Insult → Ridicule
+
+Group-II:
+________ → Praise → Appreciate
+
+Options:
+
+(A) Extol
+(B) Prize
+(C) Appropriate
+(D) Espouse
+
+Q.2
+
+Had I learnt acting as a child, I ________ a famous film star.
+
+Select the most appropriate option to complete the above sentence.
+
+(A) will be
+(B) can be
+(C) am going to be
+(D) could have been
+
+Q.3
+
+The 12 musical notes are given as
+
+[
+C,\ C^#,\ D,\ D^#,\ E,\ F,\ F^#,\ G,\ G^#,\ A,\ A^#,\ B
+]
+
+Frequency of each note is
+
+[
+\sqrt[12]{2}
+]
+
+times the frequency of the previous note.
+
+If the frequency of the note (C) is 130.8 Hz, then the ratio of frequencies of notes (F^#) and (C) is:
+
+(A) (\sqrt{2}^{,6})
+(B) (\sqrt{2})
+(C) (\sqrt{2}^{,4})
+(D) (2)
+
+Q.4
+
+The following figures show three curves generated using an iterative algorithm. The total length of the curve generated after Iteration (n) is:
+
+Note: The figures shown are representative.
+
+Iteration 0:
+[Figure not included in the provided text]
+
+Iteration 1:
+[Figure not included in the provided text]
+
+Iteration 2:
+[Figure not included in the provided text]
+
+The length of each segment changes as shown:
+
+Iteration 0: (\frac{1}{3})
+Iteration 1: (\frac{1}{9})
+Iteration 2: (\frac{1}{9})
+
+Options:
+
+(A) (\left(\frac{5}{3}\right)^n 2)
+(B) (\left(\frac{5}{3}\right)^n)
+(C) (\left(\frac{5}{3}\right)^{2n})
+(D) (\left(\frac{5}{3}\right)^n(2^n-1))
+
+Q.5
+
+Which one of the following plots represents
+
+[
+f(x)=-\frac{|x|}{x},
+]
+
+where (x) is a non-zero real number?
+
+Note: The figures shown are representative.
+
+(A) [Plot A]
+(B) [Plot B]
+(C) [Plot C]
+(D) [Plot D]
+
+Important points shown in the original figure:
+
+[
+(0,1),\quad (0,-1),\quad (1,0),\quad (-1,0)
+]
+
+Q.6 – Q.10 Carry TWO marks Each
+Q.6
+
+Identify the option that has the most appropriate sequence such that a coherent paragraph is formed:
+
+P. Over time, such adaptations lead to significant evolutionary changes with the potential to shape the development of new species.
+
+Q. In the natural world, organisms constantly adapt to their environments in response to challenges and opportunities.
+
+R. This process of adaptation is driven by the principle of natural selection, where favorable traits increase an organism’s chances of survival and reproduction.
+
+S. As environments change, organisms that can adapt their behavior, structure, and physiology to such changes are more likely to survive.
+
+Options:
+
+(A) P → Q → R → S
+(B) Q → S → R → P
+(C) R → S → Q → P
+(D) S → P → R → Q
+
+Q.7
+
+A stick of length one meter is broken at two locations at distances (b_1) and (b_2) from the origin ((0)), as shown in the figure.
+
+Note that
+
+[
+0<b_1<b_2<1.
+]
+
+Which one of the following is NOT a necessary condition for forming a triangle using the three pieces?
+
+Note: All lengths are in meter.
+
+[Figure not included in the provided text]
+
+Options:
+
+(A) (b_1<0.5)
+
+(B) (b_2>0.5)
+
+(C) (b_2<b_1+0.5)
+
+(D) (b_1+b_2<1)
+
+Q.8
+
+Eight students (P,Q,R,S,T,U,V,) and (W) are playing musical chairs. The figure indicates their order of position at the start of the game. They play the game by moving forward in a circle in the clockwise direction.
+
+After the 1st round, 4th student behind (P) leaves the game.
+
+After the 2nd round, 5th student behind (Q) leaves the game.
+
+After the 3rd round, 3rd student behind (V) leaves the game.
+
+After the 4th round, 4th student behind (U) leaves the game.
+
+Who all are left in the game after the 4th round?
+
+Initial order shown in the figure:
+
+[
+P,\ R,\ T,\ Q,\ S,\ V,\ U,\ W
+]
+
+Options:
+
+(A) P; T; Q; S
+(B) V; P; T; Q
+(C) W; R; Q; V
+(D) Q; T; V; W
+
+Q.9
+
+The table lists the top 5 nations according to the number of gold medals won in a tournament; also included are the number of silver and bronze medals won by them.
+
+Based only on the data provided in the table, which one of the following statements is INCORRECT?
+
+Nation	Gold	Silver	Bronze
+USA	40	44	41
+Canada	39	27	24
+Japan	20	12	13
+Australia	17	19	16
+France	16	26	22
+
+Options:
+
+(A) France will occupy the third place if the list were made on the basis of the total number of medals won.
+
+(B) The order of the top two nations will not change even if the list is made on the basis of the total number of medals won.
+
+(C) USA and Canada together have less than 50% of the medals awarded to the nations in the above table.
+
+(D) Canada has won twice as many total medals as Japan.
+
+Q.10
+
+An organization allows its employees to work independently on consultancy projects but charges an overhead on the consulting fee.
+
+The overhead is 20% of the consulting fee, if the fee is up to ₹5,00,000.
+
+For higher fees, the overhead is:
+
+[
+₹1,00,000 + 10% \text{ of the amount by which the fee exceeds } ₹5,00,000.
+]
+
+The government charges a Goods and Services Tax (GST) of 18% on the total amount (the consulting fee plus the overhead).
+
+An employee of the organization charges this entire amount, i.e., the consulting fee, overhead, and tax, to the client.
+
+If the client cannot pay more than ₹10,00,000, what is the maximum consulting fee that the employee can charge?
+
+Options:
+
+(A) ₹7,01,438
+(B) ₹7,24,961
+(C) ₹7,51,232
+(D) ₹7,75,784
+
+Electronics and Communication Engineering
+Q.11 – Q.35 Carry ONE mark Each
+Q.11
+
+Consider the matrix (A) below:
+
+[
+A=
+\begin{bmatrix}
+2 & 3 & 0 & 6\
+4 & 5 & 7 & 8\
+0 & 0 & \alpha & \beta\
+0 & \gamma & 0 & 0
+\end{bmatrix}
+]
+
+For which of the following combinations of (\alpha,\beta,\gamma) is the rank of (A) at least three?
+
+(i) (\alpha=0) and (\beta=\gamma\neq0)
+
+(ii) (\alpha=\beta=\gamma=0)
+
+(iii) (\beta=\gamma=0) and (\alpha\neq0)
+
+(iv) (\alpha=\beta=\gamma\neq0)
+
+Options:
+
+(A) Only (i), (iii), and (iv)
+(B) Only (iv)
+(C) Only (ii)
+(D) Only (i) and (iii)
+
+Q.12
+
+Consider the following series:
+
+(i)
+
+[
+\sum_{n=1}^{\infty}\frac{1}{\sqrt n}
+]
+
+(ii)
+
+[
+\sum_{n=1}^{\infty}\frac{1}{n(n+1)}
+]
+
+(iii)
+
+[
+\sum_{n=1}^{\infty}\frac{1}{n!}
+]
+
+Choose the correct option.
+
+(A) Only (ii) converges
+(B) Only (ii) and (iii) converge
+(C) Only (iii) converges
+(D) All three converge
+
+Q.13
+
+A pot contains two red balls and two blue balls. Two balls are drawn from this pot randomly without replacement.
+
+What is the probability that the two balls drawn have different colours?
+
+(A) (\frac{2}{3})
+(B) (\frac{1}{3})
+(C) (\frac{1}{2})
+(D) (1)
+
+Q.14
+
+Consider a frequency-modulated (FM) signal
+
+[
+f(t)=A_c\cos\left(2\pi f_ct+3\sin(2\pi f_1t)+4\sin(6\pi f_1t)\right),
+]
+
+where (A_c) and (f_c) are, respectively, the amplitude and frequency (in Hz) of the carrier waveform.
+
+The frequency (f_1) is in Hz, and assume that
+
+[
+f_c>100f_1.
+]
+
+The peak frequency deviation of the FM signal in Hz is:
+
+(A) (15f_1)
+(B) (12f_1)
+(C) (4f_1)
+(D) (2f_1)
+
+Q.15
+
+Consider an additive white Gaussian noise (AWGN) channel with bandwidth (W) and noise power spectral density
+
+[
+\frac{N_0}{2}.
+]
+
+Let (P_{av}) denote the average transmit power constraint.
+
+Which one of the following plots illustrates the dependence of the channel capacity (C) on the bandwidth (W), keeping (P_{av}) and (N_0) fixed?
+
+(A) [Plot A]
+(B) [Plot B]
+(C) [Plot C]
+(D) [Plot D]
+
+Q.16
+
+The Nyquist plot of a system is given in the figure below.
+
+Let (\omega_P,\omega_Q,\omega_R,) and (\omega_S) be the positive frequencies at the points (P,Q,R,) and (S), respectively.
+
+Which one of the following statements is TRUE?
+
+[Nyquist plot not included in the provided text]
+
+(A) (\omega_S) is the gain crossover frequency and (\omega_P) is the phase crossover frequency.
+
+(B) (\omega_Q) is the gain crossover frequency and (\omega_R) is the phase crossover frequency.
+
+(C) (\omega_Q) is the gain crossover frequency and (\omega_S) is the phase crossover frequency.
+
+(D) (\omega_S) is the gain crossover frequency and (\omega_Q) is the phase crossover frequency.
+
+Q.17
+
+Consider the discrete-time system below with input (x[n]) and output (y[n]).
+
+In the figure, (h_1[n]) and (h_2[n]) denote the impulse responses of LTI Subsystems 1 and 2, respectively. Also, (\delta[n]) is the unit impulse, and (b>0).
+
+Assuming
+
+[
+h_2[n]\neq\delta[n],
+]
+
+the overall system (denoted by the dashed box) is:
+
+[System diagram not included in the provided text]
+
+(A) Linear and time invariant
+(B) Linear and time variant
+(C) Nonlinear and time invariant
+(D) Nonlinear and time variant
+
+Q.18
+
+Consider a continuous-time, real-valued signal (f(t)) whose Fourier transform
+
+[
+F(\omega)=
+\int_{-\infty}^{\infty}
+f(t)e^{-j\omega t},dt
+]
+
+exists.
+
+Which one of the following statements is always TRUE?
+
+(A)
+
+[
+|F(\omega)|\leq
+\int_{-\infty}^{\infty}|f(t)|,dt
+]
+
+(B)
+
+[
+|F(\omega)|>
+\int_{-\infty}^{\infty}|f(t)|,dt
+]
+
+(C)
+
+[
+|F(\omega)|\leq
+\int_{-\infty}^{\infty}f(t),dt
+]
+
+(D)
+
+[
+|F(\omega)|\geq
+\int_{-\infty}^{\infty}f(t),dt
+]
+
+Q.19
+
+Consider a part of an electrical network as shown below. Some node voltages, and the current flowing through the (3\Omega) resistor are as indicated.
+
+The voltage (in Volts) at node (X) is:
+
+[Figure not included in the provided text]
+
+(A) (\frac{20}{3})
+(B) (\frac{32}{3})
+(C) (\frac{22}{3})
+(D) (\frac{2}{3})
+
+Q.20
+
+Let (i_C,i_L,) and (i_R) be the currents flowing through the capacitor, inductor, and resistor, respectively, in the circuit given below.
+
+The AC admittances are given in Siemens (S).
+
+Which one of the following is TRUE?
+
+[Figure not included in the provided text]
+
+(A)
+
+[
+i_C=0.25\angle180^\circ\text{ A},\quad
+i_L=0.1\angle0^\circ\text{ A},\quad
+i_R=0.2\angle90^\circ\text{ A}
+]
+
+(B)
+
+[
+i_C=4\angle180^\circ\text{ A},\quad
+i_L=10\angle0^\circ\text{ A},\quad
+i_R=5\angle90^\circ\text{ A}
+]
+
+(C)
+
+[
+i_C=0.25\angle270^\circ\text{ A},\quad
+i_L=0.1\angle90^\circ\text{ A},\quad
+i_R=0.2\angle90^\circ\text{ A}
+]
+
+(D)
+
+[
+i_C=4\angle90^\circ\text{ A},\quad
+i_L=10\angle270^\circ\text{ A},\quad
+i_R=5\angle0^\circ\text{ A}
+]
+
+Q.21
+
+A simplified small-signal equivalent circuit of a BJT-based amplifier is given below.
+
+The small-signal voltage gain
+
+[
+\frac{v_o}{v_s}
+]
+
+(in V/V) is:
+
+[Figure not included in the provided text]
+
+(A)
+
+[
+-\frac{\beta R_L}{R_S+r_\pi}
+]
+
+(B)
+
+[
++\frac{\beta R_L}{R_S}
+]
+
+(C)
+
+[
+-\frac{\beta R_L}{R_S}
+]
+
+(D)
+
+[
++\frac{\beta R_L}{R_S+r_\pi}
+]
+
+Q.22
+
+The ideal BJT in the circuit given below is biased in the active region with a (\beta) of 100.
+
+If
+
+[
+I_B=10,\mu A,
+]
+
+then (V_{CE}) (in Volts, rounded off to two decimal places) is:
+
+[Figure not included in the provided text]
+
+(A) 4.95
+(B) 3.03
+(C) 1.92
+(D) 3.73
+
+Q.23
+
+A 3-input majority logic gate has inputs (X,Y,) and (Z).
+
+The output (F) of the gate is logic '1' if two or more of the inputs are logic '1'. The output (F) is logic '0' if two or more of the inputs are logic '0'.
+
+Which one of the following options is a Boolean expression of the output (F)?
+
+(A)
+
+[
+XY+YZ+ZX
+]
+
+(B)
+
+[
+X\oplus Y\oplus Z
+]
+
+(C)
+
+[
+X+Y+Z
+]
+
+(D)
+
+[
+XYZ
+]
+
+Q.24
+
+A full adder and an XOR gate are used to design a digital circuit with inputs (X,Y,) and (Z), and output (F), as shown below.
+
+The input (Z) is connected to the carry-in input of the full adder.
+
+If the input (Z) is set to logic '1', then the circuit functions as ________ with (X) and (Y) as inputs.
+
+[Figure not included in the provided text]
+
+(A) An adder
+(B) A subtractor
+(C) A multiplier
+(D) A binary to Gray code converter
+
+Q.25
+
+Consider the function
+
+[
+f:\mathbb{R}\to\mathbb{R},
+]
+
+defined as
+
+[
+f(x)=2x^3-3x^2-12x+1.
+]
+
+Which of the following statements is/are correct?
+
+(Here, (\mathbb{R}) is the set of real numbers.)
+
+(A) (f) has no global maximizer
+(B) (f) has no global minimizer
+(C) (x=-1) is a local minimizer of (f)
+(D) (x=2) is a local maximizer of (f)
+
+Q.26
+
+Consider the unity-negative-feedback system shown in Figure (i) below, where gain (K\geq0).
+
+The root locus of this system is shown in Figure (ii) below.
+
+For what value(s) of (K) will the system in Figure (i) have a pole at
+
+[
+-1+j1?
+]
+
+[Figures not included in the provided text]
+
+(A) (K=5)
+(B) (K=\frac{1}{5})
+(C) For no positive value of (K)
+(D) For all positive values of (K)
+
+Q.27
+
+Let (x[n]) be a discrete-time signal whose (z)-transform is (X(z)).
+
+Which of the following statements is/are TRUE?
+
+(A) The discrete-time Fourier transform (DTFT) of (x[n]) always exists.
+
+(B) The region of convergence (RoC) of (X(z)) contains neither poles nor zeros.
+
+(C) The DTFT exists if the region of convergence (RoC) contains the unit circle.
+
+(D) If
+
+[
+x[n]=\alpha\delta[n],
+]
+
+where (\delta[n]) is the unit impulse and (\alpha) is a scalar, then the region of convergence (RoC) is the entire (z)-plane.
+
+Q.28
+
+Consider a message signal (m(t)) which is bandlimited to ([-W,W]), where (W) is in Hz.
+
+Consider the following two modulation schemes for the message signal:
+
+Double Sideband-Suppressed Carrier (DSB-SC):
+
+[
+f_{DSB}(t)=A_cm(t)\cos(2\pi f_ct)
+]
+
+Amplitude Modulation (AM):
+
+[
+f_{AM}(t)=A_c(1+\mu m(t))\cos(2\pi f_ct)
+]
+
+Here, (A_c) and (f_c) are the amplitude and frequency (in Hz) of the carrier, respectively. In the case of AM, (\mu) denotes the modulation index.
+
+Consider the following statements:
+
+(i) An envelope detector can be used for demodulation in the DSB-SC scheme if (m(t)>0) for all (t).
+
+(ii) An envelope detector can be used for demodulation in the AM scheme only if (m(t)>0) for all (t).
+
+Which of the following options is/are correct?
+
+(A) (i) is TRUE
+(B) (i) is FALSE
+(C) (ii) is TRUE
+(D) (ii) is FALSE
+
+Q.29
+
+Which of the following statements is/are TRUE with respect to an ideal op-amp?
+
+(A) It has an infinite input resistance.
+(B) It has an infinite output resistance.
+(C) It has an infinite open-loop differential gain.
+(D) It has an infinite open-loop common-mode gain.
+
+Q.30
+
+Which of the following statements is/are TRUE with respect to ideal MOSFET-based DC-coupled single-stage amplifiers having finite load resistors?
+
+(A) The common-gate amplifier has an infinite input resistance.
+
+(B) The common-source amplifier has an infinite input resistance.
+
+(C) The input and output voltages of the common-source amplifier are in phase.
+
+(D) The input and output voltages of the common-drain amplifier are in phase.
+
+Q.31
+
+Which of the following can be used as an n-type dopant for silicon?
+
+Select the correct option(s).
+
+(A) Arsenic
+(B) Boron
+(C) Gallium
+(D) Phosphorous
+
+Q.32
+
+The function (y(t)) satisfies
+
+[
+t^2y''(t)-2ty'(t)+2y(t)=0,
+]
+
+where (y'(t)) and (y''(t)) denote the first and second derivatives of (y(t)), respectively.
+
+Given
+
+[
+y'(0)=1,\qquad y'(1)=-1,
+]
+
+the maximum value of (y(t)) over ([0,1]) is ________.
+
+(Rounded off to two decimal places.)
+
+Q.33
+
+The generator matrix of a ((6,3)) binary linear block code is given by
+
+[
+G=
+\begin{bmatrix}
+1&0&0\
+0&1&0\
+0&0&1\
+1&0&1\
+0&1&1\
+1&1&0
+\end{bmatrix}.
+]
+
+The minimum Hamming distance (d_{min}) between codewords equals ________.
+
+Answer in integer.
+
+Q.34
+
+All the components in the bandpass filter given below are ideal.
+
+The lower (-3) dB frequency of the filter is 1 MHz.
+
+The upper (-3) dB frequency (in MHz, rounded off to the nearest integer) is ________.
+
+[Figure not included in the provided text]
+
+Q.35
+
+A 4-bit weighted-resistor DAC with inputs (b_3,b_2,b_1,) and (b_0) (MSB to LSB) is designed using an ideal op-amp, as shown below.
+
+The switches are closed when the corresponding input bits are logic '1' and open otherwise.
+
+When the input
+
+[
+b_3b_2b_1b_0
+]
+
+changes from 1110 to 1101, the magnitude of the change in the output voltage (V_O) (in mV, rounded off to the nearest integer) is ________.
+
+[Figure not included in the provided text]
+
+Q.36 – Q.65 Carry TWO marks Each
+Q.36
+
+Let
+
+[
+G(s)=\frac{1}{10s^2}
+]
+
+be the transfer function of a second-order system.
+
+A controller (M(s)) is connected to the system (G(s)) in the configuration shown below.
+
+Consider the following statements:
+
+(i) There exists no controller of the form
+
+[
+M(s)=\frac{K_I}{s},
+]
+
+where (K_I) is a positive real number, such that the closed-loop system is stable.
+
+(ii) There exists at least one controller of the form
+
+[
+M(s)=K_P+sK_D,
+]
+
+where (K_P) and (K_D) are positive real numbers, such that the closed-loop system is stable.
+
+Which one of the following options is correct?
+
+(A) (i) is TRUE and (ii) is FALSE
+(B) (i) is FALSE and (ii) is TRUE
+(C) Both (i) and (ii) are FALSE
+(D) Both (i) and (ii) are TRUE
+
+Q.37
+
+Consider the polynomial
+
+[
+p(s)=s^5+7s^4+3s^3-33s^2+2s-40.
+]
+
+Let ((L,I,R)) be defined as follows:
+
+(L) is the number of roots of (p(s)) with negative real parts.
+(I) is the number of roots of (p(s)) that are purely imaginary.
+(R) is the number of roots of (p(s)) with positive real parts.
+
+Which one of the following options is correct?
+
+(A) (L=2,\ I=2,\ R=1)
+(B) (L=3,\ I=2,\ R=0)
+(C) (L=1,\ I=2,\ R=2)
+(D) (L=0,\ I=4,\ R=1)
+
+Q.38
+
+Consider a continuous-time finite-energy signal (f(t)) whose Fourier transform vanishes outside the frequency interval
+
+[
+[-\omega_c,\omega_c],
+]
+
+where (\omega_c) is in rad/sec.
+
+The signal (f(t)) is uniformly sampled to obtain
+
+[
+y(t)=f(t)p(t),
+]
+
+where
+
+[
+p(t)=\sum_{n=-\infty}^{\infty}\delta(t-\tau-nT_s),
+]
+
+with (\delta(t)) being the Dirac impulse, (T_s>0), and (\tau>0).
+
+The sampled signal (y(t)) is passed through an ideal lowpass filter
+
+[
+h(t)=
+\frac{\omega_cT_s\sin(\omega_ct)}
+{\pi\omega_ct}
+]
+
+with cutoff frequency (\omega_c) and passband gain (T_s).
+
+The output of the filter is:
+
+(A)
+
+[
+f(t),\qquad T_s<\frac{\pi}{\omega_c}
+]
+
+(B)
+
+[
+f(t-\tau),\qquad T_s<\frac{\pi}{\omega_c}
+]
+
+(C)
+
+[
+f(t-\tau),\qquad T_s<\frac{2\pi}{\omega_c}
+]
+
+(D)
+
+[
+T_sf(t),\qquad T_s<\frac{2\pi}{\omega_c}
+]
+
+Q.39
+
+In the circuit below, (M_1) is an ideal AC voltmeter and (M_2) is an ideal AC ammeter.
+
+The source voltage (in Volts) is
+
+[
+v_s(t)=100\cos(200t).
+]
+
+What should be the value of the variable capacitor (C) such that the RMS readings on (M_1) and (M_2) are 25 V and 5 A, respectively?
+
+[Figure not included in the provided text]
+
+(A) (25,\mu F)
+(B) (4,\mu F)
+(C) (0.25,\mu F)
+(D) Insufficient information to find (C)
+
+Q.40
+
+The (Z)-parameter matrix of a two-port network relates the port voltages and port currents as follows:
+
+Z
+\begin{bmatrix}
+I_1\
+I_2
+\end{bmatrix}
+]
+
+The (Z)-parameter matrix (with each entry in Ohms) of the network shown below is:
+
+[Figure not included in the provided text]
+
+(A)
+
+[
+\begin{bmatrix}
+\frac{10}{3} & \frac{2}{3}\
+\frac{2}{3} & \frac{10}{3}
+\end{bmatrix}
+]
+
+(B)
+
+[
+\begin{bmatrix}
+\frac{2}{3} & \frac{10}{3}\
+\frac{10}{3} & \frac{2}{3}
+\end{bmatrix}
+]
+
+(C)
+
+[
+\begin{bmatrix}
+10 & 2\
+2 & 10
+\end{bmatrix}
+]
+
+(D)
+
+[
+\begin{bmatrix}
+\frac{10}{3} & \frac{1}{3}\
+\frac{1}{3} & \frac{10}{3}
+\end{bmatrix}
+]
+
+Q.41
+
+A source transmits symbol (S) that takes values uniformly at random from the set
+
+[
+{-2,0,2}.
+]
+
+The receiver obtains
+
+[
+Y=S+N,
+]
+
+where (N) is a zero-mean Gaussian random variable independent of (S).
+
+The receiver uses the maximum likelihood decoder to estimate the transmitted symbol (S).
+
+Suppose the probability of symbol estimation error (P_e) is expressed as
+
+[
+P_e=\alpha P(N>1),
+]
+
+where (P(N>1)) denotes the probability that (N) exceeds 1.
+
+What is the value of (\alpha)?
+
+(A) (\frac{1}{3})
+(B) (1)
+(C) (\frac{2}{3})
+(D) (\frac{4}{3})
+
+Q.42
+
+Consider a real-valued random process
+
+[
+f(t)=\sum_{n=1}^{N}a_np(t-nT),
+]
+
+where (T>0) and (N) is a positive integer.
+
+Here,
+
+[
+p(t)=
+\begin{cases}
+1, & t\in[0,0.5T]\
+0, & \text{otherwise}
+\end{cases}
+]
+
+The coefficients (a_n) are pairwise independent, zero-mean, unit-variance random variables.
+
+Read the following statements about the random process and choose the correct option.
+
+(i) The mean of the process (f(t)) is independent of time (t).
+
+(ii) The autocorrelation function
+
+[
+E[f(t)f(t+\tau)]
+]
+
+is independent of time (t) for all (\tau).
+
+Options:
+
+(A) (i) is TRUE and (ii) is FALSE
+(B) Both (i) and (ii) are TRUE
+(C) Both (i) and (ii) are FALSE
+(D) (i) is FALSE and (ii) is TRUE
+
+Q.43
+
+The identical MOSFETs (M_1) and (M_2) in the circuit given below are ideal and biased in the saturation region.
+
+(M_1) and (M_2) have a transconductance (g_m) of 5 mS.
+
+The input signals (in Volts) are:
+
+[
+V_1=2.5+0.01\sin\omega t
+]
+
+[
+V_2=2.5-0.01\sin\omega t
+]
+
+The output signal (V_3) (in Volts) is ________.
+
+[Figure not included in the provided text]
+
+(A) (3+0.05\sin\omega t)
+(B) (3-0.1\sin\omega t)
+(C) (4+0.1\sin\omega t)
+(D) (4-0.05\sin\omega t)
+
+Q.44
+
+A 10-bit analog-to-digital converter (ADC) has a sampling frequency of 1 MHz and a full-scale voltage of 3.3 V.
+
+For an input sinusoidal signal with frequency 500 kHz, the maximum SNR (in dB, rounded off to two decimal places) and the data rate (in Mbps) at the output of the ADC are ________, respectively.
+
+(A) 61.96 and 10
+(B) 61.96 and 5
+(C) 33.36 and 10
+(D) 33.36 and 5
+
+Q.45
+
+A positive-edge-triggered sequential circuit is shown below. There are no timing violations in the circuit.
+
+Input (P_0) is set to logic '0' and (P_1) is set to logic '1' at all times.
+
+The timing diagram of the inputs SEL and S is also shown below.
+
+The sequence of output (Y) from time (T_0) to (T_3) is ________.
+
+[Figure/timing diagram not included in the provided text]
+
+(A) 1011
+(B) 0100
+(C) 0010
+(D) 1101
+
+Q.46
+
+The intrinsic carrier concentration of a semiconductor is
+
+[
+2.5\times10^{16}\ /\text{m}^3
+]
+
+at 300 K.
+
+If the electron and hole mobilities are
+
+[
+\mu_n=0.15\ \text{m}^2/\text{Vs}
+]
+
+and
+
+[
+\mu_p=0.05\ \text{m}^2/\text{Vs},
+]
+
+respectively, then the intrinsic resistivity of the semiconductor (in k(\Omega\cdot)m) at 300 K is ________.
+
+Charge of an electron:
+
+[
+e=1.6\times10^{-19}\text{ C}.
+]
+
+(A) 1.65
+(B) 1.25
+(C) 0.85
+(D) 1.95
+
+Q.47
+
+In the circuit shown, the identical transistors (Q_1) and (Q_2) are biased in the active region with
+
+[
+\beta=120.
+]
+
+The Zener diode is in the breakdown region with
+
+[
+V_Z=5\text{ V},\qquad I_Z=25\text{ mA}.
+]
+
+If
+
+[
+I_L=12\text{ mA}
+]
+
+and
+
+[
+V_{EB1}=V_{EB2}=0.7\text{ V},
+]
+
+then the values of (R_1) and (R_2) (in k(\Omega), rounded off to one decimal place) are ________, respectively.
+
+[Figure not included in the provided text]
+
+(A) 0.6 and 0.4
+(B) 1.4 and 2.5
+(C) 14.0 and 25.0
+(D) 6.0 and 4.0
+
+Q.48
+
+The electron mobility (\mu_n) in a non-degenerate germanium semiconductor at 300 K is
+
+[
+0.38\text{ m}^2/\text{Vs}.
+]
+
+The electron diffusivity (D_n) at 300 K (in cm(^2)/s, rounded off to the nearest integer) is ________.
+
+Consider
+
+[
+k_B=1.38\times10^{-23}\text{ J/K}
+]
+
+and
+
+[
+e=1.6\times10^{-19}\text{ C}.
+]
+
+(A) 26
+(B) 98
+(C) 38
+(D) 10
+
+Q.49
+
+A square metal sheet of (4\text{ m}\times4\text{ m}) is placed on the (x-y) plane as shown in the figure below.
+
+If the surface charge density (in (\mu C/\text{m}^2)) on the sheet is
+
+[
+\rho_s(x,y)=4|y|,
+]
+
+then the total charge (in (\mu C), rounded off to the nearest integer) on the sheet is ________.
+
+[Figure not included in the provided text]
+
+(A) 16
+(B) 85
+(C) 64
+(D) 256
+
+Q.50
+
+An electric field of 0.01 V/m is applied along the length of a copper wire of circular cross-section with diameter 1 mm.
+
+Copper has a conductivity of
+
+[
+5.8\times10^7\text{ S/m}.
+]
+
+The current (in Amperes, rounded off to two decimal places) flowing through the wire is ________.
+
+(A) 0.46
+(B) 1.82
+(C) 0.58
+(D) 1.12
+
+Q.51
+
+Consider a non-negative function (f(x)) which is continuous and bounded over the interval ([2,8]).
+
+Let (M) and (m) denote, respectively, the maximum and minimum values of (f(x)) over the interval.
+
+Among the combinations of (\alpha) and (\beta) given below, choose the one(s) for which the inequality
+
+[
+\beta\leq\int_2^8f(x),dx\leq\alpha
+]
+
+is guaranteed to hold.
+
+(A) (\beta=5m,\ \alpha=7M)
+
+(B) (\beta=6m,\ \alpha=5M)
+
+(C) (\beta=7m,\ \alpha=6M)
+
+(D) (\beta=7m,\ \alpha=5M)
+
+Q.52
+
+Which of the following statements involving contour integrals (evaluated counter-clockwise) on the unit circle (C) in the complex plane is/are TRUE?
+
+(A)
+
+[
+\oint_C e^z,dz=0
+]
+
+(B)
+
+[
+\oint_C z^n,dz=0,
+]
+
+where (n) is an even integer
+
+(C)
+
+[
+\oint_C \cos z,dz\neq0
+]
+
+(D)
+
+[
+\oint_C \sec z,dz\neq0
+]
+
+Q.53
+
+Consider a system where (x_1(t),x_2(t),) and (x_3(t)) are three internal state signals and (u(t)) is the input signal.
+
+The differential equations governing the system are given by
+
+\begin{bmatrix}
+2 & 0 & 0\
+0 & -2 & 0\
+0 & 0 & 0
+\end{bmatrix}
+\begin{bmatrix}
+x_1(t)\
+x_2(t)\
+x_3(t)
+\end{bmatrix}
++
+\begin{bmatrix}
+1\
+1\
+1
+\end{bmatrix}
+u(t).
+]
+
+Which of the following statements is/are TRUE?
+
+(A) The signals (x_1(t),x_2(t),x_3(t)) are bounded for all bounded inputs.
+
+(B) There exists a bounded input such that at least one of the signals (x_1(t),x_2(t),x_3(t)) is unbounded.
+
+(C) There exists a bounded input such that the signals (x_1(t),x_2(t),x_3(t)) are unbounded.
+
+(D) The signals (x_1(t),x_2(t),x_3(t)) are unbounded for all bounded inputs.
+
+Q.54
+
+The random variable (X) takes values in
+
+[
+{-1,0,1}
+]
+
+with probabilities
+
+[
+P(X=-1)=P(X=1)=\alpha
+]
+
+and
+
+[
+P(X=0)=1-2\alpha,
+]
+
+where
+
+[
+0<\alpha<\frac12.
+]
+
+Let (g(\alpha)) denote the entropy of (X) (in bits), parameterized by (\alpha).
+
+Which of the following statements is/are TRUE?
+
+(A) (g(0.4)>g(0.3))
+(B) (g(0.3)>g(0.4))
+(C) (g(0.3)>g(0.25))
+(D) (g(0.25)>g(0.3))
+
+Q.55
+
+Let (f(t)) be a periodic signal with fundamental period (T_0>0).
+
+Consider the signal
+
+[
+y(t)=f(\alpha t),
+]
+
+where (\alpha>1).
+
+The Fourier series expansions of (f(t)) and (y(t)) are given by
+
+[
+f(t)=
+\sum_{k=-\infty}^{\infty}
+c_k e^{j\frac{2\pi}{T_0}kt}
+]
+
+and
+
+[
+y(t)=
+\sum_{k=-\infty}^{\infty}
+d_k e^{j\frac{2\pi}{T_0}\alpha kt}.
+]
+
+Which of the following statements is/are TRUE?
+
+(A) (c_k=d_k) for all (k)
+
+(B) (y(t)) is periodic with a fundamental period (\alpha T_0)
+
+(C) (c_k=\frac{d_k}{\alpha}) for all (k)
+
+(D) (y(t)) is periodic with a fundamental period (\frac{T_0}{\alpha})
+
+Q.56
+
+Consider a system represented by the block diagram shown below.
+
+Which of the following signal flow graphs represent(s) this system?
+
+Choose the correct option(s).
+
+[Block diagram and signal-flow graphs not included in the provided text]
+
+(A) [Graph A]
+(B) [Graph B]
+(C) [Graph C]
+(D) [Graph D]
+
+Q.57
+
+All the diodes in the circuit given below are ideal.
+
+Which of the following plots is/are correct when (V_I) (in Volts) is swept from (-M) to (M)?
+
+[Figure and plots not included in the provided text]
+
+(A) [Plot A]
+(B) [Plot B]
+(C) [Plot C]
+(D) [Plot D]
+
+Q.58
+
+Two fair dice (with faces labeled 1, 2, 3, 4, 5, and 6) are rolled.
+
+Let the random variable (X) denote the sum of the outcomes obtained.
+
+The expectation of (X) is ________.
+
+(Rounded off to two decimal places.)
+
+Q.59
+
+Consider the vectors
+
+[
+\mathbf a=
+\begin{bmatrix}
+1\
+1
+\end{bmatrix},
+\qquad
+\mathbf b=
+\begin{bmatrix}
+0\
+3\sqrt2
+\end{bmatrix}.
+]
+
+For real-valued scalar variable (x), the value of
+
+[
+\min_x |\mathbf a x-\mathbf b|_2
+]
+
+is ________.
+
+Here, (|\cdot|_2) denotes the Euclidean norm, i.e., for
+
+[
+\mathbf y=
+\begin{bmatrix}
+y_1\
+y_2
+\end{bmatrix},
+]
+
+[
+|\mathbf y|_2=
+\sqrt{y_1^2+y_2^2}.
+]
+
+(Rounded off to two decimal places.)
+
+Q.60
+
+(X) and (Y) are Bernoulli random variables taking values in ({0,1}).
+
+The joint probability mass function of the random variables is given by:
+
+[
+P(X=0,Y=0)=0.06
+]
+
+[
+P(X=0,Y=1)=0.14
+]
+
+[
+P(X=1,Y=0)=0.24
+]
+
+[
+P(X=1,Y=1)=0.56
+]
+
+The mutual information
+
+[
+I(X;Y)
+]
+
+is ________.
+
+(Rounded off to two decimal places.)
+
+Q.61
+
+The diode in the circuit shown below is ideal.
+
+The input voltage (in Volts) is given by
+
+[
+V_I=10\sin(100\pi t),
+]
+
+where time (t) is in seconds.
+
+The time duration (in ms, rounded off to two decimal places) for which the diode is forward biased during one period of the input is ________.
+
+[Figure not included in the provided text]
+
+Q.62
+
+In the circuit shown below, the AND gate has a propagation delay of 1 ns.
+
+The edge-triggered flip-flops have:
+
+Setup time = 2 ns
+Hold time = 0 ns
+Clock-to-Q delay = 2 ns
+
+The maximum clock frequency (in MHz, rounded off to the nearest integer) such that there are no setup violations is ________.
+
+[Figure not included in the provided text]
+
+Q.63
+
+An ideal p-n junction germanium diode has a reverse saturation current of
+
+[
+10,\mu A
+]
+
+at 300 K.
+
+The voltage (in Volts, rounded off to two decimal places) to be applied across the junction to get a forward bias current of
+
+[
+100\text{ mA}
+]
+
+at 300 K is ________.
+
+Consider:
+
+[
+k_B=1.38\times10^{-23}\text{ J/K}
+]
+
+and
+
+[
+e=1.6\times10^{-19}\text{ C}.
+]
+
+Q.64
+
+A (50,\Omega) lossless transmission line is terminated with a load
+
+[
+Z_L=(50-j75),\Omega.
+]
+
+If the average incident power on the line is 10 mW, then the average power delivered to the load (in mW, rounded off to one decimal place) is ________.
+
+Q.65
+
+Two resistors are connected in a circuit loop of area
+
+[
+5\text{ m}^2,
+]
+
+as shown in the figure below.
+
+The circuit loop is placed on the (x-y) plane.
+
+When a time-varying magnetic flux, with flux-density
+
+[
+B(t)=0.5t
+]
+
+(in Tesla), is applied along the positive (z)-axis, the magnitude of current (I) (in Amperes, rounded off to two decimal places) in the loop is ________.
+

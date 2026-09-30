@@ -1,0 +1,2776 @@
+
+
+
+
+General Aptitude (GA)  
+Q.1 – Q.5 Carry ONE mark Each 
+Q.1 If ‘→’ denotes increasing order of intensity, then the meaning of the words  
+[charm → enamor → bewitch] is analogous to [bored → _______ → weary]. 
+Which one of the given options is appropriate to fill the blank? 
+  
+(A) jaded 
+(B) baffled 
+(C) dead 
+(D) worsted 
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+Organizing Institute: IISc, Bengaluru 
+Q.2 P, Q, R, S, and T have launched a new startup. Two of them are siblings. The office 
+of the startup has just three rooms. All of them agree that the siblings should not 
+share the same room.  
+If S and Q are single children, and the room allocations shown below are acceptable 
+to all, 
+P R T S Q 
+ 
+P Q R T S 
+then, which one of the given options is the siblings? 
+  
+(A) P and T 
+(B) P and S 
+(C) T and Q 
+(D) T and R 
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+
+Q.3 Five years ago, the ratio of Aman’s age to his father’s age was 1:4, and five years 
+from now, the ratio will be 2:5. What was his father’s age when Aman was born? 
+  
+(A) 28 years 
+(B) 30 years 
+(C) 35 years 
+(D) 32 years 
+  
+Q.4 
+For a real number 푥>1,   
+ 
+1
+log
+2
+푥
++
+1
+log
+3
+푥
++
+1
+log
+4
+푥
+=1 
+ The value of  푥  is 
+  
+(A) 4 
+(B) 12 
+(C) 24 
+(D) 36 
+  
+ 
+ 
+
+                               Electronics and Communication Engineering (EC) 
+Page 4 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.5 
+The greatest prime factor of (3
+199
+−3
+196
+) is 
+  
+(A) 13 
+(B) 17 
+(C) 3 
+(D) 11 
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+                               Electronics and Communication Engineering (EC) 
+Page 5 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.6 – Q.10 Carry TWO marks Each 
+Q.6 Sequence the following sentences (P, Q, R, S) in a coherent passage:  
+P: Shifu’s student exclaimed, “Why do you run since the bull is an illusion?”  
+Q: Shifu said, “Surely my running away from the bull is also an illusion.” 
+R: Shifu once proclaimed that all life is illusion.  
+S: One day, when a bull gave him chase, Shifu began running for his life.  
+ 
+  
+(A) SPRQ 
+(B) SRPQ 
+(C) RSPQ 
+(D) RPQS 
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+                               Electronics and Communication Engineering (EC) 
+Page 6 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.7 
+Four  identical  cylindrical  chalk-sticks,  each  of  radius 푟 =  0.5  cm  and  length  
+푙 = 10 cm, are bound tightly together using a duct tape as shown in the following 
+figure.   
+ 
+The width of the duct tape is equal to the length of the chalk-stick. The area (in cm
+2
+) 
+of the duct tape required to wrap the bundle of chalk-sticks once, is 
+  
+(A) 
+20 (4+휋)  
+(B) 
+20 (8+휋)  
+(C) 
+10 (8+휋)  
+(D) 
+10 (4+휋)  
+  
+ 
+ 
+ 
+ 
+ 
+
+                               Electronics and Communication Engineering (EC) 
+Page 7 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.8 The bar chart shows the data for the percentage of population falling into different 
+categories based on Body Mass Index (BMI) in 2003 and 2023.  
+ 
+Based on the data provided, which one of the following options is INCORRECT?  
+  
+(A) The  ratio  of  the percentage  of  population  falling  into  overweight  category  to  the 
+percentage of population falling into normal category has increased in 20 years. 
+(B) The ratio of the percentage of population falling into underweight category to the 
+percentage of population falling into normal category has decreased in 20 years. 
+(C) The  ratio  of  the  percentage  of  population  falling  into  obese  category  to  the 
+percentage of population falling into normal category has decreased in 20 years. 
+(D) The percentage of population falling into normal category has decreased in 20 years. 
+  
+ 
+ 
+ 
+ 
+0%5%10%15%20%25%30%35%40%45%50%55%
+Underweight
+Normal
+Overweight
+Obese
+Percentage of population
+20232003
+
+                               Electronics and Communication Engineering (EC) 
+Page 8 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.9 Examples of mirror and water reflections are shown in the figures below: 
+ 
+An object appears as the following image after first reflecting in a mirror and then 
+reflecting on water. 
+ 
+The original object is  
+  
+(A) 
+ 
+(B) 
+ 
+(C) 
+ 
+(D) 
+ 
+  
+ 
+ 
+
+                               Electronics and Communication Engineering (EC) 
+Page 9 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.10 
+Two identical sheets A and B, of dimensions 24 cm × 16 cm, can be folded into 
+half using two distinct operations, FO1 or FO2.  
+In FO1, the axis of folding remains parallel to the initial long edge, and in FO2, the 
+axis of folding remains parallel to the initial short edge.  
+If sheet  A is folded twice using FO1,  and sheet  B is folded twice using  FO2, the 
+ratio of the perimeters of the final shapes of A and B is 
+  
+(A) 14:11   
+(B) 11:14 
+(C) 18:11 
+(D) 11:18 
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+                               Electronics and Communication Engineering (EC) 
+Page 10 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.11 – Q.35 Carry ONE mark Each 
+Q.11 The general form of the complementary function of a differential equation is given 
+by 
+2
+( )    ()
+t
+y tAt    B  e
+−
+=+
+,  where 
+A
+and
+B
+are  real  constants  determined  by  the  initial 
+condition. The corresponding differential equation is _____. 
+  
+(A) 
+2
+2
+dd
+4
+4
+( )
+dd
+yy
+y
+f  t
+tt
++    +   =
+ 
+(B) 
+2
+2
+d
+4
+( )
+d
+y
+y
+f  t
+t
++=
+ 
+(C) 
+2
+2
+dd
+3
+2
+( )
+dd
+yy
+y
+f  t
+tt
++    +   =
+ 
+(D) 
+2
+2
+dd
+5
+6
+( )
+dd
+yy
+y
+f  t
+tt
++    +   =
+ 
+  
+Q.12 In the context of Bode magnitude plots, 40 dB/decade is the same as _______. 
+  
+(A) 12 dB/octave 
+(B) 6 dB/octave 
+(C) 20 dB/octave 
+(D) 10 dB/octave 
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 11 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.13 
+In the feedback control system shown in the figure below 
+6
+()
+(
+1)(
+2)
+Gs
+s  s
+s
+=
+++
+. 
+        
++
+-
+()
+Gs
+()
+Ys
+()
+Rs
++
+()
+Es
+ 
+(  ),   (  ), and    (  )R s   Y  sE  s
+are the Laplace transforms of 
+( ),   ( ), and   ( )r t   y te t
+, respectively. 
+If the input 
+()
+rt
+is a unit step function, then __________. 
+  
+(A) 
+lim  ( )    0
+t
+et
+→
+=
+ 
+(B) 
+1
+lim   ( )
+3
+t
+et
+→
+=
+ 
+(C) 
+1
+lim   ( )
+4
+t
+et
+→
+=
+ 
+(D) 
+lim   ( )
+t
+et
+→
+does not exist, 
+()
+et
+is oscillatory 
+  
+  
+  
+  
+  
+  
+ 
+
+                               Electronics and Communication Engineering (EC) 
+Page 12 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.14 A digital communication system transmits through a noiseless bandlimited channel 
+[
+−푊 푊
+]
+. The received signal 
+()
+zt
+ at the output of the receiving filter is given by 
+( )
+[  ]  (
+)
+n
+z t
+b n x t    nT
+=−
+
+where 
+[]
+bn
+ are  the  symbols  and 
+()
+xt
+is  the  overall  system 
+response to a single symbol. The received signal is sampled at 푡=푚푇. The Fourier 
+transform of 
+()
+xt
+ is 
+()
+Xf
+. The Nyquist condition that
+()
+Xf
+must satisfy for zero 
+intersymbol interference at the receiver is ______. 
+  
+(A) 
+m
+m
+X    f
+T
+T
+
+= −
+
+
+
++=
+
+  
+(B) 
+1
+m
+m
+Xf
+TT
+
+= −
+
+
+
++=
+
+ 
+(C) 
+(
+)
+m
+X   f
+mT
+T
+
+= −
++=
+
+ 
+(D) 
+(
+)
+1
+m
+X   f
+mT
+T
+
+= −
++=
+
+ 
+  
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 13 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.15 Consider a lossless transmission line terminated with a short circuit as shown in the 
+figure below. As  one  moves  towards  the generator  from  the  load,  the  normalized 
+impedances
+inA
+z
+, 
+inB
+z
+, 
+inC
+z
+, and 
+inD
+z
+ (indicated in the figure) are  _______. 
+λ
+/
+8
+0
+z
+-
+l
+inA
+z
+inB
+z
+inC
+z
+inD
+z
+λ
+/
+8
+λ
+/
+8
+λ
+/
+8
+ 
+  
+(A) 
+inA
+z
+= +1푗 Ω , 
+inB
+z
+ = ∞ , 
+inC
+z
+ = −1푗 Ω , 
+inD
+z
+ = 0  
+(B) 
+inA
+z
+ = ∞ , 
+inB
+z
+= +0.4푗 Ω , 
+inC
+z
+= 0 , 
+inD
+z
+ = +0.4푗 Ω 
+(C) 
+inA
+z
+= −1푗 Ω , 
+inB
+z
+ = 0, 
+inC
+z
+= +1푗 Ω , 
+inD
+z
+= ∞ 
+(D) 
+inA
+z
+= +0.4푗 Ω , 
+inB
+z
+= ∞, 
+inC
+z
+ = −0.4푗 Ω , 
+inD
+z
+= 0 
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 14 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.16 
+Let 
+ˆ
+i
+ and 
+ˆ
+j
+ be the unit vectors along 푥 and 푦 axes, respectively and let 
+A
+ be a 
+positive constant. Which one of the following statements is true for the vector fields 
+1
+ˆˆ
+()
+F
+A iy
+jx
+=+
+ and 
+2
+ˆˆ
+()
+F
+A iy
+jx
+=−
+?  
+  
+(A) 
+Both 
+1
+F
+ and 
+2
+F
+ are electrostatic fields. 
+(B) 
+Only 
+1
+F
+ is an electrostatic field. 
+(C) 
+Only 
+2
+F
+is an electrostatic field.  
+(D) 
+Neither 
+1
+F
+ nor 
+2
+F
+ is an electrostatic field.  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 15 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.17 In  the  circuit  below,  assume  that  the long  channel  NMOS  transistor  is  biased  in 
+saturation. The small signal trans-conductance of the transistor is 
+m
+g
+. Neglect body 
+effect,  channel  length  modulation  and  intrinsic  device  capacitances.  The  small 
+signal input impedance 
+)
+(
+in
+Zj
+
+ is _______. 
+ 
+C
+L
+C
+1
+)
+(
+in
+Zj
+
+ 
+(A) 
+2
+11
+11
+m
+LL
+CC
+g
+C C
+j
+j
+   
+
+−
+++
+  
+(B) 
+2
+11
+11
+m
+LL
+g
+C C
+j
+C
+j
+C
+   
+
+++
+ 
+(C) 
+1
+11
+L
+CC
+jj
+
++
+ 
+(D) 
+2
+11
+1
+m
+LL
+g
+CjCCjC   
+−
++
++
+ 
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 16 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.18 For the closed loop amplifier circuit shown below, the magnitude of open loop low 
+frequency small signal voltage gain is 40. All the transistors are biased in saturation. 
+The current source I
+SS
+ is ideal. Neglect body effect, channel length modulation and 
+intrinsic device capacitances. The closed loop low frequency small signal voltage 
+gain 
+푣
+표푢푡
+푣
+푖푛
+ (rounded off to three decimal places)  is  ____. 
+ 
+I
+SS
+V
+DD
+v
+out
+v
+in
+ 
+(A) 0.976 
+(B) 1.000 
+(C) 1.025 
+(D) 0.488 
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 17 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.19 For the Boolean function 
+퐹
+(
+퐴,퐵,퐶,퐷
+)
+=∑푚(0,2,5,7,8,10,12,13,14,15), 
+the essential prime implicants are __________. 
+  
+(A) 
+퐵퐷, 퐵
+̅
+퐷
+̅
+    
+(B) 
+퐵퐷, 퐴퐵    
+(C) 
+퐴퐵, 퐵
+̅
+퐷
+̅
+    
+(D) 
+퐵퐷, 퐵
+̅
+퐷
+̅
+, 퐴퐵 
+  
+Q.20 
+A white Gaussian noise 
+()
+wt
+ with zero mean and power spectral density 
+0
+2
+N
+, 
+when applied to a first-order RC low pass filter produces an output 푛(푡). At a 
+particular time 푡= 푡
+푘
+, the variance of the random variable 푛(푡
+푘
+) is ________. 
+  
+(A) 
+0
+4
+N
+RC
+ 
+(B) 
+0
+2
+N
+RC
+ 
+(C) 
+0
+N
+RC
+ 
+(D) 
+0
+2N
+RC
+ 
+
+                               Electronics and Communication Engineering (EC) 
+Page 18 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.21 
+A causal and stable LTI system with impulse response ℎ(푡) produces an output 푦(푡) 
+for an  input signal 푥(푡). A  signal 푥(0.5푡) is  applied  to  another causal  and  stable 
+LTI system with impulse response ℎ(0.5푡). The resulting output is _____. 
+  
+(A) 
+2푦(0.5푡) 
+(B) 
+4푦(0.5푡) 
+(C) 
+0.25푦(2푡) 
+(D) 
+0.25푦(0.25푡) 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 19 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.22 For  non-degenerately doped  n-type  silicon, which  one  of  the  following  plots 
+represents the temperature (푇) dependence of free electron concentration (푛)? 
+  
+(A) 
+ 
+(B) 
+ 
+(C) 
+ 
+(D) 
+ 
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 20 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.23 
+In  the  circuit  shown,  the 푛:1 step-down  transformer  and  the  diodes  are  ideal.  
+The diodes have no voltage drop in forward biased condition. If the input voltage 
+(in Volts) is 푉
+푠
+(푡)=10sin휔푡 and the average value of load voltage 푉
+퐿
+(푡) (in Volts) 
+is 2.5/휋 , the value of 푛 is ______. 
+ 
+ 
+  
+(A) 4 
+(B) 8 
+(C) 12 
+(D) 16 
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 21 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.24 For a causal discrete-time LTI system with transfer function 
+                                                 퐻
+(
+푧
+)
+=
+2푧
+2
++3
+(
+푧 + 
+1
+3
+)(
+푧 − 
+1
+3
+)
+ 
+which of the following statements is/are true? 
+  
+(A) The system is stable. 
+(B) The system is a minimum phase system. 
+(C) The initial value of the impulse response is 2.  
+(D) The final value of the impulse response is 0. 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 22 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.25 
+Let 
+(  ,   ,  ,  )
+x  y  z t
+
+and 
+(  ,   ,  ,  )
+u  x  y  z t
+ represent    density  and  velocity,  respectively,  at  a 
+point 
+(  ,   ,  )
+x  y  z
+and time 푡. Assume 
+t
+
+
+
+is continuous. Let 
+V
+be an arbitrary volume 
+in space enclosed by the closed surface 
+S
+ and 
+ˆ
+n
+ be the outward unit normal of 
+S
+ 
+Which of the following equations is/are equivalent to 
+(
+)    0
+t
+u
+
+
++
+
+=
+
+? 
+ 
+   
+(A) 
+ˆ
+VS
+dv
+u
+t
+n ds
+
+
+
+
+=−
+
+
+    
+(B) 
+ˆ
+VS
+dv
+t
+u  n ds
+
+
+
+
+=
+
+
+ 
+(C) 
+)
+(
+VV
+dv
+dv
+t
+u
+
+
+
+= − 
+
+
+
+ 
+(D) 
+)
+(
+VV
+dv
+d
+t
+u
+v
+
+
+
+=
+
+
+
+ 
+  
+  
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 23 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.26 The free electron concentration profile n(x) in a doped semiconductor at equilibrium 
+is shown in the figure, where the points A, B, and C mark three different positions. 
+Which of the following statements is/are true? 
+ 
+ 
+(A) 
+For 푥 between B and C, the electron diffusion current is directed from C to B. 
+(B) 
+For 푥 between B and A, the electron drift current is directed from B to A.  
+(C) 
+For 푥 between B and C, the electric field is directed from B to C. 
+(D) 
+For 푥 between B and A, the electric field is directed from A to B. 
+  
+Q.27 A machine has a 32-bit architecture with 1-word long instructions. It has 24 registers 
+and supports an instruction set of size 40. Each instruction has five distinct fields, 
+namely opcode, two source  register identifiers, one destination register identifier, 
+and  an  immediate  value.  Assuming  that  the  immediate  operand  is  an  unsigned 
+integer, its maximum value is ________.  
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 24 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.28 An amplitude modulator has output (in Volts) 
+ 
+( )
+cos(400    )
+cos(360    )
+cos(440    )
+s t
+A
+t
+B
+t
+B
+t
+
+
+
+=
++
++
+. 
+The carrier power normalized to 
+1
+ resistance is 50 Watts. The ratio of the total 
+sideband power to the total power is 1/9. The value of 퐵 (in Volts, rounded off to 
+two decimal places) is  _______ . 
+  
+Q.29 
+In a number system of base 푟, the equation 푥
+2
+−12푥+37=0 has 푥=8 as one 
+of its solutions. The value of 푟 is _______. 
+  
+Q.30 
+Let ℝ and ℝ
+3
+ denote the set of real numbers and the three dimensional vector space 
+over it, respectively. The value of 훼 for which the set of vectors  
+{[
+2−3훼
+],    [
+3−13
+],     [
+1−57
+]} 
+does not form a basis of ℝ
+3
+ is _______. 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 25 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.31 
+In the given circuit, the current I
+x
+ (in mA) is ______. 
+I
+x
+   
+1 
+k
+  
+   
+1 
+k
+  
+5 
+mA
+1000 
+I
+0
+I
+0
+2 
+mA
+   
+1 
+k
+  
++
+-
+ 
+ 
+  
+Q.32 In the circuit given below, the switch S was kept open for a sufficiently long time 
+and is closed at time 푡=0. The time constant (in seconds) of the circuit for 푡>0  
+is _______. 
+5 
+A
+3
+H
+4 
+ 
+ 
+4 
+ 
+ 
+S
+t 
+= 
+0 
+2 
+ 
+ 
+ 
+  
+Q.33 Suppose 
+X
+and 
+Y
+are independent and identically distributed random variables that 
+are  distributed  uniformly  in  the  interval 
+[0,1]
+.  The  probability  that 
+XY
+
+ 
+is _______ . 
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 26 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.34 A  source  transmits  symbols  from  an alphabet  of  size  16.  The  value  of  maximum 
+achievable entropy (in bits) is _______ . 
+  
+Q.35 As  shown  in  the  circuit,  the initial  voltage  across the capacitor  is  10  V,  with  the 
+switch being open. The switch is then closed at 푡=0. The total energy dissipated 
+in the ideal Zener diode (푉
+푍
+=5 푉) after the switch is closed (in mJ, rounded off to 
+three decimal places) is __________. 
+ 
+ 
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+10 kΩ 
+10 μF 
+푉
+푍
+=5 V 
++ 
+− 
+푉(0
+−
+)=10 V  
+푡=0 
+
+                               Electronics and Communication Engineering (EC) 
+Page 27 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.36 – Q.65 Carry TWO marks Each 
+Q.36 Consider the Earth to be a perfect sphere of radius
+.
+R
+Then the surface area of the 
+region,  enclosed  by  the 60°N latitude  circle,  that  contains  the  north  pole  in  its 
+interior is _______. 
+  
+(A) 
+2
+(2
+3)
+R
+
+−
+ 
+(B) 
+2
+(   2   1)
+2
+R
+
+−
+ 
+(C) 
+2
+2
+3
+R
+
+ 
+(D) 
+2
+8
+(2
+3)
+2
+R
+
++
+ 
+  
+  
+  
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 28 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.37 Consider  a  unity  negative  feedback  control  system with forward  path  gain  
+(
+1)(
+2)(
+)
+3
+(
+)
+K
+ss
+Gs
+s
++   +    +
+=
+as shown. 
++
+-
+()
+Gs
+()
+Ys
++
+()
+Rs
+ 
+The impulse response of the closed-loop system decays faster than 
+t
+e
+−
+ if _______. 
+  
+(A) 
+1
+5
+K
+
+ 
+(B) 
+7
+21
+K
+
+ 
+(C) 
+14K−  −
+ 
+(D) 
+6
+24
+K
+−
+   −
+ 
+  
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 29 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.38 A  satellite  attitude  control  system,  as  shown  below,  has  a  plant  with  transfer 
+function 
+2
+1
+()
+Gs
+s
+=
+ cascaded with a compensator 
+()
+()
+4
+Ks
+Cs
+s
+
++
+=
++
+, where 퐾 and 훼 
+are positive real constants.  
++
+-
+()
+Ys
+()
+Rs
+()
+Gs
++
+()
+Cs
+ 
+In order for the closed-loop system to have poles at 
+13
+j
+−
+, the value of 
+
+ must 
+be _______. 
+  
+(A) 0 
+(B) 1 
+(C) 2 
+(D) 3 
+  
+  
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 30 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.39 
+A uniform plane wave with electric field 
+2
+3
+ˆ
+()
+x
+j
+yy
+E  x
+A a e
+
+−
+=
+V/m is travelling in the 
+air   (relative   permittivity, 
+1
+r
+=
+ò
+and relative   permeability, 
+1
+r
+
+=
+)   in   the 
++푥 direction (
+y
+A
+ is a positive constant,
+ˆ
+y
+a
+is the unit vector along the 푦 axis). It is 
+incident normally  on  an  ideal  electric  conductor  (conductivity, 
+=
+) at 푥=0. 
+The position of the first null of the total magnetic field in the air (measured from 
+푥=0, in metres) is _______. 
+   
+(A) 
+3
+4
+−
+  
+(B) 
+3
+2
+−
+  
+(C) 
+6
+−
+ 
+(D) 
+3
+−
+ 
+  
+Q.40 
+A  4-bit  priority  encoder  has  inputs 퐷
+3
+,퐷
+2
+,퐷
+1
+,and 퐷
+0
+ in  descending  order  of 
+priority. The two-bit output 퐴퐵 is generated as 00,01,10,and 11 corresponding to 
+inputs 퐷
+3
+,퐷
+2
+,퐷
+1
+,and 퐷
+0
+, respectively. The Boolean expression of the output bit 퐵 
+is _______. 
+  
+(A) 
+퐷
+3
+̅̅̅
+ 퐷
+2
+̅̅̅
+ 
+(B) 
+퐷
+3
+̅̅̅
+퐷
+2
++퐷
+3
+̅̅̅
+ 퐷
+1
+̅̅̅
+      
+(C) 
+퐷
+3
+퐷
+2
+̅̅̅
++퐷
+3
+̅̅̅
+ 퐷
+1
+ 
+(D) 
+퐷
+3
+̅̅̅
+ 퐷
+1
+̅̅̅
+ 
+
+                               Electronics and Communication Engineering (EC) 
+Page 31 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.41 
+The   propagation   delay   of the 2×1 MUX   shown   in   the   circuit   is 10 ns.  
+Consider the propagation delay of the inverter as 0 ns.  
+Y
+2 
+X 
+1 
+MUX
+0
+1
+S
+ 
+If S is set to 1 then the output Y is _______. 
+  
+(A) a square wave of frequency 100 MHz 
+(B) a square wave of frequency 50 MHz 
+(C) constant at 0 
+(D) constant at 1 
+  
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 32 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.42 
+The  sequence  of  states (푄
+1
+푄
+0
+) of  the  given  synchronous  sequential  circuit  is 
+_______. 
+ 
+T
+1
+CLK
+Q
+1
+Q
+0
+T
+0
+Q
+0
+Q
+1
+ 
+(A) 00 → 10 → 11 → 00 
+(B) 11 → 00 → 10 → 01 → 00 
+(C) 01 → 10 → 11 → 00 → 01 
+(D) 00 → 01 → 10 → 00 
+  
+  
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 33 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.43 
+Let 
+z
+be a complex variable. If 
+2
+sin(
+)
+()
+(
+2)
+z
+fz
+zz
+
+=
+−
+ and 
+C
+ is the circle in the complex 
+plane with 
+3
+z
+=
+then 
+()
+C
+f   z  dz
+
+ is _______.   
+  
+(A) 
+2
+j
+ 
+(B) 
+1
+2
+j
+
+
+−
+
+
+ 
+(C) 
+1
+2
+j
+
+
++
+
+
+ 
+(D) 
+2
+j−
+ 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+ 
+
+                               Electronics and Communication Engineering (EC) 
+Page 34 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.44 
+Consider two continuous time signals 푥(푡) and 푦(푡) as shown below 
+ 
+ 
+ 
+ 
+ 
+ 
+If 푋(푓) denotes the Fourier transform of 푥(푡), then the Fourier transform of 푦
+(
+푡
+)
+ 
+is _______. 
+  
+(A) 
+−4푋(4푓)푒
+−푗휋푓
+ 
+(B) 
+−4푋(4푓)푒
+−푗4휋푓
+ 
+(C) 
+−
+1
+4
+푋(푓/4)푒
+−푗휋푓
+ 
+(D) 
+−
+1
+4
+푋(푓/4)푒
+−푗4휋푓
+ 
+  
+  
+  
+  
+  
+  
+0 
+-1 
+-1 
+0 -2 2 
+1
+푡 
+푡 
+푥(푡) 
+푦(푡) 
+0.5 
+
+                               Electronics and Communication Engineering (EC) 
+Page 35 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.45 
+A source transmits a symbol 
+,
+s
+taken from 
+{  4, 0, 4}
+−
+ with equal probability, over an 
+additive  white  Gaussian  noise  channel.  The  received  noisy  symbol 
+r
+is  given  by 
+,
+r    s   w
+=+
+where the noise 
+w
+is zero mean with variance 4 and is independent of 
+.
+s
+Using 푄
+(
+푥
+)
+=
+1
+√
+2휋
+∫
+푒
+−푡
+2
+2
+∞
+푥
+푑푡, the optimum symbol error probability is _______.     
+  
+(A) 
+2
+(2)
+3
+Q
+  
+(B) 
+4
+(1)
+3
+Q
+  
+(C) 
+2
+(1)
+3
+Q
+  
+(D) 
+4
+(2)
+3
+Q
+  
+  
+Q.46 A full scale sinusoidal signal is applied to a 10-bit ADC. The fundamental signal 
+component in the ADC output has a normalized power of 1 W, and the total noise 
+and distortion normalized power is 10 μW. The effective number of bits (rounded 
+off to the nearest integer) of the ADC is _______. 
+  
+(A) 7 
+(B) 8 
+(C) 9 
+(D) 10 
+
+                               Electronics and Communication Engineering (EC) 
+Page 36 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.47 
+The information bit sequence 
+{
+1 1 1 0 1 0 1 0 1
+}
+ is to be transmitted by encoding 
+with  Cyclic Redundancy  Check  4  (CRC-4)  code, for  which the  generator 
+polynomial is 퐶
+(
+푥
+)
+=푥
+4
++푥+1. The encoded sequence of bits is ________. 
+  
+(A) 
+{
+1 1 1 0 1 0 1 0 1 1 1 0 0
+}
+ 
+(B) 
+{
+1 1 1 0 1 0 1 0 1 1 1 0 1
+}
+ 
+(C) 
+{
+1 1 1 0 1 0 1 0 1 1 1 1 0
+}
+ 
+(D) 
+{
+1 1 1 0 1 0 1 0 1 0 1 0 0
+}
+ 
+  
+Q.48 
+A continuous time signal 푥
+(
+푡
+)
+=2 cos
+(
+8휋푡+휋/3
+)
+ is sampled at a rate of 15 Hz. 
+The  sampled  signal 푥
+푠
+(푡) when  passed  through  an  LTI  system  with  impulse 
+response 
+                           ℎ
+(
+푡
+)
+=(
+sin2휋푡
+휋푡
+)cos
+(
+38휋푡−휋/2
+)
+ 
+produces an output  푥
+표
+(푡). The expression for  푥
+표
+(푡) is _____. 
+  
+(A) 
+15sin
+(
+38휋푡+휋/3
+)
+ 
+(B) 
+15sin
+(
+38휋푡−휋/3
+)
+ 
+(C) 
+15cos
+(
+38휋푡−휋/6
+)
+ 
+(D) 
+15cos
+(
+38휋푡+휋/6
+)
+ 
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 37 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.49 The opamps in the circuit shown are ideal, but have saturation voltages of ±10 V.  
+ 
+Assume that the initial inductor current is 0 A. The input voltage (V
+i
+) is a triangular 
+signal  with  peak  voltages  of  ±2  V  and  time  period  of  8  μs. Which one of  the 
+following statements is true? 
+  
+(A) V
+01
+ is delayed by 2 μs relative to V
+i
+, and V
+02
+ is a triangular waveform. 
+(B) V
+01
+ is not delayed relative to V
+i
+, and V
+02
+ is a trapezoidal waveform. 
+(C) V
+01
+ is not delayed relative to V
+i
+, and V
+02
+ is a triangular waveform. 
+(D) V
+01
+ is delayed by 1 μs relative to V
+i
+, and V
+02
+ is a trapezoidal waveform. 
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 38 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.50 In the circuit below, the opamp is ideal.  
+_
++
+R
+1
+R
+R
+C
+C
+R
+ 
+If the circuit is to show sustained oscillations, the respective values of 푅
+1
+ and the 
+corresponding frequency of oscillation are _____. 
+  
+(A) 
+29푅 and 1(2휋
+√
+6푅퐶)
+⁄
+  
+(B) 
+2푅 and 1(2휋푅퐶)
+⁄
+ 
+(C) 
+29푅 and 1(2휋푅퐶)
+⁄
+ 
+(D) 
+2푅 and 1(2휋
+√
+6푅퐶)
+⁄
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+                               Electronics and Communication Engineering (EC) 
+Page 39 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.51 
+In  the  circuit  shown  below,  the  transistors 
+1
+M
+ and 
+2
+M
+are  biased  in  saturation.  
+Their small signal transconductances are 
+1
+m
+g
+ and 
+2
+m
+g
+ respectively. Neglect body 
+effect, channel length modulation and intrinsic device capacitances.  
+V
+DD
+V
+DD
+R
+D
+v
+in
+C
+1
+R
+S
+R
+B
+I
+ref
+M
+1 
+M
+2
+v
+out
+ 
+Assuming that capacitor 
+1
+C
+ is a short circuit for AC analysis, the exact magnitude 
+of small signal voltage gain  |
+푣
+표푢푡
+푣
+푖푛
+|  is ______. 
+ 
+ 
+(A) 
+2mD
+gR
+  
+(B) 
+2
+1
+1
+1
+1
+mDB
+m
+Bs
+m
+gR
+g
+R
+g
+R
+R
+
++
+
+++
+
+  
+(C) 
+2
+1
+1
+1
+1
+m
+D
+B
+s
+m
+B
+m
+g
+R
+R
+R
+g
+R
+g
+
+
+
++
++
++
+ 
+(D) 
+2
+1
+1
+1
+1
+mD
+m
+s
+m
+g
+g
+R
+g
+R
+
+
++
+
+ 
+
+                               Electronics and Communication Engineering (EC) 
+Page 40 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.52 Which  of  the  following  statements  is/are  true  for  a  BJT  with  respect  to  its  
+DC current gain β? 
+  
+(A) Under high-level injection condition in forward active mode, β will decrease with 
+increase in the magnitude of collector current. 
+(B) Under low-level injection condition in forward active mode, where the current at 
+the emitter-base junction is dominated by recombination-generation process, β 
+will decrease with increase in the magnitude of collector current. 
+(C) β will be lower when the BJT is in saturation region compared to when it is in 
+active region. 
+(D) A higher value of β will lead to a lower value of the collector-to-emitter 
+breakdown voltage. 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 41 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.53 Consider a system 
+S
+ represented in state space as 
+21
+0
+0
+13
+dx
+xr
+dt
+
+    
+=+
+
+    
+−
+
+    
+−
+, 
+
+
+25
+yx
+=
+−
+. 
+Which of the state space representations given below has/have the same transfer 
+function as that of 
+?
+S
+   
+  
+(A) 
+010
+231
+dx
+xr
+dt
+    
+=+
+    
+−−
+    
+, 
+
+
+12
+yx
+=
+ 
+(B) 
+01
+1
+0
+23
+dx
+xr
+dt
+
+    
+=+
+
+    
+−−
+
+    
+, 
+
+
+02
+yx
+=
+ 
+(C) 
+10
+0
+2
+1
+3
+dx
+xr
+dt
+
+−
+
+=+
+
+     
+−
+
+     
+−
+, 
+
+
+11
+yx
+=
+ 
+(D) 
+10
+0
+2
+1
+1
+dx
+xr
+dt
+
+    
+=+
+
+    
+−
+
+    
+−
+, 
+
+
+1
+2
+yx
+=
+ 
+  
+  
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 42 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.54 
+Let 
+1
+2
+3
+,
+, and
+F
+FF
+ be  functions  of 
+(  ,   ,  )
+x  y  z
+.  Suppose  that  for  every  given  pair  of 
+points 퐴 and 퐵 in  space,  the  line  integral
+(
+)
+1
+2
+3
+d
+d
+d
+C
+F  x    F   y    F   z
+++
+
+ evaluates  to  the 
+same  value  along  any  path 
+C
+ that  starts  at 퐴 and  ends  at 
+B
+.  Then  which  of  the 
+following is/are true? 
+  
+(A) 
+For every closed path 
+
+, we have 
+1
+2
+3
+(   d
+d
+d  )    0
+F  x    F   y    F   z
+
++    +
+=
+
+. 
+(B) 
+There exists a differentiable scalar function 
+(  ,   ,  )
+f  x  y  z
+ such that 
+1
+2
+3
+,,
+f
+f
+f
+F
+F
+F
+x
+y
+z
+
+
+
+=
+=
+=
+
+
+
+. 
+(C) 
+3
+12
+0
+F
+FF
+x
+y
+z
+
+
++   +    =
+       
+. 
+(D) 
+3
+2
+F
+F
+yz
+
+
+=
+
+, 
+3
+1
+F
+F
+zx
+
+
+=
+
+, 
+21
+FF
+xy
+
+=
+
+. 
+  
+  
+  
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 43 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.55 
+Consider  the  matrix 
+1
+21
+k
+
+
+
+,  where 푘 is  a  positive  real  number.  Which  of  the 
+following vectors is/are eigenvector(s) of this matrix? 
+  
+(A) 
+1
+2/
+k
+
+
+−
+
+   
+(B) 
+1
+2/
+k
+
+
+
+  
+(C) 
+2
+1
+k
+
+
+
+ 
+(D) 
+2
+1
+k
+
+
+−
+
+ 
+  
+Q.56 The  radian  frequency value(s) for  which  the  discrete  time  sinusoidal  signal 
+푥
+[
+푛
+]
+=퐴cos
+(
+Ω푛+휋/3
+)
+ has a period of 40 is/are ______. 
+  
+(A) 
+0.15휋 
+(B) 
+0.225휋 
+(C) 
+0.3휋 
+(D) 
+0.45휋 
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 44 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.57 
+Let 
+0
+( )
+cos(2
+)
+X  t
+A
+f t
+
+
+=+
+ be a random process, where amplitude 
+A
+ and phase 
+
+ 
+are independent of each other, and  are uniformly distributed in the intervals 
+[  2, 2]
+−
+ 
+and 
+[0, 2   ]
+
+, respectively. 
+()
+Xt
+is fed to an 8-bit uniform mid-rise type quantizer. 
+Given  that  the  autocorrelation  of 
+()
+Xt
+is 
+0
+2
+(  )
+cos(2
+)
+3
+X
+Rf
+
+
+=
+,  the  signal  to 
+quantization noise ratio (in dB, rounded off to two decimal places) at the output of 
+the quantizer is __________. 
+  
+Q.58 A lossless transmission line with characteristic impedance Z
+0
+ = 50 Ω is terminated 
+with an unknown load. The magnitude of the reflection co-efficient is 
+|
+|
+
+ = 0.6. 
+As one moves towards the generator from the load, the maximum value of the input 
+impedance magnitude looking towards the load (in Ω) is _______.   
+  
+Q.59 
+The  relationship  between  any N-length  sequence 푥[푛] and  its corresponding            
+N-point discrete Fourier transform 푋[푘] is defined as 
+                                          푋
+[
+푘
+]
+=ℱ{푥[푛]}. 
+Another sequence 푦[푛] is formed as below  
+                            푦
+[
+푛
+]
+=ℱ{ℱ
+{
+ℱ{ℱ
+{
+푥[푛]
+}
+}
+}
+} . 
+For the sequence 푥[푛] = 
+{
+1,2,1,3
+}
+, the value of 푌[0] is _______. 
+  
+  
+  
+  
+  
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 45 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.60 
+For the two port network shown below, the value of the 
+21
+Y
+parameter (in Siemens)  
+is ______. 
+ 
+-
++
+2 
+  
+4 
+  
+8
+V
+1
+V
+1
+V
+2
++
+-
++
+-
+1
+1
+'
+2
+'
+2
+I
+1
+I
+2
+ 
+  
+Q.61 Consider a MOS capacitor made with p-type silicon.  It has  an oxide thickness of 
+100 nm, a fixed positive oxide charge of 10
+−8
+ C/cm
+2
+ at the oxide-silicon interface, 
+and a metal  work  function of 4.6 eV. Assume that the  relative permittivity of the 
+oxide  is 4 and  the absolute permittivity  of  free  space  is 8.85×10
+−14
+ F/cm.  
+If the flatband voltage is 0 V, the work function of the p-type silicon (in eV, rounded 
+off to two decimal places) is ______.   
+  
+Q.62 
+In the network shown below, maximum power is to be transferred to the load 푅
+퐿
+.  
+-
++
+2   
+3   
+2   
+R
+L
+50 V
+v
+x
+v
+x
+-
++
+ 
+The value of  푅
+퐿
+ (in Ω) is ________ . 
+  
+
+                               Electronics and Communication Engineering (EC) 
+Page 46 of 46 
+Organizing Institute: IISc, Bengaluru 
+Q.63 
+A   non-degenerate n-type   semiconductor   has 5 % neutral   dopant   atoms.  
+Its Fermi level is located at 0.25 eV below the conduction band (퐸
+퐶
+) and the donor 
+energy level (퐸
+퐷
+) has a degeneracy of 2. Assuming the thermal voltage to be 20 mV, 
+the  difference  between 퐸
+퐶
+ and 퐸
+퐷
+ (in  eV, rounded  off  to  two  decimal  places)  
+is _________. 
+  
+Q.64 
+An NMOS transistor operating in the linear region has 퐼
+퐷푆
+ of 5 μA at 푉
+퐷푆
+ of 0.1 V. 
+Keeping 푉
+퐺푆
+ constant, the 푉
+퐷푆
+ is increased to 1.5 V.  
+Given that 휇
+푛
+퐶
+표푥
+푊
+퐿
+=50 μA/V
+2
+, the transconductance at the new operating point 
+(in μA/V, rounded off to two decimal places) is  ______. 
+  
+Q.65 The  photocurrent  of  a  PN  junction diode solar  cell  is  1  mA.  The  voltage 
+corresponding  to  its  maximum  power  point  is  0.3  V.  If  the  thermal  voltage  is  
+30 mV, the reverse saturation current of the diode (in nA, rounded off to two decimal 
+places) is _____. 
+  
+ 

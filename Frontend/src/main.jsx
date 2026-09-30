@@ -3181,7 +3181,7 @@ const generateFullMock = async () => {
       MODULE: CAMPUS MARKETPLACE 2.0
     ══════════════════════════════════════ */
 
-    // Campus marketplace categories (UI labels — not hardcoded data)
+    // Campus store categories (UI labels — not hardcoded data)
     const MARKETPLACE_CATS = [
       { id: 'All', label: 'All' },
       { id: 'Academic', label: '📚 Academic' },
@@ -3583,7 +3583,7 @@ const generateFullMock = async () => {
       return m ? parseInt(m[0], 10) : 0;
     };
 
-    /* ── Main TechBazaar / Campus Marketplace component ── */
+    /* ── Main TechBazaar / Campus Store component ── */
     function TechBazaar({ search = "" }) {
       const addToast = useToast();
       const { user } = useUser();
@@ -3723,7 +3723,7 @@ const generateFullMock = async () => {
           });
           const data = await res.json();
           if (res.ok) {
-            addToast('Listing posted! 🎉', 'Your item is now live on Campus Marketplace.', '✅', '#22C55E');
+            addToast('Listing posted! 🎉', 'Your item is now live on Campus Store.', '✅', '#22C55E');
             setCreateOpen(false);
             mp.reload();
           } else {
@@ -4068,7 +4068,7 @@ const generateFullMock = async () => {
                   </div>
                   <div>
                     <h1 style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 22, fontWeight: 800, color: '#1A1A1A', letterSpacing: '-0.3px', lineHeight: 1.1 }}>
-                      Campus Marketplace
+                      Campus Store
                     </h1>
                     <p style={{ color: '#888', fontSize: 12, marginTop: 2 }}>Buy · Sell · Rent · Exchange · Free · Wanted</p>
                   </div>
@@ -4645,7 +4645,7 @@ const generateFullMock = async () => {
                     </a>
                   ) : null}
                   {contactItem.sellerEmail ? (
-                    <a href={`mailto:${contactItem.sellerEmail}?subject=Campus Marketplace: ${encodeURIComponent(contactItem.title)}`}
+                    <a href={`mailto:${contactItem.sellerEmail}?subject=Campus Store: ${encodeURIComponent(contactItem.title)}`}
                       target="_blank" rel="noopener noreferrer" style={{ flex: 1, textDecoration: 'none' }}>
                       <Btn variant="secondary" style={{ width: '100%' }}
                         onClick={() => addToast('Opening email', contactItem.sellerName, '📧', '#888')}>
@@ -4665,7 +4665,7 @@ const generateFullMock = async () => {
 
           {/* ── CREATE LISTING MODAL ── */}
           <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="🏪 Post a Listing" aboveNav={true}>
-            <ListingForm />
+            {ListingForm()}
             <Btn variant="primary" style={{ width: '100%', padding: 14, fontSize: 15, marginTop: 16 }}
               disabled={formLoading} onClick={handleCreate}>
               {formLoading ? (photoData ? '⏳ Uploading Photo…' : '⏳ Posting…') : '🚀 Post Listing'}
@@ -4674,7 +4674,7 @@ const generateFullMock = async () => {
 
           {/* ── EDIT LISTING MODAL ── */}
           <Modal open={!!editItem} onClose={() => setEditItem(null)} title="✏️ Edit Listing" aboveNav={true}>
-            <ListingForm />
+            {ListingForm()}
             <Btn variant="primary" style={{ width: '100%', padding: 14, fontSize: 15, marginTop: 16 }}
               disabled={formLoading} onClick={handleEdit}>
               {formLoading ? '⏳ Saving…' : '💾 Save Changes'}
