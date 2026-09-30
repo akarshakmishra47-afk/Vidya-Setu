@@ -3178,487 +3178,1582 @@ const generateFullMock = async () => {
     }
 
     /* ══════════════════════════════════════
-      MODULE: TECH-BAZAAR
+      MODULE: CAMPUS MARKETPLACE 2.0
     ══════════════════════════════════════ */
-    const LIST = [
-      { id: 1, title: "GATE CS 2024 Study Bundle", price: 450, orig: 1200, seller: "Priya Sharma", branch: "CSE", yr: "4th", ok: true, cond: "Good", cat: "Books", img: <img src="https://cdn-icons-png.flaticon.com/512/2232/2232688.png" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />, desc: "Complete GATE prep: 3 books + notes. Arihant + Made Easy combo.", time: "2 hrs ago" },
-      { id: 2, title: "Arduino Uno + Breadboard Kit", price: 650, orig: 1100, seller: "Rahul Gupta", branch: "ECE", yr: "3rd", ok: true, cond: "Like New", cat: "Electronics", img: <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/arduino/arduino-original.svg" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />, desc: "Used for 1 project only. All components intact. With USB cable.", time: "5 hrs ago" },
-      { id: 3, title: "Mechanical Drawing Set", price: 120, orig: 380, seller: "Ankit Mishra", branch: "ME", yr: "2nd", ok: false, cond: "Used", cat: "Tools", img: <img src="https://cdn-icons-png.flaticon.com/512/2071/2071252.png" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />, desc: "Drafter, compass set, scales. Slightly used in 1st year.", time: "1 day ago" },
-      { id: 4, title: "C Programming (K&R)", price: 180, orig: 450, seller: "Sneha Verma", branch: "IT", yr: "2nd", ok: true, cond: "Good", cat: "Books", img: <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/c/c-original.svg" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />, desc: "Classic K&R C book. Some annotations. Perfect for placement prep.", time: "1 day ago" },
-      { id: 5, title: "Casio FX-991ES Plus", price: 400, orig: 900, seller: "Dev Agarwal", branch: "EE", yr: "4th", ok: true, cond: "Like New", cat: "Electronics", img: <img src="https://upload.wikimedia.org/wikipedia/commons/1/1e/Calculator_icon.svg" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />, desc: "Allowed in GATE/University exams. Works perfectly.", time: "2 days ago" },
-      { id: 6, title: "NPTEL + Coursera Notes", price: 80, orig: 200, seller: "Kavya Singh", branch: "CSE", yr: "3rd", ok: false, cond: "Digital", cat: "Digital", img: <img src="https://upload.wikimedia.org/wikipedia/commons/9/97/Coursera-Logo_600x600.svg" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />, desc: "Handwritten notes from ML & DSA NPTEL courses. PDF only.", time: "3 days ago" },
-    ];
-    const CATS = ["All", "Books", "Electronics", "Tools", "Digital"];
 
+    // Campus marketplace categories (UI labels — not hardcoded data)
+    const MARKETPLACE_CATS = [
+      { id: 'All', label: 'All' },
+      { id: 'Academic', label: '📚 Academic' },
+      { id: 'Technology', label: '💻 Technology' },
+      { id: 'Hostel', label: '🏠 Hostel' },
+      { id: 'Campus Life', label: '🎒 Campus Life' },
+      { id: 'Sports', label: '⚽ Sports' },
+      { id: 'Other', label: '📦 Other' },
+    ];
+
+    // Listing type filter pills
+    const LISTING_TYPE_FILTERS = [
+      { id: 'all', label: 'All' },
+      { id: 'sell', label: '🏷️ Sell' },
+      { id: 'rent', label: '🔄 Rent' },
+      { id: 'exchange', label: '↔️ Exchange' },
+      { id: 'free', label: '🎁 Free' },
+      { id: 'wanted', label: '🔍 Wanted' },
+    ];
+
+    const LISTING_TYPE_COLORS = {
+      sell: '#22C55E', rent: '#6366F1', exchange: '#F59E0B',
+      free: '#14B8A6', wanted: '#FF4F1F'
+    };
+
+    const LISTING_TYPE_LABELS = {
+      sell: 'For Sale', rent: 'For Rent', exchange: 'Exchange',
+      free: 'Free', wanted: 'Wanted'
+    };
+
+    const STATUS_COLORS = {
+      available: '#22C55E', reserved: '#F59E0B',
+      sold: '#888', claimed: '#888', fulfilled: '#6366F1', closed: '#888'
+    };
+
+    const STATUS_LABELS = {
+      available: 'Available', reserved: 'Reserved',
+      sold: 'Sold', claimed: 'Claimed', fulfilled: 'Fulfilled', closed: 'Closed'
+    };
+
+    // Condition-based badge color
+    const condColor = c => c === 'Like New' ? '#22C55E' : c === 'Good' ? '#F59E0B' : c === 'Digital' ? '#6366F1' : '#888';
+
+    // Relative time helper
+    function relTime(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr), now = new Date();
+      const diff = Math.floor((now - d) / 1000);
+      if (diff < 60) return 'just now';
+      if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+      if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+      if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+      return d.toLocaleDateString();
+    }
+
+    // Category icon helper
+    function catIcon(cat) {
+      const m = { Academic: '📚', Technology: '💻', Hostel: '🏠', 'Campus Life': '🎒', Sports: '⚽', Books: '📖', Electronics: '🔧', Tools: '🔨', Digital: '💾', Other: '📦' };
+      return m[cat] || '📦';
+    }
+
+    /* ── useMarketplace hook — central data + state management ── */
+    function useMarketplace() {
+      const [items, setItems] = React.useState([]);
+      const [loading, setLoading] = React.useState(true);
+      const [total, setTotal] = React.useState(0);
+      const [stats, setStats] = React.useState(null);
+      const [error, setError] = React.useState(null);
+
+      const [listingType, setListingType] = React.useState('all');
+      const [cat, setCat] = React.useState('All');
+      const [searchQ, setSearchQ] = React.useState('');
+      const [sort, setSort] = React.useState('newest');
+      const [activeView, setActiveView] = React.useState('all'); // 'all' | 'mine' | 'saved'
+      const [mineTab, setMineTab] = React.useState('all'); // 'all' | 'available' | 'reserved' | 'closed' | 'wanted'
+
+      const debounceRef = React.useRef(null);
+
+      const loadItems = React.useCallback((overrides = {}) => {
+        setLoading(true);
+        setError(null);
+        const params = new URLSearchParams();
+        const lType = overrides.listingType !== undefined ? overrides.listingType : listingType;
+        const lCat  = overrides.cat !== undefined ? overrides.cat : cat;
+        const lSort = overrides.sort !== undefined ? overrides.sort : sort;
+        const lQ    = overrides.searchQ !== undefined ? overrides.searchQ : searchQ;
+
+        if (lType && lType !== 'all') params.append('listingType', lType);
+        if (lCat && lCat !== 'All') params.append('cat', lCat);
+        if (lSort) params.append('sort', lSort);
+        if (lQ) params.append('search', lQ);
+        params.append('limit', '80');
+
+        fetch(`${API_BASE_URL}/api/marketplace?${params.toString()}`)
+          .then(r => r.json())
+          .then(data => {
+            if (data && Array.isArray(data.items)) {
+              setItems(data.items);
+              setTotal(data.total || data.items.length);
+            } else if (Array.isArray(data)) {
+              // backward compat if backend returns plain array
+              setItems(data);
+              setTotal(data.length);
+            } else {
+              setItems([]);
+              setTotal(0);
+            }
+            setLoading(false);
+          })
+          .catch(() => {
+            setError('Unable to load listings. Please try again.');
+            setLoading(false);
+          });
+      }, [listingType, cat, sort, searchQ]);
+
+      const loadMine = React.useCallback(() => {
+        setLoading(true);
+        setError(null);
+        fetch(`${API_BASE_URL}/api/marketplace/mine`)
+          .then(r => r.json())
+          .then(data => {
+            setItems(Array.isArray(data) ? data : []);
+            setTotal(Array.isArray(data) ? data.length : 0);
+            setLoading(false);
+          })
+          .catch(() => { setError('Unable to load your listings.'); setLoading(false); });
+      }, []);
+
+      const loadSaved = React.useCallback(() => {
+        setLoading(true);
+        setError(null);
+        fetch(`${API_BASE_URL}/api/marketplace/saved`)
+          .then(r => r.json())
+          .then(data => {
+            setItems(Array.isArray(data) ? data : []);
+            setTotal(Array.isArray(data) ? data.length : 0);
+            setLoading(false);
+          })
+          .catch(() => { setError('Unable to load saved items.'); setLoading(false); });
+      }, []);
+
+      const loadStats = React.useCallback(() => {
+        fetch(`${API_BASE_URL}/api/marketplace/stats`)
+          .then(r => r.json())
+          .then(d => setStats(d))
+          .catch(() => {});
+      }, []);
+
+      // Initial load + stats
+      React.useEffect(() => { loadItems(); loadStats(); }, []);
+
+      const handleSearch = React.useCallback((val) => {
+        setSearchQ(val);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+          loadItems({ searchQ: val });
+        }, 350);
+      }, [loadItems]);
+
+      const setListingTypeAndLoad = (lt) => {
+        setListingType(lt);
+        setActiveView('all');
+        loadItems({ listingType: lt });
+      };
+      const setCatAndLoad = (c) => {
+        setCat(c);
+        setActiveView('all');
+        loadItems({ cat: c });
+      };
+      const setSortAndLoad = (s) => {
+        setSort(s);
+        setActiveView('all');
+        loadItems({ sort: s });
+      };
+      const switchView = (v) => {
+        setActiveView(v);
+        if (v === 'mine') loadMine();
+        else if (v === 'saved') loadSaved();
+        else loadItems();
+      };
+
+      return {
+        items, loading, total, stats, error,
+        listingType, setListingType: setListingTypeAndLoad,
+        cat, setCat: setCatAndLoad,
+        searchQ, handleSearch,
+        sort, setSort: setSortAndLoad,
+        activeView, switchView,
+        mineTab, setMineTab,
+        reload: () => {
+          loadStats();
+          if (activeView === 'mine') loadMine();
+          else if (activeView === 'saved') loadSaved();
+          else loadItems();
+        }
+      };
+    }
+
+    /* ── Item thumbnail/icon ── */
+    function ItemThumb({ item, size = 60 }) {
+      if (item.photoUrl) {
+        return (
+          <img src={item.photoUrl} alt={item.title}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: size * 0.2 }} />
+        );
+      }
+      return (
+        <span style={{ fontSize: size * 0.45, lineHeight: 1 }}>{catIcon(item.cat)}</span>
+      );
+    }
+
+    /* ── Listing type badge ── */
+    function ListingTypeBadge({ type, small }) {
+      const color = LISTING_TYPE_COLORS[type] || '#888';
+      const label = LISTING_TYPE_LABELS[type] || type;
+      return (
+        <span style={{
+          display: 'inline-flex', alignItems: 'center',
+          background: color + '18', color, border: `1px solid ${color}38`,
+          borderRadius: 20, padding: small ? '2px 8px' : '3px 10px',
+          fontSize: small ? 10 : 11, fontWeight: 700, letterSpacing: 0.3
+        }}>{label}</span>
+      );
+    }
+
+    /* ── Marketplace Item Card ── */
+    function MarketplaceCard({ item, currentUserRoll, onView, onContact, onSave, onStatusChange, onDelete, onEdit, compact }) {
+      const isMine = currentUserRoll && item.sellerRoll === currentUserRoll;
+      const isSaved = currentUserRoll && Array.isArray(item.savedBy) && item.savedBy.includes(currentUserRoll);
+      const isWanted = item.listingType === 'wanted';
+      const isFree = item.listingType === 'free';
+      const isUrgent = isWanted && item.neededBy && (new Date(item.neededBy).getTime() - Date.now() < 3 * 24 * 60 * 60 * 1000) && (new Date(item.neededBy).getTime() > Date.now());
+      const typeColor = LISTING_TYPE_COLORS[item.listingType] || '#888';
+
+      return (
+        <div className="card-hover" onClick={() => onView(item)} style={{
+          background: '#fff',
+          borderRadius: 14,
+          border: '1px solid #E8E4DC',
+          padding: 0,
+          overflow: 'hidden',
+          cursor: 'pointer',
+          boxShadow: '0 1px 6px rgba(60,30,10,0.06)',
+          transition: 'box-shadow .18s, transform .18s',
+          opacity: item.status !== 'available' && item.status !== 'reserved' ? 0.68 : 1
+        }}>
+          {/* Thin top accent strip using listing-type colour */}
+          <div style={{ height: 3, background: typeColor, opacity: 0.75 }} />
+
+          <div style={{ padding: '14px 16px' }}>
+            {/* Thumbnail row */}
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: 10, flexShrink: 0,
+                background: '#F7F3EF', border: '1px solid #EDE9E2',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                overflow: 'hidden'
+              }}>
+                <ItemThumb item={item} size={56} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.35, color: '#1A1A1A',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  title={item.title}>
+                  {item.title}
+                </div>
+                {/* Price line */}
+                <div style={{ marginTop: 4, display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                  {isFree ? (
+                    <span style={{ fontSize: 14, fontWeight: 800, color: '#14B8A6' }}>FREE</span>
+                  ) : isWanted ? (
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#C2410C' }}>Looking for this</span>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: 16, fontWeight: 800, color: '#2D7A4F' }}>₹{item.price}</span>
+                      {item.orig > 0 && item.orig !== item.price && (
+                        <span style={{ textDecoration: 'line-through', color: '#AAA', fontSize: 11 }}>₹{item.orig}</span>
+                      )}
+                    </>
+                  )}
+                </div>
+                {/* Badges */}
+                <div style={{ display: 'flex', gap: 5, marginTop: 7, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <ListingTypeBadge type={item.listingType} small />
+                  {item.cond && item.cond !== 'N/A' && (
+                    <span style={{
+                      background: '#F7F3EF', color: '#5C4A32',
+                      border: '1px solid #E5DBCF', borderRadius: 20,
+                      padding: '2px 7px', fontSize: 10, fontWeight: 600
+                    }}>{item.cond}</span>
+                  )}
+                  {item.status && item.status !== 'available' && (
+                    <span style={{
+                      background: STATUS_COLORS[item.status] + '18', color: STATUS_COLORS[item.status],
+                      border: `1px solid ${STATUS_COLORS[item.status]}35`, borderRadius: 20,
+                      padding: '2px 7px', fontSize: 10, fontWeight: 700
+                    }}>{STATUS_LABELS[item.status]}</span>
+                  )}
+                  {isUrgent && (
+                    <span style={{
+                      background: 'rgba(194,65,12,0.08)', color: '#C2410C',
+                      border: '1px solid rgba(194,65,12,0.25)', borderRadius: 20,
+                      padding: '2px 7px', fontSize: 10, fontWeight: 700
+                    }}>⚠️ Urgent</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Description snippet */}
+            {item.desc && (
+              <p style={{ color: '#777', fontSize: 12, marginTop: 10, lineHeight: 1.5,
+                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                {item.desc}
+              </p>
+            )}
+
+            {/* Exchange note */}
+            {item.listingType === 'exchange' && item.exchangeFor && (
+              <div style={{ marginTop: 8, padding: '5px 10px', background: '#FEFCE8',
+                borderRadius: 7, border: '1px solid #FDE68A', fontSize: 11, color: '#78350F' }}>
+                ↔️ Wants: <strong>{item.exchangeFor}</strong>
+              </div>
+            )}
+
+            {/* Location */}
+            {item.location && (
+              <div style={{ marginTop: 6, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span>📍</span> {item.location}
+              </div>
+            )}
+          </div>
+
+          {/* Bottom bar */}
+          <div style={{ padding: '10px 16px', borderTop: '1px solid #F0EBE3',
+            background: '#FDFAF7',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            {/* Seller info */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: '50%', flexShrink: 0, overflow: 'hidden',
+                background: '#F0EAE0',
+                border: '1.5px solid #DCCEBE',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12
+              }}>
+                {item.sellerPhoto
+                  ? <img src={item.sellerPhoto} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                  : '👤'}
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#2D2D2D', display: 'flex', alignItems: 'center', gap: 3 }}>
+                  {item.sellerName}
+                  {item.verified && <span style={{ fontSize: 9, color: '#22C55E' }}>✓</span>}
+                </div>
+                <div style={{ color: '#AAA', fontSize: 10 }}>
+                  {item.createdAt ? relTime(item.createdAt) : ''}
+                </div>
+              </div>
+            </div>
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: 5 }} onClick={e => e.stopPropagation()}>
+              {currentUserRoll && (
+                <button onClick={() => onSave(item)} style={{
+                  background: isSaved ? 'rgba(255,79,31,0.08)' : 'transparent',
+                  border: isSaved ? '1px solid rgba(255,79,31,0.3)' : '1px solid #E5DBCF',
+                  borderRadius: 7, width: 30, height: 30, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13,
+                  transition: 'all .15s'
+                }} title={isSaved ? 'Unsave' : 'Save'}>
+                  {isSaved ? '🔖' : '🏷️'}
+                </button>
+              )}
+              {!isMine && (
+                <button onClick={() => onContact(item)} style={{
+                  background: '#FF4F1F', color: '#fff',
+                  border: 'none', borderRadius: 7,
+                  padding: '6px 13px', fontSize: 11, fontWeight: 700,
+                  cursor: 'pointer', transition: 'opacity .15s'
+                }}>
+                  {isFree ? 'Claim' : 'Contact'}
+                </button>
+              )}
+              {isMine && (
+                <button onClick={() => onEdit(item)} style={{
+                  background: 'transparent', border: '1px solid #E5DBCF', borderRadius: 7,
+                  width: 30, height: 30, cursor: 'pointer', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', fontSize: 13, transition: 'all .15s'
+                }} title="Edit">✏️</button>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const getYearNum = (y) => {
+      if (!y) return 0;
+      const m = String(y).match(/\d+/);
+      return m ? parseInt(m[0], 10) : 0;
+    };
+
+    /* ── Main TechBazaar / Campus Marketplace component ── */
     function TechBazaar({ search = "" }) {
       const addToast = useToast();
       const { user } = useUser();
-      const [items, setItems] = useState(LIST);
-      const [cat, setCat] = useState("All");
-      const [con, setCon] = useState(null);
-      const [sellOpen, setSellOpen] = useState(false);
-      const [sellLoading, setSellLoading] = useState(false);
-      const [sellForm, setSellForm] = useState({ title: "", price: "", orig: "", cond: "Good", cat: "Books", desc: "" });
-      const [photoData, setPhotoData] = useState(null);
-      const [photoPreview, setPhotoPreview] = useState(null);
-      const [searchQ, setSearchQ] = useState("");
-      const [viewItem, setViewItem] = useState(null);
-      const [photoZoom, setPhotoZoom] = useState(false);
+      const currentUserRoll = user?.rollNo || null;
+      const userYearNum = getYearNum(user?.year);
 
-      // Load live listings from DB on mount, merge on top of static list
+      // Central marketplace hook
+      const mp = useMarketplace();
+      const { mineTab, setMineTab } = mp;
+
+      // Modals
+      const [viewItem, setViewItem] = React.useState(null);
+      const [contactItem, setContactItem] = React.useState(null);
+      const [createOpen, setCreateOpen] = React.useState(false);
+      const [editItem, setEditItem] = React.useState(null);
+      const [statusItem, setStatusItem] = React.useState(null);
+      const [reportItem, setReportItem] = React.useState(null);
+      const [photoZoom, setPhotoZoom] = React.useState(false);
+      const [deleteConfirmItem, setDeleteConfirmItem] = React.useState(null);
+
+      // Create/Edit form state
+      const [form, setForm] = React.useState({
+        title: '', price: '', orig: '', cond: 'Good', cat: 'Academic', subcat: '',
+        desc: '', listingType: 'sell', location: '', exchangeFor: '',
+        rentalPeriod: '', rentalDeposit: '', neededBy: ''
+      });
+      const [photoData, setPhotoData] = React.useState(null);
+      const [photoPreview, setPhotoPreview] = React.useState(null);
+      const [formLoading, setFormLoading] = React.useState(false);
+
+      // Report form
+      const [reportReason, setReportReason] = React.useState('');
+      const [reportLoading, setReportLoading] = React.useState(false);
+
+      // Status change
+      const [newStatus, setNewStatus] = React.useState('');
+      const [statusLoading, setStatusLoading] = React.useState(false);
+
+      // Delete loading
+      const [deleteLoading, setDeleteLoading] = React.useState(false);
+
+      // Apply external search prop (from global search bar)
       React.useEffect(() => {
-        fetch(`${API_BASE_URL}/api/marketplace`)
-          .then(r => r.json())
-          .then(data => {
-            if (Array.isArray(data) && data.length > 0) {
-              const dbItems = data.map(d => ({
-                id: d._id, title: d.title, price: d.price, orig: d.orig || d.price,
-                seller: d.sellerName, branch: d.branch, yr: d.year,
-                ok: d.verified, cond: d.cond, cat: d.cat,
-                photoUrl: d.photoUrl || null,
-                sellerPhoto: d.sellerPhoto || null,
-                sellerContact: d.sellerContact || null,
-                sellerEmail: d.sellerEmail || null,
-                img: d.photoUrl ? <img src={d.photoUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }} alt={d.title} /> : d.cat && d.cat.includes("Books") ? <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>library_books</span> : d.cat && d.cat.includes("Electronics") ? <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>build</span> : <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>package</span>,
-                desc: d.desc, time: "Recently"
-              }));
-              setItems([...dbItems, ...LIST]);
-            }
-          })
-          .catch(() => { }); // silently fall back to static LIST
-      }, []);
+        if (search && search !== mp.searchQ) {
+          mp.handleSearch(search);
+        }
+      }, [search]);
 
-      const handleList = async () => {
-        if (!sellForm.title || !sellForm.price) return alert("Please fill all required details!");
-        setSellLoading(true);
-        const payload = {
-          title: sellForm.title,
-          price: Number(sellForm.price),
-          orig: Number(sellForm.orig || sellForm.price),
-          cond: sellForm.cond,
-          cat: sellForm.cat,
-          desc: sellForm.desc || "No description provided.",
-          sellerName: user?.name || "Anonymous",
-          sellerRoll: user?.rollNo || "N/A",
-          branch: user?.branch || "Unknown",
-          year: user?.year || "N/A",
-          verified: user?.dbt || false,
-          photoData: photoData || null,
+      // Open edit modal: pre-fill form with item data
+      const handleEditOpen = (item) => {
+        setForm({
+          title: item.title || '',
+          price: item.price !== undefined ? String(item.price) : '',
+          orig: item.orig !== undefined ? String(item.orig) : '',
+          cond: item.cond || 'Good',
+          cat: item.cat || 'Academic',
+          subcat: item.subcat || '',
+          desc: item.desc || '',
+          listingType: item.listingType || 'sell',
+          location: item.location || '',
+          exchangeFor: item.exchangeFor || '',
+          rentalPeriod: item.rentalPeriod || '',
+          rentalDeposit: item.rentalDeposit !== undefined ? String(item.rentalDeposit) : '',
+          neededBy: item.neededBy ? new Date(item.neededBy).toISOString().split('T')[0] : ''
+        });
+        setPhotoData(null);
+        setPhotoPreview(item.photoUrl || null);
+        setEditItem(item);
+      };
+
+      // Open create modal: reset form
+      const handleCreateOpen = () => {
+        if (!user?.rollNo) {
+          addToast('Sign in required', 'Please log in to post a listing.', '🔐', '#FF4F1F');
+          return;
+        }
+        setForm({
+          title: '', price: '', orig: '', cond: 'Good', cat: 'Academic', subcat: '',
+          desc: '', listingType: 'sell', location: '', exchangeFor: '',
+          rentalPeriod: '', rentalDeposit: '', neededBy: ''
+        });
+        setPhotoData(null);
+        setPhotoPreview(null);
+        setCreateOpen(true);
+      };
+
+      // Handle image file input
+      const handlePhoto = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+          addToast('File too large', 'Please select an image under 5MB', '⚠️', '#EF4444');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPhotoData(reader.result);
+          setPhotoPreview(reader.result);
+          addToast('Photo attached ✓', file.name, '📸', '#22C55E');
         };
+        reader.readAsDataURL(file);
+      };
+
+      // Submit create listing
+      const handleCreate = async () => {
+        if (!form.title.trim()) {
+          addToast('Missing title', 'Please enter a title for your listing.', '⚠️', '#EF4444');
+          return;
+        }
+        const type = form.listingType;
+        if (type !== 'free' && type !== 'wanted' && !form.price) {
+          addToast('Price required', 'Please enter a price for this listing type.', '⚠️', '#EF4444');
+          return;
+        }
+        setFormLoading(true);
         try {
+          const payload = {
+            title: form.title.trim(),
+            price: Number(form.price) || 0,
+            orig: Number(form.orig) || Number(form.price) || 0,
+            cond: form.cond,
+            cat: form.cat,
+            subcat: form.subcat,
+            desc: form.desc,
+            listingType: type,
+            location: form.location,
+            exchangeFor: form.exchangeFor,
+            rentalPeriod: form.rentalPeriod,
+            rentalDeposit: Number(form.rentalDeposit) || 0,
+            neededBy: form.neededBy || null,
+            photoData: photoData || null
+          };
           const res = await fetch(`${API_BASE_URL}/api/marketplace`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
           const data = await res.json();
           if (res.ok) {
-            const newItem = {
-              id: data.item._id, title: data.item.title, price: data.item.price,
-              orig: data.item.orig, seller: data.item.sellerName, branch: data.item.branch,
-              yr: data.item.year, ok: data.item.verified, cond: data.item.cond, cat: data.item.cat,
-              photoUrl: data.item.photoUrl || null,
-              sellerPhoto: data.item.sellerPhoto || user?.profilePhoto || null,
-              img: data.item.photoUrl ? <img src={data.item.photoUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }} alt={data.item.title} /> : data.item.cat.includes("Books") ? <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>library_books</span> : data.item.cat.includes("Electronics") ? <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>build</span> : <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>package</span>,
-              desc: data.item.desc, time: "Just now"
-            };
-            setItems(prev => [newItem, ...prev]);
-            addToast("Listed in Database!", "Your item is live & saved permanently 🎉", <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>check_circle</span>, T.success);
+            addToast('Listing posted! 🎉', 'Your item is now live on Campus Marketplace.', '✅', '#22C55E');
+            setCreateOpen(false);
+            mp.reload();
           } else {
-            throw new Error(data.error || "Server error");
+            addToast('Failed', data.message || 'Could not post listing.', '❌', '#EF4444');
           }
         } catch (err) {
-          // Fallback: add locally even if API fails
-          const newItem = {
-            id: Date.now(), title: sellForm.title, price: Number(sellForm.price),
-            orig: Number(sellForm.orig || sellForm.price), seller: user?.name || "You",
-            branch: user?.branch || "Unknown", yr: user?.year || "N/A",
-            ok: user?.dbt || false, cond: sellForm.cond, cat: sellForm.cat,
-            photoUrl: null,
-            sellerPhoto: user?.profilePhoto || null,
-            img: sellForm.cat.includes("Books") ? <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>library_books</span> : sellForm.cat.includes("Electronics") ? <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>build</span> : <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>package</span>,
-            desc: sellForm.desc || "No description.", time: "Just now"
-          };
-          setItems(prev => [newItem, ...prev]);
-          addToast("Listed Locally", "Saved on this device. DB sync failed.", <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>warning</span>, T.yellow);
+          addToast('Error', 'Network error. Please try again.', '❌', '#EF4444');
         } finally {
-          setSellLoading(false);
-          setSellOpen(false);
-          setSellForm({ title: "", price: "", orig: "", cond: "Good", cat: "Books", desc: "" });
-          setPhotoData(null);
-          setPhotoPreview(null);
+          setFormLoading(false);
         }
       };
 
-      // Filter by category AND search query
-      const searchLower = (search || searchQ).toLowerCase().trim();
-      const filtered = items.filter(l => {
-        if (cat !== "All" && l.cat !== cat) return false;
-        if (searchLower) {
-          return (
-            (l.title && l.title.toLowerCase().includes(searchLower)) ||
-            (l.desc && l.desc.toLowerCase().includes(searchLower)) ||
-            (l.cat && l.cat.toLowerCase().includes(searchLower)) ||
-            (l.seller && l.seller.toLowerCase().includes(searchLower))
-          );
+      // Submit edit listing
+      const handleEdit = async () => {
+        if (!editItem) return;
+        setFormLoading(true);
+        try {
+          const payload = {
+            title: form.title.trim(),
+            price: Number(form.price) || 0,
+            orig: Number(form.orig) || 0,
+            cond: form.cond,
+            cat: form.cat,
+            subcat: form.subcat,
+            desc: form.desc,
+            listingType: form.listingType,
+            location: form.location,
+            exchangeFor: form.exchangeFor,
+            rentalPeriod: form.rentalPeriod,
+            rentalDeposit: Number(form.rentalDeposit) || 0,
+            neededBy: form.neededBy || null,
+            photoData: photoData || null
+          };
+          const res = await fetch(`${API_BASE_URL}/api/marketplace/${editItem._id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (res.ok) {
+            addToast('Listing updated ✓', 'Changes saved successfully.', '✅', '#22C55E');
+            setEditItem(null);
+            mp.reload();
+          } else {
+            addToast('Failed', data.message || 'Could not update listing.', '❌', '#EF4444');
+          }
+        } catch {
+          addToast('Error', 'Network error. Please try again.', '❌', '#EF4444');
+        } finally {
+          setFormLoading(false);
         }
-        return true;
-      });
-      const disc = (o, p) => Math.round((1 - p / o) * 100);
+      };
 
+      // Toggle save/unsave
+      const handleSave = async (item) => {
+        if (!user?.rollNo) {
+          addToast('Sign in required', 'Log in to save listings.', '🔐', '#FF4F1F');
+          return;
+        }
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/marketplace/${item._id}/save`, { method: 'POST' });
+          const data = await res.json();
+          if (res.ok) {
+            addToast(data.saved ? 'Saved! 🔖' : 'Removed from saved', '', data.saved ? '🔖' : '🏷️', data.saved ? '#FF4F1F' : '#888');
+            mp.reload();
+          }
+        } catch {}
+      };
+
+      // Update listing status
+      const handleStatusChange = async () => {
+        if (!statusItem || !newStatus) return;
+        setStatusLoading(true);
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/marketplace/${statusItem._id}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            addToast('Status updated', `Listing marked as ${newStatus}`, '✅', '#22C55E');
+            setStatusItem(null);
+            setNewStatus('');
+            mp.reload();
+          } else {
+            addToast('Failed', data.message || 'Could not update status.', '❌', '#EF4444');
+          }
+        } catch {
+          addToast('Error', 'Network error.', '❌', '#EF4444');
+        } finally {
+          setStatusLoading(false);
+        }
+      };
+
+      // Delete listing
+      const handleDelete = async () => {
+        if (!deleteConfirmItem) return;
+        setDeleteLoading(true);
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/marketplace/${deleteConfirmItem._id}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (res.ok) {
+            addToast('Listing removed', 'Your listing has been taken down.', '🗑️', '#888');
+            setDeleteConfirmItem(null);
+            mp.reload();
+          } else {
+            addToast('Failed', data.message || 'Could not remove listing.', '❌', '#EF4444');
+          }
+        } catch {
+          addToast('Error', 'Network error.', '❌', '#EF4444');
+        } finally {
+          setDeleteLoading(false);
+        }
+      };
+
+      // Submit report
+      const handleReport = async () => {
+        if (!reportItem || !reportReason) return;
+        setReportLoading(true);
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/marketplace/${reportItem._id}/report`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reportReason })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            addToast('Report submitted', 'Thank you. Our team will review this listing.', '🚩', '#F59E0B');
+            setReportItem(null);
+            setReportReason('');
+          } else {
+            addToast('Failed', data.message || 'Could not submit report.', '❌', '#EF4444');
+          }
+        } catch {
+          addToast('Error', 'Network error.', '❌', '#EF4444');
+        } finally {
+          setReportLoading(false);
+        }
+      };
+
+      // Determine status options for a listing type
+      const statusOptionsFor = (listingType) => {
+        if (listingType === 'sell') return ['available', 'reserved', 'sold'];
+        if (listingType === 'rent') return ['available', 'reserved', 'closed'];
+        if (listingType === 'exchange') return ['available', 'reserved', 'closed'];
+        if (listingType === 'free') return ['available', 'claimed'];
+        if (listingType === 'wanted') return ['available', 'fulfilled', 'closed'];
+        return ['available', 'closed'];
+      };
+
+      const formNeedsPrice = form.listingType !== 'free' && form.listingType !== 'wanted';
+      const formNeedsImage = form.listingType !== 'wanted';
+
+      // ── LISTING FORM (shared between Create and Edit) ──
+      const ListingForm = () => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Listing Type */}
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Listing Type *</label>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+              {['sell', 'rent', 'exchange', 'free', 'wanted'].map(lt => (
+                <button key={lt} onClick={() => setForm(p => ({ ...p, listingType: lt }))} style={{
+                  background: form.listingType === lt ? LISTING_TYPE_COLORS[lt] : '#F5F5F5',
+                  color: form.listingType === lt ? '#fff' : '#555',
+                  border: `1px solid ${form.listingType === lt ? LISTING_TYPE_COLORS[lt] : '#E2E2E2'}`,
+                  borderRadius: 20, padding: '6px 14px', fontSize: 12, fontWeight: 700,
+                  cursor: 'pointer', transition: 'all .15s'
+                }}>
+                  {LISTING_TYPE_LABELS[lt]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Title */}
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Item Title *</label>
+            <input
+              value={form.title}
+              onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
+              style={{ width: '100%', padding: '10px 14px', marginTop: 6, borderRadius: 8, border: '1px solid #EBEBEB', background: '#F5F5F5', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+              placeholder={form.listingType === 'wanted' ? 'What are you looking for?' : 'e.g., Engineering Mathematics Textbook'}
+              maxLength={200}
+            />
+          </div>
+
+          {/* Category + Condition row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Category</label>
+              <select value={form.cat} onChange={e => setForm(p => ({ ...p, cat: e.target.value }))} style={{ width: '100%', padding: '10px 14px', marginTop: 6, borderRadius: 8, border: '1px solid #EBEBEB', background: '#F5F5F5', fontFamily: 'Inter, system-ui, sans-serif', outline: 'none', boxSizing: 'border-box' }}>
+                {['Academic', 'Technology', 'Hostel', 'Campus Life', 'Sports', 'Other'].map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Condition</label>
+              <select value={form.cond} onChange={e => setForm(p => ({ ...p, cond: e.target.value }))} style={{ width: '100%', padding: '10px 14px', marginTop: 6, borderRadius: 8, border: '1px solid #EBEBEB', background: '#F5F5F5', fontFamily: 'Inter, system-ui, sans-serif', outline: 'none', boxSizing: 'border-box' }}>
+                {form.listingType === 'wanted' ? (
+                  <option value="N/A">Not Applicable</option>
+                ) : (
+                  <>
+                    <option>Like New</option>
+                    <option>Good</option>
+                    <option>Used</option>
+                    <option>Digital</option>
+                  </>
+                )}
+              </select>
+            </div>
+          </div>
+
+          {/* Price + Original MRP (only for sell/rent/exchange) */}
+          {formNeedsPrice && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>
+                  {form.listingType === 'rent' ? 'Rent Price (₹)' : 'Your Price (₹)'} *
+                </label>
+                <input type="number" min="0" value={form.price}
+                  onChange={e => setForm(p => ({ ...p, price: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 14px', marginTop: 6, borderRadius: 8, border: '1px solid #EBEBEB', background: '#F5F5F5', fontFamily: 'Inter, system-ui, sans-serif', outline: 'none', boxSizing: 'border-box' }}
+                  placeholder="₹0" />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Original MRP (₹)</label>
+                <input type="number" min="0" value={form.orig}
+                  onChange={e => setForm(p => ({ ...p, orig: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 14px', marginTop: 6, borderRadius: 8, border: '1px solid #EBEBEB', background: '#F5F5F5', fontFamily: 'Inter, system-ui, sans-serif', outline: 'none', boxSizing: 'border-box' }}
+                  placeholder="Optional" />
+              </div>
+            </div>
+          )}
+
+          {/* Rent-specific: period + deposit */}
+          {form.listingType === 'rent' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Rental Period</label>
+                <input value={form.rentalPeriod}
+                  onChange={e => setForm(p => ({ ...p, rentalPeriod: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 14px', marginTop: 6, borderRadius: 8, border: '1px solid #EBEBEB', background: '#F5F5F5', fontFamily: 'Inter, system-ui, sans-serif', outline: 'none', boxSizing: 'border-box' }}
+                  placeholder="e.g., Per day, Per week" />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Deposit (₹)</label>
+                <input type="number" min="0" value={form.rentalDeposit}
+                  onChange={e => setForm(p => ({ ...p, rentalDeposit: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 14px', marginTop: 6, borderRadius: 8, border: '1px solid #EBEBEB', background: '#F5F5F5', fontFamily: 'Inter, system-ui, sans-serif', outline: 'none', boxSizing: 'border-box' }}
+                  placeholder="Optional" />
+              </div>
+            </div>
+          )}
+
+          {/* Exchange preference */}
+          {form.listingType === 'exchange' && (
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Looking to Exchange For</label>
+              <input value={form.exchangeFor}
+                onChange={e => setForm(p => ({ ...p, exchangeFor: e.target.value }))}
+                style={{ width: '100%', padding: '10px 14px', marginTop: 6, borderRadius: 8, border: '1px solid #EBEBEB', background: '#F5F5F5', fontFamily: 'Inter, system-ui, sans-serif', outline: 'none', boxSizing: 'border-box' }}
+                placeholder="e.g., Data Structures book, Headphones" />
+            </div>
+          )}
+
+          {/* Wanted-specific: needed by date */}
+          {form.listingType === 'wanted' && (
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Needed By (Optional)</label>
+              <input type="date" value={form.neededBy}
+                onChange={e => setForm(p => ({ ...p, neededBy: e.target.value }))}
+                style={{ width: '100%', padding: '10px 14px', marginTop: 6, borderRadius: 8, border: '1px solid #EBEBEB', background: '#F5F5F5', fontFamily: 'Inter, system-ui, sans-serif', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+          )}
+
+          {/* Description */}
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Description</label>
+            <textarea rows={3} value={form.desc}
+              onChange={e => setForm(p => ({ ...p, desc: e.target.value }))}
+              style={{ width: '100%', padding: '10px 14px', marginTop: 6, borderRadius: 8, border: '1px solid #EBEBEB', background: '#F5F5F5', fontFamily: 'Inter, system-ui, sans-serif', resize: 'none', outline: 'none', boxSizing: 'border-box' }}
+              placeholder="Any defects, special notes, or additional details…"
+              maxLength={2000} />
+          </div>
+
+          {/* Campus location */}
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Meetup/Pickup Location (Optional)</label>
+            <input value={form.location}
+              onChange={e => setForm(p => ({ ...p, location: e.target.value }))}
+              style={{ width: '100%', padding: '10px 14px', marginTop: 6, borderRadius: 8, border: '1px solid #EBEBEB', background: '#F5F5F5', fontFamily: 'Inter, system-ui, sans-serif', outline: 'none', boxSizing: 'border-box' }}
+              placeholder="e.g., Library, Canteen, Main Gate, Hostel Block A"
+              maxLength={100} />
+          </div>
+
+          {/* Photo upload (not for Wanted) */}
+          {formNeedsImage && (
+            <label style={{
+              display: 'block', padding: photoPreview ? '8px' : '18px',
+              borderRadius: 12, border: photoPreview ? `2px solid rgba(34,197,94,0.4)` : '2px dashed #C0C0C0',
+              background: photoPreview ? '#F0FFF4' : '#FAFAFA',
+              textAlign: 'center', cursor: 'pointer', transition: 'all .2s'
+            }}>
+              <input type="file" accept="image/*" capture="environment"
+                style={{ display: 'none' }} onChange={handlePhoto} />
+              {photoPreview ? (
+                <div>
+                  <img src={photoPreview} style={{ width: '100%', maxHeight: 160, objectFit: 'contain', borderRadius: 8 }} alt="Preview" />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 8 }}>
+                    <span style={{ fontSize: 14, color: '#22C55E' }}>✓</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#22C55E' }}>Photo attached — tap to change</span>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 28, marginBottom: 6 }}>📸</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1A1A' }}>Tap to Upload Photo</div>
+                  <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>Max 5MB • JPG/PNG</div>
+                </>
+              )}
+            </label>
+          )}
+        </div>
+      );
+
+      // ── RENDER ──
       return (
         <div>
+          {/* ── HERO HEADER ── */}
           <div className="screen-hero">
             <div className="screen-hero-inner">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px rgba(255,79,31,0.25)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                    <img src="/images/logo.png" style={{ width: "100%", height: "100%", objectFit: "cover", position: "relative", zIndex: 1, borderRadius: "inherit" }} alt="Vidya-Setu Logo" />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 42, height: 42, borderRadius: 10,
+                    background: '#FF4F1F', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', flexShrink: 0
+                  }}>
+                    <img src="/images/logo.png" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} alt="Logo" />
                   </div>
-                  <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, marginTop: 12, lineHeight: 1.15, color: T.text, letterSpacing: '-0.4px' }}>Campus Store</h1>
-                  <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>{items.length} items from verified students</p>
+                  <div>
+                    <h1 style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 22, fontWeight: 800, color: '#1A1A1A', letterSpacing: '-0.3px', lineHeight: 1.1 }}>
+                      Campus Marketplace
+                    </h1>
+                    <p style={{ color: '#888', fontSize: 12, marginTop: 2 }}>Buy · Sell · Rent · Exchange · Free · Wanted</p>
+                  </div>
                 </div>
-                <Btn variant="primary" style={{ padding: "11px 20px", fontSize: 13, flexShrink: 0 }} onClick={() => setSellOpen(true)}>+ Sell Item</Btn>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  {/* Stats */}
+                  {mp.stats && mp.stats.total > 0 && (
+                    <span style={{
+                      fontSize: 12, fontWeight: 600, color: '#666',
+                      background: '#F5F5F5', border: '1px solid #E8E8E8',
+                      borderRadius: 20, padding: '5px 12px'
+                    }}>
+                      {mp.stats.total} listings
+                      {mp.stats.free > 0 ? ` · ${mp.stats.free} free` : ''}
+                    </span>
+                  )}
+                  <button onClick={handleCreateOpen} style={{
+                    background: '#FF4F1F', color: '#fff',
+                    border: 'none', borderRadius: 9,
+                    padding: '9px 18px', fontSize: 13, fontWeight: 700,
+                    cursor: 'pointer', letterSpacing: 0.2
+                  }}>+ Post Listing</button>
+                </div>
               </div>
-              <div style={{ marginTop: 16, display: "flex", alignItems: "center", background: "rgba(255,255,255,0.95)", border: `1.5px solid ${searchQ ? 'rgba(255,79,31,0.5)' : T.border}`, borderRadius: 12, padding: "11px 16px", maxWidth: 440, boxShadow: searchQ ? "0 2px 16px rgba(255,79,31,0.10)" : "0 1px 4px rgba(0,0,0,0.04)", transition: "all .25s ease" }}>
-                <span className="material-symbols-outlined" style={{ color: searchQ ? T.orange : "#1E3A8A", marginRight: 10, fontSize: 20, transition: "color .2s", fontWeight: 300, display: "flex" }}>search</span>
+
+              {/* Search bar */}
+              <div style={{
+                marginTop: 14, display: 'flex', alignItems: 'center',
+                background: '#fff', border: `1.5px solid ${mp.searchQ ? '#FF4F1F' : '#E0D8CF'}`,
+                borderRadius: 10, padding: '9px 14px', maxWidth: 500,
+                boxShadow: '0 1px 4px rgba(60,20,10,0.06)', transition: 'border-color .2s'
+              }}>
+                <span style={{ color: mp.searchQ ? '#FF4F1F' : '#AAA', marginRight: 8, fontSize: 16 }}>🔍</span>
                 <input
-                  value={searchQ}
-                  onChange={e => setSearchQ(e.target.value)}
-                  placeholder="Search books, electronics, tools…"
-                  style={{ border: "none", outline: "none", background: "transparent", fontSize: 14, color: T.text, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', width: "100%", fontWeight: 500 }}
+                  value={mp.searchQ}
+                  onChange={e => mp.handleSearch(e.target.value)}
+                  placeholder="Search books, electronics, hostel items…"
+                  style={{
+                    border: 'none', outline: 'none', background: 'transparent',
+                    fontSize: 13, color: '#1A1A1A', fontFamily: 'Inter, system-ui, sans-serif',
+                    width: '100%', fontWeight: 500
+                  }}
                 />
-                {searchQ && (
-                  <button onClick={() => setSearchQ("")} style={{ background: "#F0F0F0", border: "1px solid #E0E0E0", borderRadius: 6, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 11, color: T.muted, flexShrink: 0, transition: "all .15s" }}>✕</button>
+                {mp.searchQ && (
+                  <button onClick={() => mp.handleSearch('')} style={{
+                    background: '#F0ECE8', border: 'none',
+                    borderRadius: 5, width: 22, height: 22,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', fontSize: 10, color: '#888', flexShrink: 0
+                  }}>✕</button>
                 )}
               </div>
             </div>
           </div>
 
           <div className="screen-body">
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
-              {CATS.map(c => (
-                <button key={c} onClick={() => setCat(c)} style={{ background: cat === c ? T.orange : "#fff", color: cat === c ? "#fff" : T.muted, border: `1px solid ${cat === c ? T.orange : T.border}`, boxShadow: cat === c ? "0 2px 10px rgba(255,79,31,0.25)" : "0 1px 3px rgba(0,0,0,0.06)", borderRadius: 20, padding: "7px 16px", fontSize: 12, fontWeight: cat === c ? 700 : 500, cursor: "pointer", transition: "all .15s ease" }}>{c}</button>
-              ))}
+            {/* ── FILTER TOOLBAR ── */}
+            <div style={{ marginBottom: 16 }}>
+              {/* Row 1: View tabs + sort */}
+              <div style={{ display: 'flex', gap: 7, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+                {[['all', '🏪 All'], ['mine', '📋 My Listings'], ['saved', '🔖 Saved']].map(([v, l]) => (
+                  <button key={v} onClick={() => mp.switchView(v)} style={{
+                    background: mp.activeView === v ? '#FF4F1F' : '#fff',
+                    color: mp.activeView === v ? '#fff' : '#555',
+                    border: `1px solid ${mp.activeView === v ? '#FF4F1F' : '#E0D8CF'}`,
+                    borderRadius: 8, padding: '8px 18px', fontSize: 13, fontWeight: 700,
+                    cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap'
+                  }}>{l}</button>
+                ))}
+                {mp.activeView === 'all' && (
+                  <select value={mp.sort} onChange={e => mp.setSort(e.target.value)} style={{
+                    marginLeft: 'auto',
+                    padding: '8px 12px', borderRadius: 8, border: '1px solid #E0D8CF',
+                    background: '#fff', fontSize: 13, color: '#555', cursor: 'pointer',
+                    fontFamily: 'Inter, system-ui, sans-serif', outline: 'none'
+                  }}>
+                    <option value="newest">Newest first</option>
+                    <option value="price_asc">Price: Low → High</option>
+                    <option value="price_desc">Price: High → Low</option>
+                    <option value="updated">Recently updated</option>
+                  </select>
+                )}
+              </div>
+
+              {/* Row 2: Listing type pills */}
+              {mp.activeView === 'all' && (
+                <div style={{
+                  display: 'flex', gap: 6, alignItems: 'center',
+                  overflowX: 'auto', flexWrap: 'nowrap',
+                  paddingBottom: 4, marginBottom: 8,
+                  scrollbarWidth: 'none', msOverflowStyle: 'none'
+                }}>
+                  {LISTING_TYPE_FILTERS.map(f => (
+                    <button key={f.id} onClick={() => mp.setListingType(f.id)} style={{
+                      background: mp.listingType === f.id ? (LISTING_TYPE_COLORS[f.id] || '#333') : '#F7F3EF',
+                      color: mp.listingType === f.id ? '#fff' : '#555',
+                      border: `1px solid ${mp.listingType === f.id ? (LISTING_TYPE_COLORS[f.id] || '#333') : '#E5DBCF'}`,
+                      borderRadius: 20, padding: '7px 15px', fontSize: 12,
+                      fontWeight: mp.listingType === f.id ? 700 : 500,
+                      cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap', flexShrink: 0
+                    }}>{f.label}</button>
+                  ))}
+                </div>
+              )}
+
+              {/* Row 3: Category pills on a new line */}
+              {mp.activeView === 'all' && (
+                <div style={{
+                  display: 'flex', gap: 6, alignItems: 'center',
+                  overflowX: 'auto', flexWrap: 'nowrap',
+                  paddingBottom: 4,
+                  scrollbarWidth: 'none', msOverflowStyle: 'none'
+                }}>
+                  {MARKETPLACE_CATS.map(c => (
+                    <button key={c.id} onClick={() => mp.setCat(c.id)} style={{
+                      background: mp.cat === c.id ? '#1A1A1A' : 'transparent',
+                      color: mp.cat === c.id ? '#fff' : '#888',
+                      border: `1px solid ${mp.cat === c.id ? '#1A1A1A' : '#E5DBCF'}`,
+                      borderRadius: 20, padding: '7px 15px', fontSize: 12,
+                      fontWeight: mp.cat === c.id ? 700 : 400,
+                      cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap', flexShrink: 0
+                    }}>{c.label}</button>
+                  ))}
+                </div>
+              )}
+
+              {/* My Listings sub-tabs — single line */}
+              {mp.activeView === 'mine' && !mp.loading && !mp.error && (
+                <div style={{ display: 'flex', gap: 6, overflowX: 'auto', flexWrap: 'nowrap', scrollbarWidth: 'none' }}>
+                  {['all', 'available', 'reserved', 'closed', 'wanted'].map(t => (
+                    <button key={t} onClick={() => setMineTab(t)} style={{
+                      background: mineTab === t ? '#1A1A1A' : '#F7F3EF',
+                      color: mineTab === t ? '#fff' : '#666',
+                      border: `1px solid ${mineTab === t ? '#1A1A1A' : '#E5DBCF'}`,
+                      borderRadius: 20, padding: '7px 15px', fontSize: 12,
+                      fontWeight: mineTab === t ? 700 : 500,
+                      cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap', flexShrink: 0
+                    }}>
+                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {searchQ && (
-              <div style={{ padding: "10px 16px", borderRadius: 10, background: "rgba(255,79,31,0.04)", border: "1px solid rgba(255,79,31,0.12)", marginTop: 8, marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 14 }}>🔎</span>
-                <span style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>{filtered.length} result{filtered.length !== 1 ? 's' : ''} for "{searchQ}"</span>
+            {/* ── SEARCH RESULTS INFO ── */}
+            {mp.searchQ && (
+              <div style={{
+                padding: '8px 14px', borderRadius: 8,
+                background: '#FFF7F0', border: '1px solid #FDDCB5',
+                marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8
+              }}>
+                <span style={{ fontSize: 13 }}>🔎</span>
+                <span style={{ fontSize: 12, color: '#FF4F1F', fontWeight: 600 }}>
+                  {mp.total} result{mp.total !== 1 ? 's' : ''} for "{mp.searchQ}"
+                </span>
               </div>
             )}
 
-            <div className="grid-auto" style={{ marginTop: 8 }}>
-              {filtered.length === 0 ? (
-                <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "60px 20px" }}>
-                  <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: T.text }}>No items found</div>
-                  <div style={{ fontSize: 13, color: T.muted, marginTop: 6 }}>Try a different search term or category</div>
+            {/* ── LOADING STATE ── */}
+            {mp.loading && (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#888' }}>
+                <div style={{ fontSize: 32, marginBottom: 10, animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>Loading listings…</div>
+              </div>
+            )}
+
+            {/* ── ERROR STATE ── */}
+            {!mp.loading && mp.error && (
+              <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: 14, border: '1px solid #F0EBE3' }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>⚠️</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#1A1A1A' }}>Unable to load listings</div>
+                <p style={{ color: '#888', marginTop: 6, fontSize: 13 }}>{mp.error}</p>
+                <button onClick={() => mp.reload()} style={{
+                  marginTop: 14, background: '#F7F3EF', border: '1px solid #E5DBCF',
+                  borderRadius: 8, padding: '8px 18px', fontSize: 13, fontWeight: 700,
+                  cursor: 'pointer', color: '#333'
+                }}>Try Again</button>
+              </div>
+            )}
+
+            {/* ── EMPTY STATE ── */}
+            {!mp.loading && !mp.error && mp.items.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: 14, border: '1px solid #F0EBE3' }}>
+                <div style={{ fontSize: 44, marginBottom: 10 }}>
+                  {mp.activeView === 'mine' ? '📋' : mp.activeView === 'saved' ? '🔖' : mp.listingType === 'wanted' ? '🔍' : mp.listingType === 'free' ? '🎁' : '🛒'}
                 </div>
-              ) : filtered.map(item => (
-                <Card key={item.id} style={{ padding: 0, overflow: "hidden", cursor: "pointer" }} onClick={() => setViewItem(item)}>
-                  <div style={{ padding: "16px 18px" }}>
-                    <div style={{ display: "flex", gap: 14 }}>
-                      <div style={{ width: 60, height: 60, borderRadius: 13, flexShrink: 0, background: "#F5F5F5", border: "1px solid #EBEBEB", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, boxShadow: "inset 0 1px 4px rgba(0,0,0,0.04)", overflow: "hidden" }}>{item.img}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                          <div style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.3, flex: 1, marginRight: 8, color: T.text }}>{item.title}</div>
-                          <div style={{ textAlign: "right", flexShrink: 0 }}>
-                            <div style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 18, fontWeight: 700, color: T.success }}>₹{item.price}</div>
-                            <div style={{ textDecoration: "line-through", color: T.muted, fontSize: 11 }}>₹{item.orig}</div>
-                          </div>
-                        </div>
-                        <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                          <Badge color={T.orange}>-{disc(item.orig, item.price)}% OFF</Badge>
-                          <Badge color={item.cond === "Like New" ? T.success : T.yellow}>{item.cond}</Badge>
-                          {item.photoUrl && <Badge color={T.indigo}>📷 Has Photo</Badge>}
-                        </div>
-                      </div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#1A1A1A' }}>
+                  {mp.activeView === 'mine' ? "You haven't posted any listings yet"
+                    : mp.activeView === 'saved' ? "You haven't saved any listings yet"
+                    : mp.listingType === 'wanted' ? "No active requests right now"
+                    : mp.listingType === 'free' ? "No free items available right now"
+                    : mp.searchQ ? `No listings found for "${mp.searchQ}"`
+                    : "No listings found"}
+                </div>
+                <p style={{ color: '#888', marginTop: 6, fontSize: 13 }}>
+                  {mp.activeView === 'mine' ? "Post something to get started!"
+                    : mp.activeView === 'saved' ? "Browse listings and save ones you like."
+                    : "Try changing your filters or check back later."}
+                </p>
+                {mp.activeView === 'mine' && (
+                  <button onClick={handleCreateOpen} style={{
+                    marginTop: 16, background: '#FF4F1F', color: '#fff',
+                    border: 'none', borderRadius: 9,
+                    padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer'
+                  }}>+ Post First Listing</button>
+                )}
+              </div>
+            )}
+
+            {/* ── SECTION HEADERS (default view only) ── */}
+            {!mp.loading && !mp.error && mp.activeView === 'all' && mp.listingType === 'all' && mp.cat === 'All' && !mp.searchQ && mp.items.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+
+                {/* Seniors section */}
+                {mp.items.some(i => getYearNum(i.year) > userYearNum) && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                      <span style={{ fontSize: 16 }}>🎓</span>
+                      <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1A1A1A', margin: 0 }}>From Your Seniors</h2>
                     </div>
-                    <p style={{ color: T.muted, fontSize: 12, marginTop: 10, lineHeight: 1.5 }}>{item.desc}</p>
-                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: item.sellerPhoto ? "transparent" : "linear-gradient(135deg,rgba(255,79,31,0.20),rgba(255,199,0,0.20))", border: item.sellerPhoto ? "2px solid rgba(255,79,31,0.25)" : "1px solid rgba(255,79,31,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, overflow: "hidden", flexShrink: 0 }}>{item.sellerPhoto ? <img src={item.sellerPhoto} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} alt="" /> : '👤'}</div>
-                        <div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{item.seller}</span>
-                            {item.ok && <span style={{ fontSize: 10, color: T.success }}>✓ Verified</span>}
-                          </div>
-                          <div style={{ color: T.muted, fontSize: 11 }}>{item.branch} • {item.yr} Year • {item.time}</div>
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <Btn onClick={(e) => { e.stopPropagation(); setCon(item); }} variant="teal" style={{ padding: "8px 14px", fontSize: 12 }}>Contact</Btn>
-                      </div>
+                    <div className="grid-auto">
+                      {mp.items.filter(i => getYearNum(i.year) > userYearNum).slice(0, 4).map(item => (
+                        <MarketplaceCard key={item._id} item={item} currentUserRoll={currentUserRoll} onView={setViewItem} onContact={setContactItem} onSave={handleSave} onStatusChange={(it) => { setStatusItem(it); setNewStatus(it.status || 'available'); }} onDelete={setDeleteConfirmItem} onEdit={handleEditOpen} />
+                      ))}
                     </div>
                   </div>
-                </Card>
-              ))}
-            </div>
+                )}
+
+                {/* Academic section */}
+                {mp.items.some(i => i.cat === 'Academic') && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                      <span style={{ fontSize: 16 }}>📚</span>
+                      <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1A1A1A', margin: 0 }}>Academic Essentials</h2>
+                    </div>
+                    <div className="grid-auto">
+                      {mp.items.filter(i => i.cat === 'Academic').slice(0, 4).map(item => (
+                        <MarketplaceCard key={item._id} item={item} currentUserRoll={currentUserRoll} onView={setViewItem} onContact={setContactItem} onSave={handleSave} onStatusChange={(it) => { setStatusItem(it); setNewStatus(it.status || 'available'); }} onDelete={setDeleteConfirmItem} onEdit={handleEditOpen} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Free corner */}
+                {mp.items.some(i => i.listingType === 'free') && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                      <span style={{ fontSize: 16 }}>🎁</span>
+                      <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0D9488', margin: 0 }}>Free Corner</h2>
+                      <span style={{ fontSize: 11, color: '#888', fontWeight: 400 }}>— grab before it's gone</span>
+                    </div>
+                    <div className="grid-auto">
+                      {mp.items.filter(i => i.listingType === 'free').slice(0, 4).map(item => (
+                        <MarketplaceCard key={item._id} item={item} currentUserRoll={currentUserRoll} onView={setViewItem} onContact={setContactItem} onSave={handleSave} onStatusChange={(it) => { setStatusItem(it); setNewStatus(it.status || 'available'); }} onDelete={setDeleteConfirmItem} onEdit={handleEditOpen} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Wanted */}
+                {mp.items.some(i => i.listingType === 'wanted') && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                      <span style={{ fontSize: 16 }}>🔍</span>
+                      <h2 style={{ fontSize: 16, fontWeight: 700, color: '#C2410C', margin: 0 }}>Wanted on Campus</h2>
+                    </div>
+                    <div className="grid-auto">
+                      {mp.items.filter(i => i.listingType === 'wanted').slice(0, 4).map(item => (
+                        <MarketplaceCard key={item._id} item={item} currentUserRoll={currentUserRoll} onView={setViewItem} onContact={setContactItem} onSave={handleSave} onStatusChange={(it) => { setStatusItem(it); setNewStatus(it.status || 'available'); }} onDelete={setDeleteConfirmItem} onEdit={handleEditOpen} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recently Added header — the grid below will render all */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{ fontSize: 16 }}>🛒</span>
+                    <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1A1A1A', margin: 0 }}>Recently Added</h2>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── LISTINGS GRID ── */}
+            {!mp.loading && !mp.error && mp.items.length > 0 && (
+              <div className="grid-auto" style={{ marginTop: 4 }}>
+                {mp.items.filter(item => {
+                  if (mp.activeView !== 'mine') return true;
+                  if (mineTab === 'all') return true;
+                  if (mineTab === 'wanted') return item.listingType === 'wanted';
+                  return item.status === mineTab;
+                }).map(item => (
+                  <MarketplaceCard
+                    key={item._id}
+                    item={item}
+                    currentUserRoll={currentUserRoll}
+                    onView={setViewItem}
+                    onContact={setContactItem}
+                    onSave={handleSave}
+                    onEdit={handleEditOpen}
+                    onStatusChange={(it) => { setStatusItem(it); setNewStatus(it.status || 'available'); }}
+                    onDelete={setDeleteConfirmItem}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* ── Can't find section + safety tip ── */}
+            {!mp.loading && mp.activeView === 'all' && (
+              <div style={{ marginTop: 28 }}>
+                <div style={{
+                  padding: '14px 18px', borderRadius: 10,
+                  background: '#FFF7F0', border: '1px solid #FDDCB5',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  flexWrap: 'wrap', gap: 10
+                }}>
+                  <div style={{ fontSize: 13, color: '#FF4F1F', fontWeight: 600 }}>
+                    Can't find what you need? Ask peers in Community Hub.
+                  </div>
+                  <button onClick={() => { window.location.hash = 'community'; }} style={{
+                    background: '#FF4F1F', color: '#fff',
+                    border: 'none', borderRadius: 7,
+                    padding: '7px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer'
+                  }}>Ask Community 💬</button>
+                </div>
+                <div style={{ marginTop: 10, fontSize: 11, color: '#AAA', textAlign: 'center' }}>
+                  💡 Always meet in a public campus spot. Never share OTPs or pay in advance.
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* ── ITEM DETAIL / PHOTO VIEWER MODAL ── */}
-          <Modal open={!!viewItem} onClose={() => { setViewItem(null); setPhotoZoom(false); }} title={viewItem ? "📦 " + viewItem.title : ""} aboveNav={true}>
+          {/* ══════════════════════════════════
+            MODALS
+          ══════════════════════════════════ */}
+
+          {/* ── ITEM DETAIL MODAL ── */}
+          <Modal open={!!viewItem} onClose={() => { setViewItem(null); setPhotoZoom(false); }}
+            title={viewItem ? (catIcon(viewItem.cat) + ' ' + viewItem.title) : ''} aboveNav={true}>
             {viewItem && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {/* Photo Section */}
-                <div
-                  onClick={() => viewItem.photoUrl && setPhotoZoom(true)}
-                  style={{
-                    width: "100%", borderRadius: 16, overflow: "hidden",
-                    background: "linear-gradient(145deg,#F8F8F8,#F0F0F0)",
-                    border: "1px solid #E8E8E8",
-                    minHeight: 200, maxHeight: 320,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: viewItem.photoUrl ? "zoom-in" : "default",
-                    position: "relative",
-                    boxShadow: "inset 0 2px 8px rgba(0,0,0,0.04)"
-                  }}
-                >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* Photo */}
+                <div onClick={() => viewItem.photoUrl && setPhotoZoom(true)} style={{
+                  width: '100%', borderRadius: 16, overflow: 'hidden',
+                  background: 'linear-gradient(145deg,#F8F8F8,#F0F0F0)',
+                  border: '1px solid #E8E8E8', minHeight: 180, maxHeight: 300,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: viewItem.photoUrl ? 'zoom-in' : 'default', position: 'relative'
+                }}>
                   {viewItem.photoUrl ? (
                     <>
-                      <img src={viewItem.photoUrl} alt={viewItem.title} style={{ width: "100%", height: "100%", objectFit: "contain", maxHeight: 320, padding: 8 }} />
-                      <div style={{
-                        position: "absolute", bottom: 10, right: 10,
-                        background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)",
-                        color: "#fff", borderRadius: 8, padding: "6px 12px",
-                        fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 5
-                      }}>
-                        <span style={{ fontSize: 14 }}>🔍</span> Tap to expand
+                      <img src={viewItem.photoUrl} alt={viewItem.title} style={{ width: '100%', height: '100%', objectFit: 'contain', maxHeight: 300, padding: 8 }} />
+                      <div style={{ position: 'absolute', bottom: 10, right: 10, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', color: '#fff', borderRadius: 8, padding: '5px 10px', fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        🔍 Tap to expand
                       </div>
                     </>
                   ) : (
-                    <div style={{ textAlign: "center", padding: 40 }}>
-                      <div style={{ width: 80, height: 80, margin: "0 auto 12px", borderRadius: 20, background: "#F0F0F0", border: "2px dashed #D0D0D0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 }}>
-                        {viewItem.img}
-                      </div>
-                      <div style={{ fontSize: 13, color: T.muted, fontWeight: 500 }}>No photo uploaded by seller</div>
-                      <div style={{ fontSize: 11, color: "#BBB", marginTop: 4 }}>Contact seller to request photos</div>
+                    <div style={{ textAlign: 'center', padding: 40 }}>
+                      <div style={{ fontSize: 56, marginBottom: 8 }}>{catIcon(viewItem.cat)}</div>
+                      <div style={{ fontSize: 12, color: '#888' }}>No photo uploaded</div>
                     </div>
                   )}
                 </div>
 
-                {/* Price & Discount */}
-                <div style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "14px 18px", borderRadius: 14,
-                  background: "linear-gradient(135deg, rgba(34,197,94,0.06), rgba(34,197,94,0.02))",
-                  border: "1px solid rgba(34,197,94,0.18)"
-                }}>
-                  <div>
-                    <div style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 28, fontWeight: 800, color: T.success }}>₹{viewItem.price}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                      <span style={{ textDecoration: "line-through", color: T.muted, fontSize: 14 }}>₹{viewItem.orig}</span>
-                      <Badge color={T.orange}>-{disc(viewItem.orig, viewItem.price)}% OFF</Badge>
+                {/* Listing type + status */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <ListingTypeBadge type={viewItem.listingType} />
+                  {viewItem.status && (
+                    <span style={{
+                      background: STATUS_COLORS[viewItem.status] + '18', color: STATUS_COLORS[viewItem.status],
+                      border: `1px solid ${STATUS_COLORS[viewItem.status]}35`, borderRadius: 20,
+                      padding: '3px 10px', fontSize: 11, fontWeight: 700
+                    }}>{STATUS_LABELS[viewItem.status]}</span>
+                  )}
+                  {viewItem.cond && viewItem.cond !== 'N/A' && (
+                    <span style={{ background: condColor(viewItem.cond) + '18', color: condColor(viewItem.cond), border: `1px solid ${condColor(viewItem.cond)}35`, borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>
+                      {viewItem.cond}
+                    </span>
+                  )}
+                  {viewItem.cat && (
+                    <span style={{ background: 'rgba(99,102,241,0.1)', color: '#6366F1', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>
+                      {catIcon(viewItem.cat)} {viewItem.cat}
+                    </span>
+                  )}
+                </div>
+
+                {/* Price block */}
+                {viewItem.listingType !== 'wanted' && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderRadius: 14, background: viewItem.listingType === 'free' ? 'rgba(20,184,166,0.06)' : 'rgba(34,197,94,0.06)', border: `1px solid ${viewItem.listingType === 'free' ? 'rgba(20,184,166,0.2)' : 'rgba(34,197,94,0.18)'}` }}>
+                    <div>
+                      {viewItem.listingType === 'free' ? (
+                        <div style={{ fontSize: 28, fontWeight: 800, color: '#14B8A6' }}>FREE 🎁</div>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: 28, fontWeight: 800, color: '#22C55E', fontFamily: 'Inter, system-ui, sans-serif' }}>₹{viewItem.price}</div>
+                          {viewItem.orig > 0 && viewItem.orig !== viewItem.price && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                              <span style={{ textDecoration: 'line-through', color: '#888', fontSize: 14 }}>₹{viewItem.orig}</span>
+                              <span style={{ background: 'rgba(255,79,31,0.1)', color: '#FF4F1F', border: '1px solid rgba(255,79,31,0.25)', borderRadius: 20, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>
+                                -{Math.round((1 - viewItem.price / viewItem.orig) * 100)}% OFF
+                              </span>
+                            </div>
+                          )}
+                          {viewItem.listingType === 'rent' && viewItem.rentalPeriod && (
+                            <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>Per: {viewItem.rentalPeriod}</div>
+                          )}
+                          {viewItem.listingType === 'rent' && viewItem.rentalDeposit > 0 && (
+                            <div style={{ fontSize: 11, color: '#888' }}>Deposit: ₹{viewItem.rentalDeposit}</div>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
-                    <Badge color={viewItem.cond === "Like New" ? T.success : T.yellow}>{viewItem.cond}</Badge>
-                    <Badge color={T.indigo}>{viewItem.cat}</Badge>
+                )}
+
+                {/* Exchange for */}
+                {viewItem.listingType === 'exchange' && viewItem.exchangeFor && (
+                  <div style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', marginBottom: 4 }}>Looking to Exchange For</div>
+                    <p style={{ fontSize: 14, color: '#1A1A1A', fontWeight: 600 }}>{viewItem.exchangeFor}</p>
                   </div>
-                </div>
+                )}
+
+                {/* Wanted: needed by */}
+                {viewItem.listingType === 'wanted' && viewItem.neededBy && (
+                  <div style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(255,79,31,0.05)', border: '1px solid rgba(255,79,31,0.15)' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', marginBottom: 4 }}>Needed By</div>
+                    <p style={{ fontSize: 14, color: '#FF4F1F', fontWeight: 600 }}>{new Date(viewItem.neededBy).toLocaleDateString()}</p>
+                  </div>
+                )}
 
                 {/* Description */}
-                <div style={{ padding: "14px 16px", borderRadius: 12, background: "#FAFAFA", border: `1px solid ${T.border}` }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase", marginBottom: 6, letterSpacing: 0.8 }}>Description</div>
-                  <p style={{ fontSize: 14, color: T.text, lineHeight: 1.6 }}>{viewItem.desc}</p>
-                </div>
+                {viewItem.desc && (
+                  <div style={{ padding: '14px 16px', borderRadius: 12, background: '#FAFAFA', border: '1px solid #EBEBEB' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.8 }}>Description</div>
+                    <p style={{ fontSize: 14, color: '#1A1A1A', lineHeight: 1.6 }}>{viewItem.desc}</p>
+                  </div>
+                )}
 
-                {/* Seller Info */}
-                <div style={{ padding: "14px 16px", borderRadius: 12, background: "linear-gradient(135deg,rgba(255,79,31,0.04),rgba(255,199,0,0.03))", border: "1px solid rgba(255,79,31,0.12)" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase", marginBottom: 10, letterSpacing: 0.8 }}>Seller</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 48, height: 48, borderRadius: "50%", background: viewItem.sellerPhoto ? "transparent" : "linear-gradient(135deg, #FF4F1F, #FFC700)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff", fontWeight: 700, flexShrink: 0, border: viewItem.sellerPhoto ? "2.5px solid rgba(255,79,31,0.3)" : "none", boxShadow: "0 2px 10px rgba(255,79,31,0.15)", overflow: "hidden" }}>
-                      {viewItem.sellerPhoto ? <img src={viewItem.sellerPhoto} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} alt="" /> : (viewItem.seller ? viewItem.seller.charAt(0).toUpperCase() : "?")}
+                {/* Location */}
+                {viewItem.location && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.15)' }}>
+                    <span style={{ fontSize: 18 }}>📍</span>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Meetup Location</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A' }}>{viewItem.location}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Seller info */}
+                <div style={{ padding: '14px 16px', borderRadius: 12, background: 'linear-gradient(135deg,rgba(255,79,31,0.04),rgba(255,199,0,0.03))', border: '1px solid rgba(255,79,31,0.12)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', marginBottom: 10, letterSpacing: 0.8 }}>
+                    {viewItem.listingType === 'wanted' ? 'Requested By' : 'Seller'}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: viewItem.sellerPhoto ? 'transparent' : 'linear-gradient(135deg,#FF4F1F,#FFC700)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: '#fff', fontWeight: 700, flexShrink: 0, border: viewItem.sellerPhoto ? '2.5px solid rgba(255,79,31,0.3)' : 'none', boxShadow: '0 2px 10px rgba(255,79,31,0.15)', overflow: 'hidden' }}>
+                      {viewItem.sellerPhoto ? <img src={viewItem.sellerPhoto} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} alt="" /> : (viewItem.sellerName ? viewItem.sellerName.charAt(0).toUpperCase() : '?')}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: T.text }}>{viewItem.seller}</span>
-                        {viewItem.ok && <span style={{ fontSize: 11, color: T.success, fontWeight: 700, background: "rgba(34,197,94,0.1)", padding: "2px 8px", borderRadius: 10 }}>✓ Verified</span>}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: '#1A1A1A' }}>{viewItem.sellerName}</span>
+                        {viewItem.verified && <span style={{ fontSize: 11, color: '#22C55E', fontWeight: 700, background: 'rgba(34,197,94,0.1)', padding: '2px 8px', borderRadius: 10 }}>✓ Verified</span>}
                       </div>
-                      <div style={{ color: T.muted, fontSize: 12, marginTop: 2 }}>{viewItem.branch} • {viewItem.yr} Year • {viewItem.time}</div>
+                      <div style={{ color: '#888', fontSize: 12, marginTop: 2 }}>
+                        {[viewItem.branch, viewItem.year ? viewItem.year + ' Year' : null].filter(Boolean).join(' • ')}
+                        {viewItem.createdAt ? ` • ${relTime(viewItem.createdAt)}` : ''}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Safety Tip */}
-                <div style={{ color: T.muted, fontSize: 11, padding: "10px 14px", background: "rgba(255,79,31,0.03)", borderRadius: 10, border: "1px solid rgba(255,79,31,0.10)", lineHeight: 1.5, textAlign: "center" }}>
-                  💡 Meet in a public campus location for transactions. Never share bank OTPs.
+                {/* Safety tip */}
+                <div style={{ color: '#888', fontSize: 11, padding: '10px 14px', background: 'rgba(255,79,31,0.03)', borderRadius: 10, border: '1px solid rgba(255,79,31,0.10)', lineHeight: 1.5, textAlign: 'center' }}>
+                  💡 Always meet in a public campus location. Never share bank OTPs or send money in advance.
                 </div>
 
-                {/* Action Buttons */}
-                <div style={{ display: "flex", gap: 10 }}>
-                  <Btn variant="teal" style={{ flex: 1, padding: 14 }} onClick={() => {
-                    setViewItem(null);
-                    setCon(viewItem);
-                  }}>📞 Contact Seller</Btn>
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {currentUserRoll && viewItem.sellerRoll !== currentUserRoll && (
+                    <Btn variant="teal" style={{ flex: 1, padding: 14, minWidth: 120 }}
+                      onClick={() => { setViewItem(null); setContactItem(viewItem); }}>
+                      {viewItem.listingType === 'free' ? '🎁 Claim Item' : '📞 Contact Seller'}
+                    </Btn>
+                  )}
                   {viewItem.photoUrl && (
-                    <Btn variant="ghost" style={{ padding: "14px 18px" }} onClick={() => setPhotoZoom(true)}>🖼️ View Photo</Btn>
+                    <Btn variant="ghost" style={{ padding: '14px 18px' }} onClick={() => setPhotoZoom(true)}>🖼️ View Photo</Btn>
+                  )}
+                  {/* Owner actions */}
+                  {currentUserRoll && viewItem.sellerRoll === currentUserRoll && (
+                    <>
+                      <Btn variant="secondary" style={{ flex: 1, padding: 14 }}
+                        onClick={() => { setViewItem(null); handleEditOpen(viewItem); }}>
+                        ✏️ Edit
+                      </Btn>
+                      <button onClick={() => { setViewItem(null); setStatusItem(viewItem); setNewStatus(viewItem.status || 'available'); }}
+                        style={{ background: '#F5F5F5', border: '1px solid #E2E2E2', borderRadius: 10, padding: '14px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, color: '#555', transition: 'all .15s' }}>
+                        📊 Status
+                      </button>
+                      <button onClick={() => { setViewItem(null); setDeleteConfirmItem(viewItem); }}
+                        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 10, padding: '14px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 13, color: '#EF4444', transition: 'all .15s' }}>
+                        🗑️
+                      </button>
+                    </>
+                  )}
+                  {/* Report button (for non-owners) */}
+                  {currentUserRoll && viewItem.sellerRoll !== currentUserRoll && (
+                    <button onClick={() => { setViewItem(null); setReportItem(viewItem); }}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, color: '#BBB', padding: '4px 8px', transition: 'color .15s' }}
+                      title="Report this listing">
+                      🚩 Report
+                    </button>
                   )}
                 </div>
               </div>
             )}
           </Modal>
 
-          {/* ── FULLSCREEN PHOTO ZOOM OVERLAY ── */}
+          {/* ── FULLSCREEN PHOTO ZOOM ── */}
           {photoZoom && viewItem && viewItem.photoUrl && (
-            <div onClick={() => setPhotoZoom(false)} style={{
-              position: "fixed", inset: 0, zIndex: 99999,
-              background: "rgba(0,0,0,0.92)", backdropFilter: "blur(20px)",
-              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-              animation: "fadeUp 0.3s cubic-bezier(0.16,1,0.3,1) both",
-              cursor: "zoom-out"
-            }}>
-              <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 10, zIndex: 10 }}>
-                <button onClick={() => setPhotoZoom(false)} style={{
-                  background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)",
-                  color: "#fff", borderRadius: 10, width: 40, height: 40, cursor: "pointer",
-                  fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
-                  backdropFilter: "blur(10px)", transition: "all .15s"
-                }}>✕</button>
+            <div onClick={() => setPhotoZoom(false)} style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'fadeUp 0.3s cubic-bezier(0.16,1,0.3,1) both', cursor: 'zoom-out' }}>
+              <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}>
+                <button onClick={() => setPhotoZoom(false)} style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: 10, width: 40, height: 40, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)' }}>✕</button>
               </div>
-              <div style={{ position: "absolute", top: 16, left: 16, zIndex: 10 }}>
-                <div style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(10px)", borderRadius: 10, padding: "8px 16px", border: "1px solid rgba(255,255,255,0.15)" }}>
-                  <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>{viewItem.title}</div>
-                  <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>{viewItem.seller} • ₹{viewItem.price}</div>
-                </div>
+              <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10, background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)', borderRadius: 10, padding: '8px 16px', border: '1px solid rgba(255,255,255,0.15)' }}>
+                <div style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>{viewItem.title}</div>
+                <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>{viewItem.sellerName} {viewItem.listingType !== 'free' && viewItem.listingType !== 'wanted' ? `• ₹${viewItem.price}` : ''}</div>
               </div>
-              <img
-                onClick={e => e.stopPropagation()}
-                src={viewItem.photoUrl}
-                alt={viewItem.title}
-                style={{
-                  maxWidth: "90vw", maxHeight: "80vh",
-                  objectFit: "contain", borderRadius: 12,
-                  boxShadow: "0 20px 80px rgba(0,0,0,0.5)",
-                  cursor: "default"
-                }}
-              />
-              <div style={{
-                marginTop: 16, color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 500,
-                display: "flex", alignItems: "center", gap: 6
-              }}>
-                <span>📷</span> Tap outside or press ✕ to close
-              </div>
+              <img onClick={e => e.stopPropagation()} src={viewItem.photoUrl} alt={viewItem.title}
+                style={{ maxWidth: '90vw', maxHeight: '80vh', objectFit: 'contain', borderRadius: 12, boxShadow: '0 20px 80px rgba(0,0,0,0.5)', cursor: 'default' }} />
+              <div style={{ marginTop: 16, color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 500 }}>📷 Tap outside or press ✕ to close</div>
             </div>
           )}
 
-          <Modal open={!!con} onClose={() => setCon(null)} title="📞 Contact Seller" aboveNav={true}>
-            {con && (
+          {/* ── CONTACT SELLER MODAL ── */}
+          <Modal open={!!contactItem} onClose={() => setContactItem(null)} title="📞 Contact Seller" aboveNav={true}>
+            {contactItem && (
               <>
-                <div style={{ padding: "14px 16px", borderRadius: 12, background: "linear-gradient(135deg,rgba(255,79,31,0.06),rgba(255,199,0,0.04))", border: "1px solid rgba(255,79,31,0.14)", marginBottom: 20 }}>
-                  <div style={{ fontWeight: 700, marginBottom: 4, color: T.text }}>{con.title}</div>
-                  <div style={{ color: T.success, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 20, fontWeight: 700 }}>₹{con.price}</div>
-                </div>
-                {[[<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>person</span>, "Seller", con.seller], [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>school</span>, "Branch", con.branch + " • " + con.yr], [<span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>timer</span>, "Listed", con.time]].map(([icon, label, val]) => (
-                  <div key={label} style={{ display: "flex", gap: 10, padding: "10px 14px", borderRadius: 10, background: "#F8F8F8", border: "1px solid #EBEBEB", marginBottom: 8 }}>
-                    <span style={{ fontSize: 16 }}>{icon}</span>
-                    <div><div style={{ color: T.muted, fontSize: 11 }}>{label}</div><div style={{ fontWeight: 600, fontSize: 13, color: T.text }}>{val}</div></div>
+                <div style={{ padding: '14px 16px', borderRadius: 12, background: 'linear-gradient(135deg,rgba(20,184,166,0.06),rgba(99,102,241,0.04))', border: '1px solid rgba(20,184,166,0.15)', marginBottom: 20 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 4, color: '#1A1A1A' }}>{contactItem.title}</div>
+                  <div style={{ color: '#22C55E', fontSize: 18, fontWeight: 700, fontFamily: 'Inter, system-ui, sans-serif' }}>
+                    {contactItem.listingType === 'free' ? 'FREE 🎁' : contactItem.listingType === 'wanted' ? 'Wanted' : `₹${contactItem.price}`}
                   </div>
+                  <div style={{ marginTop: 6 }}><ListingTypeBadge type={contactItem.listingType} small /></div>
+                </div>
+                {[
+                  ['👤', 'Seller', contactItem.sellerName],
+                  ['🎓', 'Branch & Year', [contactItem.branch, contactItem.year ? contactItem.year + ' Year' : null].filter(Boolean).join(' • ')],
+                  contactItem.location ? ['📍', 'Meetup Location', contactItem.location] : null,
+                ].filter(Boolean).map(([icon, label, val]) => (
+                  val ? (
+                    <div key={label} style={{ display: 'flex', gap: 10, padding: '10px 14px', borderRadius: 10, background: '#F8F8F8', border: '1px solid #EBEBEB', marginBottom: 8 }}>
+                      <span style={{ fontSize: 16 }}>{icon}</span>
+                      <div>
+                        <div style={{ color: '#888', fontSize: 11 }}>{label}</div>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: '#1A1A1A' }}>{val}</div>
+                      </div>
+                    </div>
+                  ) : null
                 ))}
-                <div style={{ color: T.muted, fontSize: 11, marginTop: 10, padding: "10px 14px", background: "rgba(255,79,31,0.04)", borderRadius: 10, border: "1px solid rgba(255,79,31,0.14)", lineHeight: 1.5 }}>💡 Meet in a public campus location. Never share bank OTPs.</div>
-                <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                  {con.sellerContact ? (
-                    <a href={`https://wa.me/${(con.sellerContact.replace(/[^0-9]/g, '').startsWith('91') && con.sellerContact.replace(/[^0-9]/g, '').length === 12) ? con.sellerContact.replace(/[^0-9]/g, '') : (con.sellerContact.replace(/[^0-9]/g, '').length === 10 ? '91' + con.sellerContact.replace(/[^0-9]/g, '') : con.sellerContact.replace(/[^0-9]/g, ''))}?text=Hi%20${encodeURIComponent(con.sellerName || con.seller)},%20I'm%20interested%20in%20your%20${encodeURIComponent(con.title)}%20listed%20for%20%E2%82%B9${con.price}%20on%20TechBazaar!`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, textDecoration: 'none' }}>
-                      <Btn variant="teal" style={{ width: "100%" }} onClick={() => {
-                        addToast("Opening WhatsApp", "Connecting you with " + (con.sellerName || con.seller), <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>chat</span>, T.teal);
-                      }}>💬 Open WhatsApp</Btn>
+                <div style={{ color: '#888', fontSize: 11, marginTop: 10, padding: '10px 14px', background: 'rgba(255,79,31,0.04)', borderRadius: 10, border: '1px solid rgba(255,79,31,0.14)', lineHeight: 1.5 }}>
+                  💡 Meet in a public campus location. Never share bank OTPs or send money in advance.
+                </div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+                  {contactItem.sellerContact ? (
+                    <a href={`https://wa.me/${contactItem.sellerContact.replace(/[^0-9]/g, '').length === 10 ? '91' + contactItem.sellerContact.replace(/[^0-9]/g, '') : contactItem.sellerContact.replace(/[^0-9]/g, '')}?text=Hi%20${encodeURIComponent(contactItem.sellerName)},%20I'm%20interested%20in%20your%20"${encodeURIComponent(contactItem.title)}"%20listed%20on%20Vidya%20Setu%20Campus%20Marketplace.`}
+                      target="_blank" rel="noopener noreferrer" style={{ flex: 1, textDecoration: 'none' }}>
+                      <Btn variant="teal" style={{ width: '100%' }}
+                        onClick={() => addToast('Opening WhatsApp', 'Connecting you with ' + contactItem.sellerName, '💬', '#14B8A6')}>
+                        💬 WhatsApp
+                      </Btn>
                     </a>
                   ) : null}
-                  {con.sellerEmail ? (
-                    <a href={`mailto:${con.sellerEmail}?subject=TechBazaar:%20${encodeURIComponent(con.title)}`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, textDecoration: 'none' }}>
-                      <Btn variant="secondary" style={{ width: "100%" }} onClick={() => {
-                        addToast("Opening Email", "Composing email to " + (con.sellerName || con.seller), <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>email</span>, T.muted);
-                      }}>📧 Send Email</Btn>
+                  {contactItem.sellerEmail ? (
+                    <a href={`mailto:${contactItem.sellerEmail}?subject=Campus Marketplace: ${encodeURIComponent(contactItem.title)}`}
+                      target="_blank" rel="noopener noreferrer" style={{ flex: 1, textDecoration: 'none' }}>
+                      <Btn variant="secondary" style={{ width: '100%' }}
+                        onClick={() => addToast('Opening email', contactItem.sellerName, '📧', '#888')}>
+                        📧 Email
+                      </Btn>
                     </a>
                   ) : null}
-                  {(!con.sellerContact && !con.sellerEmail) && (
-                    <div style={{ color: T.rose, fontSize: 13, fontWeight: 600, textAlign: "center", width: "100%", padding: 10 }}>Contact information unavailable</div>
+                  {!contactItem.sellerContact && !contactItem.sellerEmail && (
+                    <div style={{ color: '#EF4444', fontSize: 13, fontWeight: 600, textAlign: 'center', width: '100%', padding: 10 }}>
+                      Contact information unavailable. Ask through Community Hub.
+                    </div>
                   )}
                 </div>
               </>
             )}
           </Modal>
 
-          <Modal open={sellOpen} onClose={() => setSellOpen(false)} title="📦 Sell an Item" aboveNav={true}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase" }}>Item Title</label>
-                <input value={sellForm.title} onChange={e => setSellForm(p => ({ ...p, title: e.target.value }))} style={{ width: "100%", padding: "10px 14px", marginTop: 4, borderRadius: 8, border: "1px solid #EBEBEB", background: T.gray, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }} placeholder="e.g., Engineering Mathematics PDF" />
-              </div>
+          {/* ── CREATE LISTING MODAL ── */}
+          <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="🏪 Post a Listing" aboveNav={true}>
+            <ListingForm />
+            <Btn variant="primary" style={{ width: '100%', padding: 14, fontSize: 15, marginTop: 16 }}
+              disabled={formLoading} onClick={handleCreate}>
+              {formLoading ? (photoData ? '⏳ Uploading Photo…' : '⏳ Posting…') : '🚀 Post Listing'}
+            </Btn>
+          </Modal>
 
-              <div className="grid-2">
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase" }}>Category</label>
-                  <select value={sellForm.cat} onChange={e => setSellForm(p => ({ ...p, cat: e.target.value }))} style={{ width: "100%", padding: "10px 14px", marginTop: 4, borderRadius: 8, border: "1px solid #EBEBEB", background: T.gray, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>
-                    {CATS.slice(1).map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+          {/* ── EDIT LISTING MODAL ── */}
+          <Modal open={!!editItem} onClose={() => setEditItem(null)} title="✏️ Edit Listing" aboveNav={true}>
+            <ListingForm />
+            <Btn variant="primary" style={{ width: '100%', padding: 14, fontSize: 15, marginTop: 16 }}
+              disabled={formLoading} onClick={handleEdit}>
+              {formLoading ? '⏳ Saving…' : '💾 Save Changes'}
+            </Btn>
+          </Modal>
+
+          {/* ── STATUS CHANGE MODAL ── */}
+          <Modal open={!!statusItem} onClose={() => setStatusItem(null)} title="📊 Update Listing Status" aboveNav={true}>
+            {statusItem && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <p style={{ color: '#555', fontSize: 13 }}>Update the status of: <strong>{statusItem.title}</strong></p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {statusOptionsFor(statusItem.listingType).map(s => (
+                    <button key={s} onClick={() => setNewStatus(s)} style={{
+                      display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
+                      borderRadius: 10, border: `1.5px solid ${newStatus === s ? STATUS_COLORS[s] : '#EBEBEB'}`,
+                      background: newStatus === s ? STATUS_COLORS[s] + '10' : '#FAFAFA',
+                      cursor: 'pointer', transition: 'all .15s', textAlign: 'left'
+                    }}>
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: STATUS_COLORS[s], flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: '#1A1A1A' }}>{STATUS_LABELS[s]}</div>
+                      </div>
+                      {newStatus === s && <span style={{ marginLeft: 'auto', color: STATUS_COLORS[s] }}>✓</span>}
+                    </button>
+                  ))}
                 </div>
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase" }}>Condition</label>
-                  <select value={sellForm.cond} onChange={e => setSellForm(p => ({ ...p, cond: e.target.value }))} style={{ width: "100%", padding: "10px 14px", marginTop: 4, borderRadius: 8, border: "1px solid #EBEBEB", background: T.gray, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>
-                    <option>Like New</option><option>Good</option><option>Used</option><option>Digital</option>
-                  </select>
+                <Btn variant="primary" style={{ width: '100%', padding: 13, marginTop: 8 }}
+                  disabled={statusLoading || !newStatus} onClick={handleStatusChange}>
+                  {statusLoading ? '⏳ Updating…' : 'Update Status'}
+                </Btn>
+              </div>
+            )}
+          </Modal>
+
+          {/* ── DELETE CONFIRM MODAL ── */}
+          <Modal open={!!deleteConfirmItem} onClose={() => setDeleteConfirmItem(null)} title="🗑️ Remove Listing" aboveNav={true}>
+            {deleteConfirmItem && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <p style={{ color: '#555', fontSize: 14 }}>
+                  Are you sure you want to remove <strong>"{deleteConfirmItem.title}"</strong>? This action cannot be undone.
+                </p>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <Btn variant="secondary" style={{ flex: 1 }} onClick={() => setDeleteConfirmItem(null)}>Cancel</Btn>
+                  <button onClick={handleDelete} disabled={deleteLoading} style={{
+                    flex: 1, background: '#EF4444', color: '#fff', border: 'none', borderRadius: 10,
+                    padding: '11px 20px', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: deleteLoading ? 0.5 : 1
+                  }}>{deleteLoading ? '⏳ Removing…' : '🗑️ Remove Listing'}</button>
                 </div>
               </div>
+            )}
+          </Modal>
 
-              <div className="grid-2">
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase" }}>Your Price (₹)</label>
-                  <input type="number" value={sellForm.price} onChange={e => setSellForm(p => ({ ...p, price: e.target.value }))} style={{ width: "100%", padding: "10px 14px", marginTop: 4, borderRadius: 8, border: "1px solid #EBEBEB", background: T.gray, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }} placeholder="₹0" />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase" }}>Original MRP (₹)</label>
-                  <input type="number" value={sellForm.orig} onChange={e => setSellForm(p => ({ ...p, orig: e.target.value }))} style={{ width: "100%", padding: "10px 14px", marginTop: 4, borderRadius: 8, border: "1px solid #EBEBEB", background: T.gray, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }} placeholder="Optional" />
-                </div>
+          {/* ── REPORT MODAL ── */}
+          <Modal open={!!reportItem} onClose={() => { setReportItem(null); setReportReason(''); }} title="🚩 Report Listing" aboveNav={true}>
+            {reportItem && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <p style={{ color: '#555', fontSize: 13 }}>Report: <strong>{reportItem.title}</strong></p>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase' }}>Reason</div>
+                {['Spam', 'Wrong information', 'Inappropriate content', 'Scam/suspicious', 'Other'].map(r => (
+                  <button key={r} onClick={() => setReportReason(r)} style={{
+                    padding: '10px 14px', borderRadius: 10,
+                    border: `1.5px solid ${reportReason === r ? '#FF4F1F' : '#EBEBEB'}`,
+                    background: reportReason === r ? 'rgba(255,79,31,0.07)' : '#FAFAFA',
+                    cursor: 'pointer', textAlign: 'left', fontSize: 13, fontWeight: reportReason === r ? 700 : 400,
+                    color: reportReason === r ? '#FF4F1F' : '#555', transition: 'all .15s'
+                  }}>{r}</button>
+                ))}
+                <Btn variant="primary" style={{ width: '100%', padding: 13, marginTop: 8 }}
+                  disabled={reportLoading || !reportReason} onClick={handleReport}>
+                  {reportLoading ? '⏳ Submitting…' : '🚩 Submit Report'}
+                </Btn>
               </div>
-
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase" }}>Description</label>
-                <textarea rows="2" value={sellForm.desc} onChange={e => setSellForm(p => ({ ...p, desc: e.target.value }))} style={{ width: "100%", padding: "10px 14px", marginTop: 4, borderRadius: 8, border: "1px solid #EBEBEB", background: T.gray, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', resize: "none" }} placeholder="Any defects or special notes?" />
-              </div>
-
-              <label style={{ display: "block", padding: photoPreview ? "8px" : "16px", borderRadius: 12, border: photoPreview ? `2px solid ${T.success}44` : "2px dashed #C0C0C0", background: photoPreview ? "#F0FFF4" : "#FAFAFA", textAlign: "center", cursor: "pointer", marginTop: 6, transition: "all .2s ease", position: "relative" }}>
-                <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => {
-                  if (e.target.files && e.target.files.length > 0) {
-                    const file = e.target.files[0];
-                    if (file.size > 5 * 1024 * 1024) {
-                      addToast("File Too Large", "Please select an image under 5MB", <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>error</span>, T.rose);
-                      return;
-                    }
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      setPhotoData(reader.result);
-                      setPhotoPreview(reader.result);
-                      addToast("Photo Attached ✓", file.name, <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>photo_camera</span>, T.success);
-                    };
-                    reader.readAsDataURL(file);
-                  }
-                }} />
-                {photoPreview ? (
-                  <div style={{ position: "relative" }}>
-                    <img src={photoPreview} style={{ width: "100%", maxHeight: 180, objectFit: "contain", borderRadius: 8 }} alt="Preview" />
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 8, padding: "6px 0" }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 16, color: T.success }}>check_circle</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: T.success }}>Photo attached — tap to change</span>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ fontSize: 28, marginBottom: 6 }}>📸</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Tap to Upload Photo</div>
-                    <div style={{ fontSize: 11, color: T.muted, marginTop: 4 }}>Max 5MB • JPG/PNG supported</div>
-                  </>
-                )}
-              </label>
-
-              <Btn variant="primary" style={{ width: "100%", padding: 14, fontSize: 15, marginTop: 8 }} disabled={sellLoading} onClick={handleList}>{sellLoading ? (photoData ? "⏳ Uploading Photo & Saving…" : "⏳ Saving to Database…") : "🚀 List Item for Sale"}</Btn>
-            </div>
+            )}
           </Modal>
         </div>
       );
     }
+
 
     /* ══════════════════════════════════════
       MODULE: KARYA-DISHA
@@ -6018,11 +7113,11 @@ const generateFullMock = async () => {
           .then(d => setDashCounts(prev => ({ ...prev, perks: Array.isArray(d) ? d.length : 0 })))
           .catch(() => setDashCounts(prev => ({ ...prev, perks: 0 })));
 
-        // Fetch Campus Store Marketplace Items
-        fetch(`${API_BASE_URL}/api/marketplace`)
-          .then(r => r.ok ? r.json() : [])
-          .then(d => setDashCounts(prev => ({ ...prev, items: (Array.isArray(d) ? d.length : 0) + 6 })))
-          .catch(() => setDashCounts(prev => ({ ...prev, items: 6 })));
+        // Fetch Campus Store Marketplace Stats — real count from DB
+        fetch(`${API_BASE_URL}/api/marketplace/stats`)
+          .then(r => r.ok ? r.json() : {})
+          .then(d => setDashCounts(prev => ({ ...prev, items: d.total || 0 })))
+          .catch(() => setDashCounts(prev => ({ ...prev, items: 0 })));
 
         // Fetch Jobs
         fetch(`${API_BASE_URL}/api/jobs/stats`)
@@ -6151,13 +7246,18 @@ const generateFullMock = async () => {
       { id: "karya", icon: <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: '1.2em' }}>ads_click</span>, label: "Career Compass" },
     ];
 
+    const getTabFromHash = () => {
+      const h = window.location.hash.replace(/^#\/?/, '').split('?')[0].trim();
+      return h || 'home';
+    };
+
     function App({ onLogout }) {
       const { user } = useUser();
       const addToast = useToast();
-      const [tab, setTab] = useState(() => window.location.hash.replace("#", "") || "home");
+      const [tab, setTab] = useState(getTabFromHash);
 
       useEffect(() => {
-        const handleHashChange = () => setTab(window.location.hash.replace("#", "") || "home");
+        const handleHashChange = () => setTab(getTabFromHash());
         window.addEventListener('hashchange', handleHashChange);
         return () => window.removeEventListener('hashchange', handleHashChange);
       }, []);
@@ -6325,7 +7425,7 @@ const generateFullMock = async () => {
 
             {/* Content */}
             <div ref={ref} className="vs-content">
-              <div className="fade-up" key={tab}>{screens[tab]}</div>
+              <div className="fade-up" key={tab}>{screens[tab] || screens.home}</div>
               <VidyaSetuAssistant />
             </div>
           </div>

@@ -21,15 +21,29 @@ const app = express();
 app.use(cookieParser());
 
 const ALLOWED_ORIGINS = [
+  // Production
   'https://www.vidya-setu.org.in',
   'https://mini-project-eight-lime.vercel.app',
+
+  // Localhost
   'http://localhost:3000',
-  'http://localhost:5000',
+  'http://localhost:4173',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
   'http://localhost:5500',
-  'http://127.0.0.1:5500', 'http://127.0.0.1:5501', 'http://127.0.0.1:5502', 'http://localhost:5501', 'http://localhost:5502',
+  'http://localhost:5501',
+  'http://localhost:5502',
+
+  // 127.0.0.1
   'http://127.0.0.1:3000',
-  'http://localhost:4173', 'http://localhost:5173',
-  null, 'null' // file:// protocol (local file open)
+  'http://127.0.0.1:4173',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  'http://127.0.0.1:5175',
+  'http://127.0.0.1:5500',
+  'http://127.0.0.1:5501',
+  'http://127.0.0.1:5502'
 ];
 
 app.use(cors({
@@ -47,7 +61,7 @@ app.use(cors({
     }
     callback(new Error('Not allowed by CORS'));
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));
@@ -79,7 +93,7 @@ if (!mongoURI) {
 mongoose.connect(mongoURI)
   .then(() => {
     console.log('✅ Database Connected');
-    
+
     // Initialize automatic job refresh after DB connection
     try {
       jobRoutes.initializeJobRefresh();
