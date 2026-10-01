@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 
@@ -522,7 +522,7 @@ router.post('/grade-mock', optionalAuth, aiRateLimiter, requireApiKey, async (re
                 }
 
                 if (questionDoc) {
-                    correctAnswer = questionDoc.correctAnswer || '';
+                    correctAnswer = questionDoc.correctAnswer || sub.correctAnswer || '';
                     qType = questionDoc.questionType || 'MCQ';
                     let sAns = String(sub.studentAnswer).trim().toUpperCase();
                     let cAns = String(correctAnswer).trim().toUpperCase();

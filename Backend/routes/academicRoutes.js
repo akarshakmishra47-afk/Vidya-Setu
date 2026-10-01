@@ -336,13 +336,51 @@ router.get('/gate/generate-mock', async (req, res) => {
     const { paper, year } = req.query;
     if (!paper) return res.status(400).json({ error: 'Paper required' });
 
-    let query = { gatePaper: paper };
+    let searchPaper = paper;
+    if (paper === 'ECE') {
+        searchPaper = { $in: ['ECE', 'EC'] };
+    }
+    let query = { gatePaper: searchPaper };
     if (year) query.year = Number(year);
 
     const allQuestions = await PYQ.find(query);
 
+    // Group by source or year to separate different papers
+    const grouped = {};
+    for (const q of allQuestions) {
+        const key = q.source ? q.source : `Year-${q.year}`;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(q);
+    }
+
+    let bestGroup = [];
+    let bestScore = -1;
+    for (const key in grouped) {
+        const group = grouped[key];
+        // Score: prioritize isSampleData false, then year, then question count
+        let score = group.length;
+        if (group.length > 0) {
+            if (group[0].isSampleData === false) {
+                score += 10000;
+            }
+            if (group[0].year) {
+                // Add points for more recent years (e.g. 2025 > 2024)
+                score += (group[0].year * 10);
+            }
+        }
+        if (group.length >= 65) {
+            score += 500;
+        }
+        if (score > bestScore) {
+            bestScore = score;
+            bestGroup = group;
+        }
+    }
+
+    let finalQuestions = bestGroup.length > 0 ? bestGroup : allQuestions;
+
     // User requested not to shuffle. We just sort by year descending, then questionNumber
-    const ordered = allQuestions.sort((a, b) => {
+    const ordered = finalQuestions.sort((a, b) => {
       if (a.year !== b.year) return (b.year || 0) - (a.year || 0);
       return (a.questionNumber || 0) - (b.questionNumber || 0);
     });

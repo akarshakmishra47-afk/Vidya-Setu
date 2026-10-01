@@ -1990,9 +1990,25 @@ function MockTestRunner({ questions, onComplete, onCancel, results, onShowAiAnal
   const renderInputArea = () => {
     const options = ['A', 'B', 'C', 'D'];
     
+    let extractedOptions = {};
+    if (q && !q.options && q.question) {
+        const aMatch = q.question.match(/\(A\)\s*(.+?)(?=\s*\(B\)|$)/is);
+        const bMatch = q.question.match(/\(B\)\s*(.+?)(?=\s*\(C\)|$)/is);
+        const cMatch = q.question.match(/\(C\)\s*(.+?)(?=\s*\(D\)|$)/is);
+        const dMatch = q.question.match(/\(D\)\s*(.+?)$/is);
+        if (aMatch) extractedOptions['A'] = aMatch[1].trim();
+        if (bMatch) extractedOptions['B'] = bMatch[1].trim();
+        if (cMatch) extractedOptions['C'] = cMatch[1].trim();
+        if (dMatch) extractedOptions['D'] = dMatch[1].trim();
+    }
+    
     if (results) {
       const fb = results.grading.feedback[currentIndex];
-      const correctAns = fb?.correctAnswer || "";
+      let correctAns = (fb?.correctAnswer || "").trim().toUpperCase();
+      if (correctAns.startsWith("OPTION ")) correctAns = correctAns.replace("OPTION ", "");
+      if (correctAns.length > 1 && ["A", "B", "C", "D"].includes(correctAns[0])) {
+          correctAns = correctAns[0];
+      }
       const isAttempted = fb?.studentAnswer && fb.studentAnswer !== "No answer provided";
       
       return (
@@ -2008,18 +2024,20 @@ function MockTestRunner({ questions, onComplete, onCancel, results, onShowAiAnal
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
-            {options.map(opt => {
+            {options.map((opt, idx) => {
                const isCorrect = correctAns === opt;
                const isChosen = fb?.studentAnswer === opt;
                let bg = "#fff", border = "1px solid #ccc";
                if (isCorrect) { bg = "#e8f8f5"; border = "2px solid #1AB394"; }
                else if (isChosen && !isCorrect) { bg = "#fdeceb"; border = "2px solid #ED5565"; }
                
+               const optText = q.options ? (Array.isArray(q.options) ? q.options[idx] : (q.options[opt] || q.options[opt.toLowerCase()])) : (extractedOptions[opt] || '');
+
                return (
                  <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', border, borderRadius: 6, background: bg, maxWidth: "100%" }}>
                    <input type="radio" checked={isChosen} readOnly style={{ width: 18, height: 18, margin: 0 }} />
                    <span style={{ fontWeight: 'bold', fontSize: 15 }}>
-                  Option {opt} {q.options && q.options[opt] ? `: ${q.options[opt]}` : ''}
+                  Option {opt} {optText ? `: ${optText}` : ''}
                 </span>
                    {isCorrect && <span style={{ marginLeft: "auto", color: "#1AB394", fontSize: 12, fontWeight: "bold" }}>This is correct answer</span>}
                    {(isChosen && !isCorrect) && <span style={{ marginLeft: "auto", color: "#ED5565", fontSize: 12, fontWeight: "bold" }}>Your answer is wrong</span>}
@@ -2041,7 +2059,9 @@ function MockTestRunner({ questions, onComplete, onCancel, results, onShowAiAnal
       <div style={{ borderTop: '1px dashed #ccc', paddingTop: 20, marginTop: 20 }}>
         <div style={{ fontWeight: 'bold', marginBottom: 16, color: '#555', fontSize: 14 }}>Select Option (For MCQ):</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
-          {options.map(opt => (
+          {options.map((opt, idx) => {
+            const optText = q.options ? (Array.isArray(q.options) ? q.options[idx] : (q.options[opt] || q.options[opt.toLowerCase()])) : (extractedOptions[opt] || '');
+            return (
             <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '12px 16px', border: answers[q._id] === opt ? '2px solid #1AB394' : '1px solid #ccc', borderRadius: 6, background: answers[q._id] === opt ? '#e8f8f5' : '#fff', maxWidth: "100%", transition: 'all 0.2s' }}>
               <input 
                 type="radio" 
@@ -2051,9 +2071,9 @@ function MockTestRunner({ questions, onComplete, onCancel, results, onShowAiAnal
                 onChange={(e) => setAnswers({ ...answers, [q._id]: e.target.value })}
                 style={{ width: 18, height: 18, margin: 0, cursor: 'pointer' }}
               />
-              <span style={{ fontWeight: 'bold', fontSize: 15 }}>Option {opt}</span>
+              <span style={{ fontWeight: 'bold', fontSize: 15 }}>Option {opt} {optText ? `: ${optText}` : ''}</span>
             </label>
-          ))}
+          )})}
         </div>
         <div style={{ fontWeight: 'bold', marginBottom: 12, color: '#555', fontSize: 14 }}>Or Type Value (For NAT/MSQ):</div>
         <textarea 
@@ -2206,9 +2226,23 @@ function MockTestRunner({ questions, onComplete, onCancel, results, onShowAiAnal
           {/* Question Content */}
           <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
             <div style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 16, color: '#333' }}>Q. {currentIndex + 1}</div>
-            <div style={{ fontSize: 16, lineHeight: 1.6, whiteSpace: 'pre-wrap', marginBottom: 32, color: '#000', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-              {q.question}
-            </div>
+            {(() => {
+              let displayQuestion = q.question || "";
+              if (!q.options) {
+                // Strip the options from the text if they are baked in
+                displayQuestion = displayQuestion.replace(/\s*\(A\)\s*[\s\S]*$/is, '');
+              }
+              return (
+                <div style={{ fontSize: 16, lineHeight: 1.6, whiteSpace: 'pre-wrap', marginBottom: q.imageUrl ? 16 : 32, color: '#000', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+                  {displayQuestion}
+                </div>
+              );
+            })()}
+            {q.imageUrl && (
+              <div style={{ marginBottom: 32 }}>
+                <img src={q.imageUrl} alt={`Question ${currentIndex + 1}`} style={{ maxWidth: '100%', height: 'auto', border: '1px solid #eee', borderRadius: 4 }} />
+              </div>
+            )}
             {renderInputArea()}
           </div>
 
@@ -2366,17 +2400,30 @@ function MockTestRunner({ questions, onComplete, onCancel, results, onShowAiAnal
       const [viewMockRunner, setViewMockRunner] = useState(false);
       const [mockQuestions, setMockQuestions] = useState([]);
       const [mockResults, setMockResults] = useState(() => {
-          const saved = localStorage.getItem('vidyasetu_mock_results');
+          const userKey = user?._id || 'guest';
+          const saved = localStorage.getItem(`vidyasetu_mock_results_${userKey}`);
           return saved ? JSON.parse(saved) : null;
         });
         const [mockHistory, setMockHistory] = useState(() => {
           try {
-            const saved = localStorage.getItem('vidyasetu_mock_history');
+            const userKey = user?._id || 'guest';
+            const saved = localStorage.getItem(`vidyasetu_mock_history_${userKey}`);
             const parsed = saved ? JSON.parse(saved) : [];
             return Array.isArray(parsed) ? parsed : [];
           } catch(e) { return []; }
         });
 
+      useEffect(() => {
+        const userKey = user?._id || 'guest';
+        const savedResults = localStorage.getItem(`vidyasetu_mock_results_${userKey}`);
+        setMockResults(savedResults ? JSON.parse(savedResults) : null);
+        
+        try {
+          const savedHistory = localStorage.getItem(`vidyasetu_mock_history_${userKey}`);
+          const parsedHistory = savedHistory ? JSON.parse(savedHistory) : [];
+          setMockHistory(Array.isArray(parsedHistory) ? parsedHistory : []);
+        } catch(e) { setMockHistory([]); }
+      }, [user?._id]);
 
       const [aiModalOpen, setAiModalOpen] = useState(false);
       const [aiModalTitle, setAiModalTitle] = useState("");
@@ -2543,6 +2590,7 @@ function MockTestRunner({ questions, onComplete, onCancel, results, onShowAiAnal
           if (data && data.length > 0) {
             const ordered = data.sort((a, b) => (a.questionNumber || 0) - (b.questionNumber || 0)).slice(0, 65);
             setMockQuestions(ordered);
+            setMockResults(null);
             setViewMockRunner(true);
             setViewPyqs(false);
             setViewGatePdfs(false);
@@ -2607,6 +2655,7 @@ const generateFullMock = async () => {
           const data = await res.json();
           if (data && data.length > 0) {
             setMockQuestions(data);
+            setMockResults(null);
             setViewMockRunner(true);
             setViewPyqs(false);
             setViewGatePdfs(false);
@@ -2674,10 +2723,11 @@ const generateFullMock = async () => {
               stats: { attempted, unattempted, correct, incorrect, total, score }
             };
             setMockResults(newMockResults);
-            localStorage.setItem('vidyasetu_mock_results', JSON.stringify(newMockResults));
+            const userKey = user?._id || 'guest';
+            localStorage.setItem(`vidyasetu_mock_results_${userKey}`, JSON.stringify(newMockResults));
             const newHistory = [{ ...newMockResults, questions: mockQuestions }, ...(Array.isArray(mockHistory) ? mockHistory : [])];
             setMockHistory(newHistory);
-            localStorage.setItem('vidyasetu_mock_history', JSON.stringify(newHistory));
+            localStorage.setItem(`vidyasetu_mock_history_${userKey}`, JSON.stringify(newHistory));
             // We do NOT close the runner. It transitions to Review Mode automatically because mockResults is set.
           }
         } catch (e) {
@@ -2863,6 +2913,7 @@ const generateFullMock = async () => {
 
             {viewMockRunner && (
               <MockTestRunner 
+                key={mockQuestions && mockQuestions.length > 0 ? mockQuestions[0]._id : 'mock-runner'}
                 questions={mockQuestions} 
                 onComplete={handleMockComplete} 
                 onCancel={() => { setViewMockRunner(false); }} 
@@ -2937,8 +2988,8 @@ const generateFullMock = async () => {
 
                     <Card style={{ marginTop: 16 }}>
                       <div style={{ fontWeight: 700, marginBottom: 12, color: T.text }}>🎯 AI Recommended Focus <span style={{fontSize: 11, fontWeight: 500, color: T.muted}}>(From your Mock)</span></div>
-                      {mockResults && mockResults.grading && mockResults.grading.topicPerformance ? (
-                        Object.entries(mockResults.grading.topicPerformance)
+                      {mockHistory && mockHistory.length > 0 && mockHistory[0].grading && mockHistory[0].grading.topicPerformance ? (
+                        Object.entries(mockHistory[0].grading.topicPerformance)
                           .map(([t, stats]) => {
                             const acc = stats.total > 0 ? (stats.correct / stats.total) * 100 : 0;
                             return { t, acc, priority: 100 - acc }; // Lower accuracy = higher priority
@@ -2967,8 +3018,8 @@ const generateFullMock = async () => {
 
                   <Card>
                     <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14, color: T.text }}>📈 Priority Topics <span style={{fontSize: 11, fontWeight: 500, color: T.muted}}>(Based on your Mock Performance)</span></div>
-                    {mockResults && mockResults.grading && mockResults.grading.topicPerformance ? (
-                      Object.entries(mockResults.grading.topicPerformance)
+                    {mockHistory && mockHistory.length > 0 && mockHistory[0].grading && mockHistory[0].grading.topicPerformance ? (
+                      Object.entries(mockHistory[0].grading.topicPerformance)
                         .map(([t, stats]) => {
                           const acc = stats.total > 0 ? (stats.correct / stats.total) * 100 : 0;
                           const priority = acc < 40 ? 'High' : acc < 75 ? 'Medium' : 'Low';

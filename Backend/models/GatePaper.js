@@ -10,6 +10,7 @@ const gatePaperSchema = new mongoose.Schema({
   year: {
     type: Number,
     required: true
+
   },
   set: {
     type: String,
