@@ -21,7 +21,7 @@ Think across all categories:
 - Hardware/Shopping (e.g., Apple Education Pricing, Samsung Student Advantage)
 - Travel/Lifestyle (e.g., Indigo Student Discount)
 
-Return exactly 15 new or top genuine student perks.
+Return exactly 5 new or top genuine student perks.
 Return them in the exact JSON object format shown below.
 {
   "perks": [
@@ -85,12 +85,14 @@ Return them in the exact JSON object format shown below.
 };
 
 const initializePerkCron = () => {
-    // Run daily at midnight (12:00 AM)
+    // Run daily at midnight (12:00 AM) IST
     cron.schedule('0 0 * * *', () => {
         console.log("Running daily AI Perk Sync cron job...");
         syncPerksWithAI();
+    }, {
+        timezone: "Asia/Kolkata"
     });
-    console.log("✅ AI Perk Sync Cron Job initialized (runs daily at midnight).");
+    console.log("✅ AI Perk Sync Cron Job initialized (runs daily at midnight IST).");
 };
 
 module.exports = {
