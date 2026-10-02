@@ -56,7 +56,7 @@ Return them in the exact JSON object format shown below.
                 const iconUrl = `https://logo.clearbit.com/${perkData.domainForLogo}`;
 
                 // create deduplication key
-                const dedupKey = `${perkData.provider}-${perkData.title}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const dedupKey = perkData.provider.toLowerCase().replace(/[^a-z0-9]/g, '');
 
                 await Perk.findOneAndUpdate(
                     { deduplicationKey: dedupKey },

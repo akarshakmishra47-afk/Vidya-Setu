@@ -1730,10 +1730,8 @@ document.head.appendChild(style);
 
       const claimPerk = async (p) => {
         try {
-          const token = localStorage.getItem('token');
           const res = await fetch(`${API_BASE_URL}/api/perks/claim/${p._id}`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
+            method: 'POST'
           });
           const data = await res.json();
           if (data.success) {
