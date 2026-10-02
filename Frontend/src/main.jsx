@@ -1714,7 +1714,8 @@ document.head.appendChild(style);
               const grouped = data.reduce((acc, curr) => {
                 const catName = curr.category || 'Other';
                 if (!acc[catName]) acc[catName] = { cat: catName, color: curr.color || T.indigo, items: [] };
-                curr.iconNode = <img src={curr.icon || 'https://vidyasetu.com/favicon.png'} onError={(e) => { console.warn('Missing logo:', curr.icon); e.target.onerror = null; e.target.src = 'https://vidyasetu.com/favicon.png'; }} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt={curr.title} />;
+                const fallbackImg = `https://www.google.com/s2/favicons?domain=${curr.officialUrl || 'example.com'}&sz=128`;
+                curr.iconNode = <img src={curr.icon || fallbackImg} onError={(e) => { e.target.onerror = null; e.target.src = fallbackImg; }} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt={curr.title} />;
                 acc[catName].items.push(curr);
                 return acc;
               }, {});
@@ -8196,7 +8197,8 @@ const generateFullMock = async () => {
       const [isLoggedIn, setIsLoggedIn] = useState(!!initialLocalData);
       const [isAdmin, setIsAdmin] = useState(() => initialLocalData ? (JSON.parse(initialLocalData).isAdmin || false) : false);
 
-      const [showLandingPage, setShowLandingPage] = useState(true);
+      // If user has saved session data, skip landing page on return
+      const [showLandingPage, setShowLandingPage] = useState(!initialLocalData);
       const [sessionChecked, setSessionChecked] = useState(false);
       const [showSessionWarning, setShowSessionWarning] = useState(false);
       const [user, setUser] = useState(() => {
@@ -8268,6 +8270,7 @@ const generateFullMock = async () => {
               setUser({ ...fetchedData, initials: inits, isAdmin: fetchedData.isAdmin || false });
               setIsAdmin(fetchedData.isAdmin || false);
               setIsLoggedIn(true);
+              setShowLandingPage(false);
             }
 
             const res = await fetch(`${API_BASE_URL}/api/users/refresh`, {
@@ -8287,24 +8290,74 @@ const generateFullMock = async () => {
                 });
                 setIsAdmin(fetchedData.isAdmin || false);
                 setIsLoggedIn(true);
+                setShowLandingPage(false);
               }
             } else {
-              // Token expired or invalid on backend
-              localStorage.removeItem('studentData');
-              setIsLoggedIn(false);
-              setIsAdmin(false);
+              // Only force logout if there's NO local data to fall back on
+              // This prevents the "Get Deal → return → landing page" bug
+              if (!localData) {
+                setIsLoggedIn(false);
+                setIsAdmin(false);
+              }
+              // If localData exists, we keep the user logged in from localStorage (set above)
             }
           } catch (e) {
             console.error("Session check failed", e);
-            localStorage.removeItem('studentData');
-            setIsLoggedIn(false);
-            setIsAdmin(false);
+            // On network errors, keep the local session alive — don't nuke it
+            const localData = localStorage.getItem('studentData');
+            if (!localData) {
+              setIsLoggedIn(false);
+              setIsAdmin(false);
+            }
           } finally {
             setSessionChecked(true);
           }
         };
         checkSession();
       }, []);
+
+      // ── RE-VALIDATE SESSION: When user returns to this tab (e.g., after Get Deal) ──
+      useEffect(() => {
+        const handleVisibilityChange = async () => {
+          if (document.visibilityState === 'visible' && !isLoggingOutRef.current) {
+            const localData = localStorage.getItem('studentData');
+            if (localData && !isLoggedIn) {
+              // User has saved data but got logged out — restore from localStorage
+              try {
+                const fetchedData = JSON.parse(localData);
+                const inits = (fetchedData.name || "DK").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                setUser({ ...fetchedData, initials: inits, isAdmin: fetchedData.isAdmin || false });
+                setIsAdmin(fetchedData.isAdmin || false);
+                setIsLoggedIn(true);
+                setShowLandingPage(false);
+              } catch (e) { console.error("Failed to restore session from localStorage", e); }
+            }
+            // Silently try to refresh the token in the background
+            if (localData) {
+              try {
+                const res = await fetch(`${API_BASE_URL}/api/users/refresh`, {
+                  credentials: 'include',
+                  headers: { 'Content-Type': 'application/json' }
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data.user) {
+                    const fetchedData = data.user;
+                    const inits = (fetchedData.name || "DK").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                    setUser({ ...fetchedData, initials: inits, isAdmin: fetchedData.isAdmin || false });
+                    setIsAdmin(fetchedData.isAdmin || false);
+                    setIsLoggedIn(true);
+                    setShowLandingPage(false);
+                  }
+                }
+                // Don't log out on failure here — let the user keep their local session
+              } catch (e) { /* Silent — network might be temporarily unavailable */ }
+            }
+          }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }, [isLoggedIn]);
 
       const isLoggingOutRef = useRef(false);
 

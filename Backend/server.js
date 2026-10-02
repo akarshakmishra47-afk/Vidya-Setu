@@ -16,6 +16,7 @@ const scholarshipRoutes = require('./routes/scholarshipRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const communityRoutes = require('./routes/communityRoutes');
 const gatePaperRoutes = require('./routes/gatePaperRoutes');
+const { initializePerkCron } = require('./services/aiPerkSync');
 
 const app = express();
 app.use(cookieParser());
@@ -80,7 +81,7 @@ app.use('/api/gate-papers', gatePaperRoutes);
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error('Unhandled Error:', err.stack);
-  res.status(500).json({ success: false, message: 'Internal Server Error' });
+  res.status(500).json({ success: false, message: 'Internal Server Error', error: err.message });
 });
 
 const mongoURI = process.env.MONGO_URI ? process.env.MONGO_URI.trim() : null;
@@ -94,12 +95,15 @@ mongoose.connect(mongoURI)
   .then(() => {
     console.log('✅ Database Connected');
 
-    // Initialize automatic job refresh after DB connection
+    // Initialize automatic background tasks after DB connection
     try {
       jobRoutes.initializeJobRefresh();
       console.log('✅ Automatic job refresh initialized');
+      
+      // Initialize AI Perk Sync Autopilot
+      initializePerkCron();
     } catch (error) {
-      console.error('⚠️ Failed to initialize job refresh:', error.message);
+      console.error('⚠️ Failed to initialize background tasks:', error.message);
     }
   })
   .catch(err => {

@@ -9,7 +9,7 @@ const aiRateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 20, // 20 requests per minute
   message: { success: false, message: 'Too many AI requests. Please wait.' },
-  keyGenerator: (req) => req.user ? String(req.user.userId) : (req.ip ? req.ip.replace(/:/g, '_') : 'guest'),
+  keyGenerator: (req, res) => req.user ? String(req.user.userId) : (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'guest'),
   standardHeaders: true,
   legacyHeaders: false,
 });
