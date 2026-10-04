@@ -85,33 +85,84 @@ const io = new Server(server, {
   }
 });
 
-// Track connected socket IDs mapped to userId
-const onlineUsers = new Map(); // socketId -> userId
+// Track connected socket IDs mapped to userData
+const onlineUsers = new Map(); // socketId -> { id, name, profilePhoto }
+const groupMembers = new Map(); // groupId -> Map(socketId -> userData)
+const socketGroups = new Map(); // socketId -> Set(groupId)
+
+const getUniqueOnlineUsers = () => {
+  return Array.from(new Map(Array.from(onlineUsers.values()).map(u => [u.id, u])).values());
+};
+
+const getUniqueGroupMembers = (groupId) => {
+  if (!groupMembers.has(groupId)) return [];
+  return Array.from(new Map(Array.from(groupMembers.get(groupId).values()).map(u => [u.id, u])).values());
+};
 
 io.on('connection', (socket) => {
   console.log(`🔌 Socket connected: ${socket.id}`);
 
   // Student comes online
-  socket.on('student-online', (userId) => {
-    onlineUsers.set(socket.id, userId);
-    io.emit('online-students-update', { count: onlineUsers.size });
+  socket.on('student-online', (userData) => {
+    const userObj = typeof userData === 'string' ? { id: userData } : userData;
+    onlineUsers.set(socket.id, userObj);
+    const users = getUniqueOnlineUsers();
+    io.emit('online-students-update', { count: users.length, users });
   });
 
   // Student goes offline
   socket.on('student-offline', (userId) => {
     onlineUsers.delete(socket.id);
-    io.emit('online-students-update', { count: onlineUsers.size });
+    const users = getUniqueOnlineUsers();
+    io.emit('online-students-update', { count: users.length, users });
   });
 
   // Request current count
   socket.on('get-online-students', () => {
-    socket.emit('online-students-update', { count: onlineUsers.size });
+    const users = getUniqueOnlineUsers();
+    socket.emit('online-students-update', { count: users.length, users });
+  });
+
+  // Group rooms logic
+  socket.on('join-group', ({ groupId, userData }) => {
+    socket.join(`group_${groupId}`);
+    const userObj = typeof userData === 'string' ? { id: userData } : userData;
+    
+    if (!groupMembers.has(groupId)) groupMembers.set(groupId, new Map());
+    groupMembers.get(groupId).set(socket.id, userObj);
+    
+    if (!socketGroups.has(socket.id)) socketGroups.set(socket.id, new Set());
+    socketGroups.get(socket.id).add(groupId);
+    
+    io.to(`group_${groupId}`).emit(`group-members-update-${groupId}`, getUniqueGroupMembers(groupId));
+  });
+
+  socket.on('leave-group', ({ groupId }) => {
+    socket.leave(`group_${groupId}`);
+    if (groupMembers.has(groupId)) {
+      groupMembers.get(groupId).delete(socket.id);
+      io.to(`group_${groupId}`).emit(`group-members-update-${groupId}`, getUniqueGroupMembers(groupId));
+    }
+    if (socketGroups.has(socket.id)) {
+      socketGroups.get(socket.id).delete(groupId);
+    }
   });
 
   socket.on('disconnect', () => {
     console.log(`🔌 Socket disconnected: ${socket.id}`);
     onlineUsers.delete(socket.id);
-    io.emit('online-students-update', { count: onlineUsers.size });
+    const users = getUniqueOnlineUsers();
+    io.emit('online-students-update', { count: users.length, users });
+
+    if (socketGroups.has(socket.id)) {
+      socketGroups.get(socket.id).forEach(groupId => {
+        if (groupMembers.has(groupId)) {
+          groupMembers.get(groupId).delete(socket.id);
+          io.to(`group_${groupId}`).emit(`group-members-update-${groupId}`, getUniqueGroupMembers(groupId));
+        }
+      });
+      socketGroups.delete(socket.id);
+    }
   });
 });
 

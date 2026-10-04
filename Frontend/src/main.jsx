@@ -4853,16 +4853,12 @@ function CommunityForum({ search = "" }) {
   const [photoPreview, setPhotoPreview] = React.useState(null);
   const [posting, setPosting] = React.useState(false);
   const [studentsOnline, setStudentsOnline] = React.useState(0);
+  const [onlineUsersList, setOnlineUsersList] = React.useState([]);
   const [onlinePopup, setOnlinePopup] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState("feed");
-  const [studyGroups, setStudyGroups] = React.useState([
-    { id: 1, name: "Automata & Theory of Computation", members: 4, branch: "CSE", year: "2nd Year", joined: false, createdBy: "Devansh Bajpai", tag: "Automata", tagColor: "#F97316", desc: "Solving TOC theory, DFA/NFA conversions, and GATE level Automata problems.", schedule: "Daily 7:00 PM", messages: [{ author: "Devansh Bajpai", text: "Welcome everyone! Let's ace Automata together 🚀", time: "2h ago" }, { author: "Vishu Singh", text: "Does anyone have notes from last lecture?", time: "1h ago" }] },
-    { id: 2, name: "DBMS & SQL Query Optimization", members: 5, branch: "CSE", year: "3rd Year", joined: false, createdBy: "Aryan Gupta", tag: "DBMS", tagColor: "#3B82F6", desc: "Practicing complex SQL joins, indexing, normalization and database system design.", schedule: "Mon-Wed-Fri 8:00 PM", messages: [{ author: "Aryan Gupta", text: "Check out this normalization cheat sheet 📄", time: "3h ago" }] },
-    { id: 3, name: "GATE CSE 2027 Sprint", members: 8, branch: "CSE", year: "3rd Year", joined: false, createdBy: "Priya Sharma", tag: "GATE", tagColor: "#10B981", desc: "Daily problem discussions covering Algorithms, Discrete Maths, OS and Computer Networks.", schedule: "Daily 9:30 PM", messages: [{ author: "Priya Sharma", text: "Graph problems session tomorrow at 7PM", time: "30m ago" }] },
-    { id: 4, name: "Smart India Hackathon 2026 Team", members: 4, branch: "All Branches", year: "All Years", joined: false, createdBy: "Rahul Verma", tag: "Hackathon", tagColor: "#F97316", desc: "Forming campus cross-functional teams to build impactful prototypes.", schedule: "Weekends 4:00 PM", messages: [] },
-  ]);
+  const [studyGroups, setStudyGroups] = React.useState([]);
   const [createGroupOpen, setCreateGroupOpen] = React.useState(false);
-  const [newGroupForm, setNewGroupForm] = React.useState({ name: "", branch: "CSE", year: "2nd Year" });
+  const [newGroupForm, setNewGroupForm] = React.useState({ name: "", desc: "", branch: "CSE", year: "2nd Year" });
   const [openGroup, setOpenGroup] = React.useState(null);
   const [groupMsg, setGroupMsg] = React.useState("");
   const [groupMessages, setGroupMessages] = React.useState({});
@@ -4873,20 +4869,59 @@ function CommunityForum({ search = "" }) {
   const [groupPyqs, setGroupPyqs] = React.useState({});
   const [pyqDeleteConfirm, setPyqDeleteConfirm] = React.useState(null);
   const addToast = useToast();
+  const socketRef = React.useRef(null);
+  const [liveGroupMembers, setLiveGroupMembers] = React.useState({});
 
   // 🔌 Real-time online students via Socket.io (no HTTP polling)
   React.useEffect(() => {
     const socket = io(API_BASE_URL, { withCredentials: true });
+    socketRef.current = socket;
     socket.on('connect', () => {
-      if (user && user._id) socket.emit('student-online', user._id);
+      if (user && user._id) {
+        socket.emit('student-online', {
+          id: user._id,
+          name: user.name,
+          profilePhoto: user.profilePhoto,
+          branch: user.branch,
+          year: user.year
+        });
+      }
       socket.emit('get-online-students');
     });
-    socket.on('online-students-update', ({ count }) => setStudentsOnline(count));
+    socket.on('online-students-update', ({ count, users }) => {
+      setStudentsOnline(count);
+      if (users) setOnlineUsersList(users);
+    });
     return () => {
       if (user && user._id) socket.emit('student-offline', user._id);
       socket.disconnect();
     };
   }, [user]);
+
+  React.useEffect(() => {
+    if (openGroup && socketRef.current && user && user._id) {
+      const userData = {
+        id: user._id,
+        name: user.name,
+        profilePhoto: user.profilePhoto,
+        branch: user.branch,
+        year: user.year,
+        rollNo: user.rollNo
+      };
+      socketRef.current.emit('join-group', { groupId: openGroup, userData });
+      
+      const handleGroupMembersUpdate = (members) => {
+        setLiveGroupMembers(prev => ({ ...prev, [openGroup]: members }));
+      };
+      
+      socketRef.current.on(`group-members-update-${openGroup}`, handleGroupMembersUpdate);
+      
+      return () => {
+        socketRef.current.emit('leave-group', { groupId: openGroup });
+        socketRef.current.off(`group-members-update-${openGroup}`, handleGroupMembersUpdate);
+      };
+    }
+  }, [openGroup, user]);
 
   const fetchPosts = () => {
     setLoading(true);
@@ -4978,10 +5013,10 @@ function CommunityForum({ search = "" }) {
 
   const handleCreateGroup = () => {
     if (!newGroupForm.name.trim()) return;
-    const ng = { id: Date.now(), name: newGroupForm.name, members: 1, branch: newGroupForm.branch, year: newGroupForm.year, joined: true, createdBy: user?.name || "You", messages: [] };
+    const ng = { id: Date.now(), name: newGroupForm.name, desc: newGroupForm.desc, members: 1, branch: newGroupForm.branch, year: newGroupForm.year, joined: true, createdBy: user?.name || "You", messages: [] };
     setStudyGroups(prev => [...prev, ng]);
     setCreateGroupOpen(false);
-    setNewGroupForm({ name: "", branch: "CSE", year: "2nd Year" });
+    setNewGroupForm({ name: "", desc: "", branch: "CSE", year: "2nd Year" });
     addToast("Group Created!", "Your study group is live.", <span className="material-symbols-outlined">check_circle</span>, T.success);
   };
 
@@ -5050,7 +5085,9 @@ function CommunityForum({ search = "" }) {
               <span style={{ fontWeight: 800, fontSize: 15, color: T.text }}>{grp?.name}</span>
               {isLeader && <span style={{ fontSize: 10, background: `linear-gradient(135deg, ${T.orange}, #EA580C)`, color: "#fff", borderRadius: 20, padding: "2px 8px", fontWeight: 700 }}>👑 Leader</span>}
             </div>
-            <div style={{ fontSize: 12, color: T.muted }}>{grp?.members} members • {grp?.branch} • {grp?.year}</div>
+            <div style={{ fontSize: 12, color: T.muted }}>
+              {grp?.members} members • {grp?.branch} • {grp?.year} {grp?.createdBy && <>• Created by <span style={{ fontWeight: 600 }}>{grp.createdBy}</span></>}
+            </div>
           </div>
           <button onClick={() => setLeaveConfirm(true)}
             style={{ background: "#FEE2E2", color: "#DC2626", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Leave</button>
@@ -5058,7 +5095,7 @@ function CommunityForum({ search = "" }) {
 
         {/* ── ROOM TABS ── */}
         <div style={{ display: "flex", gap: 0, background: "#fff", borderBottom: `1px solid ${T.border}` }}>
-          {[{ id: "discussion", label: "💬 Discussion", icon: "chat" }, { id: "pyqs", label: "📄 PYQs & Resources", icon: "description" }].map(tab => (
+          {[{ id: "discussion", label: "💬 Discussion", icon: "chat" }, { id: "pyqs", label: "📄 PYQs & Resources", icon: "description" }, { id: "members", label: "👥 Members", icon: "group" }].map(tab => (
             <button key={tab.id} onClick={() => setRoomTab(tab.id)}
               style={{ flex: 1, padding: "12px", fontSize: 13, fontWeight: 700, cursor: "pointer", border: "none", borderBottom: roomTab === tab.id ? `3px solid ${T.orange}` : "3px solid transparent", background: roomTab === tab.id ? `${T.orange}08` : "#fff", color: roomTab === tab.id ? T.orange : T.muted, transition: "all 0.2s" }}>
               {tab.label}
@@ -5245,6 +5282,43 @@ function CommunityForum({ search = "" }) {
             )}
           </div>
         )}
+
+        {/* ═══════ MEMBERS TAB ═══════ */}
+        {roomTab === "members" && (() => {
+          const displayedMembers = liveGroupMembers[grp.id] || [];
+          
+          return (
+          <div style={{ flex: 1, overflowY: "auto", padding: "20px", background: "#F8F9FA" }}>
+            <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${T.border}`, padding: "20px" }}>
+              <div style={{ fontWeight: 800, fontSize: 16, color: T.text, marginBottom: 16 }}>
+                Live Group Members ({displayedMembers.length})
+              </div>
+              {displayedMembers.length === 0 ? (
+                <div style={{ padding: "30px", textAlign: "center", color: T.muted, fontSize: 14 }}>
+                  No members are currently in this group room.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {displayedMembers.map((m, idx) => (
+                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px", background: "#F8F9FA", borderRadius: 12, border: `1px solid ${T.border}` }}>
+                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: `linear-gradient(135deg, ${T.orange}, ${T.yellow})`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <span style={{ color: "#fff", fontWeight: 700 }}>{(m.name || "U")[0]}</span>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.name}</div>
+                          {grp?.createdBy === m.name && <span style={{ fontSize: 10, background: `linear-gradient(135deg, ${T.orange}, #EA580C)`, color: "#fff", borderRadius: 20, padding: "2px 8px", fontWeight: 700 }}>Leader</span>}
+                          <span style={{ fontSize: 10, background: "#10B981", color: "#fff", borderRadius: 20, padding: "2px 8px", fontWeight: 700 }}>Online</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: T.muted }}>ID: {m.rollNo || m.id}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );})()}
       </div>
     );
   }
@@ -5282,9 +5356,13 @@ function CommunityForum({ search = "" }) {
       {/* ── STATS ROW ── */}
       <div style={{ padding: "14px 20px", background: "#FAFAFA", borderBottom: `1px solid ${T.border}`, display: "flex", gap: 0 }}>
         {[{ icon: "🟢", val: studentsOnline, label: "Online" }, { icon: "💬", val: posts.length, label: "Discussions" }, { icon: "👥", val: studyGroups.length, label: "Study Groups" }].map((stat, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, padding: "10px 16px", borderRight: i < 2 ? `1px solid ${T.border}` : "none" }}>
+          <div key={i} onClick={() => {
+            if (stat.label === "Online") setOnlinePopup(true);
+            if (stat.label === "Discussions") setActiveTab("feed");
+            if (stat.label === "Study Groups") setActiveTab("groups");
+          }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, flex: 1, padding: "10px 16px", borderRight: i < 2 ? `1px solid ${T.border}` : "none", cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#F3F4F6"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
             <span style={{ fontSize: 16 }}>{stat.icon}</span>
-            <div><div style={{ fontWeight: 900, fontSize: 16, color: T.text, lineHeight: 1 }}>{stat.val}</div><div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>{stat.label}</div></div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}><div style={{ fontWeight: 900, fontSize: 16, color: T.text, lineHeight: 1 }}>{stat.val}</div><div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>{stat.label}</div></div>
           </div>
         ))}
       </div>
@@ -5412,25 +5490,39 @@ function CommunityForum({ search = "" }) {
       {/* ── ONLINE STUDENTS POPUP ── */}
       {onlinePopup && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.3)", backdropFilter: "blur(4px)" }} onClick={() => setOnlinePopup(false)}>
-          <div style={{ background: "#fff", borderRadius: 20, padding: "24px", width: 340, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "#fff", borderRadius: 20, padding: "24px", width: 340, maxWidth: "90vw", maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <div style={{ fontWeight: 800, fontSize: 16, color: T.text }}>🟢 Students Online Now</div>
               <button onClick={() => setOnlinePopup(false)} style={{ background: "#F3F4F6", border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", fontSize: 14, color: T.muted }}>✕</button>
             </div>
-            <div style={{ background: "#DCFCE7", borderRadius: 12, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ background: "#DCFCE7", borderRadius: 12, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
               <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#16A34A", display: "inline-block", animation: "commPulse 1.5s ease-in-out infinite" }} />
               <span style={{ fontWeight: 700, fontSize: 14, color: "#15803D" }}>{studentsOnline} student{studentsOnline !== 1 ? "s" : ""} logged in recently</span>
             </div>
-            {user && (
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px", background: "#F8F9FA", borderRadius: 12, border: `1px solid ${T.border}` }}>
-                <div style={{ width: 40, height: 40, borderRadius: "50%", background: user.profilePhoto ? "transparent" : `linear-gradient(135deg, ${T.orange}, ${T.yellow})`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  {user.profilePhoto ? <img src={user.profilePhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#fff", fontWeight: 700 }}>{(user.name || "U")[0]}</span>}
+            <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, paddingRight: 4 }}>
+              {onlineUsersList.map((u, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px", background: u.id === (user && user._id) ? "#F8F9FA" : "#fff", borderRadius: 12, border: `1px solid ${T.border}` }}>
+                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: u.profilePhoto ? "transparent" : `linear-gradient(135deg, ${T.orange}, ${T.yellow})`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {u.profilePhoto ? <img src={u.profilePhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#fff", fontWeight: 700 }}>{(u.name || "U")[0]}</span>}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.name || "Anonymous Student"}</div>
+                    {(u.branch || u.year) && <div style={{ fontSize: 12, color: T.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.branch || "Unknown Branch"} • {u.year || ""}</div>}
+                  </div>
+                  {u.id === (user && user._id) && <span style={{ background: "#DBEAFE", color: "#2563EB", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>You</span>}
                 </div>
-                <div style={{ flex: 1 }}><div style={{ fontWeight: 700, fontSize: 14, color: T.text }}>{user.name}</div><div style={{ fontSize: 12, color: T.muted }}>{user.branch} • {user.year} • Just now</div></div>
-                <span style={{ background: "#DBEAFE", color: "#2563EB", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>You</span>
-              </div>
-            )}
-            <div style={{ marginTop: 12, fontSize: 12, color: T.muted, textAlign: "center" }}>Real-time via Socket.io — updates automatically</div>
+              ))}
+              {(!onlineUsersList || onlineUsersList.length === 0) && user && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px", background: "#F8F9FA", borderRadius: 12, border: `1px solid ${T.border}` }}>
+                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: user.profilePhoto ? "transparent" : `linear-gradient(135deg, ${T.orange}, ${T.yellow})`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {user.profilePhoto ? <img src={user.profilePhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#fff", fontWeight: 700 }}>{(user.name || "U")[0]}</span>}
+                  </div>
+                  <div style={{ flex: 1 }}><div style={{ fontWeight: 700, fontSize: 14, color: T.text }}>{user.name}</div><div style={{ fontSize: 12, color: T.muted }}>{user.branch} • {user.year}</div></div>
+                  <span style={{ background: "#DBEAFE", color: "#2563EB", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>You</span>
+                </div>
+              )}
+            </div>
+            <div style={{ marginTop: 12, fontSize: 12, color: T.muted, textAlign: "center", flexShrink: 0 }}>Real-time via Socket.io — updates automatically</div>
           </div>
         </div>
       )}
@@ -5532,6 +5624,8 @@ function CommunityForum({ search = "" }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div><label style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase" }}>Group Name</label>
             <input value={newGroupForm.name} onChange={e => setNewGroupForm(p => ({ ...p, name: e.target.value }))} style={{ width: "100%", padding: "12px 14px", marginTop: 6, borderRadius: 10, border: `1px solid ${T.border}`, background: T.gray, boxSizing: "border-box" }} placeholder="e.g., Automata & Theory of Computation" /></div>
+          <div><label style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase" }}>Description</label>
+            <textarea value={newGroupForm.desc} onChange={e => setNewGroupForm(p => ({ ...p, desc: e.target.value }))} style={{ width: "100%", padding: "12px 14px", marginTop: 6, borderRadius: 10, border: `1px solid ${T.border}`, background: T.gray, boxSizing: "border-box", resize: "vertical", minHeight: 60, fontFamily: "inherit" }} placeholder="What will this group focus on?" /></div>
           <div><label style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase" }}>Branch</label>
             <select value={newGroupForm.branch} onChange={e => setNewGroupForm(p => ({ ...p, branch: e.target.value }))} style={{ width: "100%", padding: "12px 14px", marginTop: 6, borderRadius: 10, border: `1px solid ${T.border}`, background: T.gray, fontSize: 14, boxSizing: "border-box" }}>
               {["CSE","ECE","ME","CE","EE","IT","All Branches"].map(b => <option key={b}>{b}</option>)}
