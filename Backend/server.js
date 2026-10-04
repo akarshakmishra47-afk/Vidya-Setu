@@ -17,6 +17,7 @@ const academicRoutes = require('./routes/academicRoutes');
 const scholarshipRoutes = require('./routes/scholarshipRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const communityRoutes = require('./routes/communityRoutes');
+const studyGroupRoutes = require('./routes/studyGroupRoutes');
 const gatePaperRoutes = require('./routes/gatePaperRoutes');
 const { initializePerkCron } = require('./services/aiPerkSync');
 
@@ -137,6 +138,10 @@ io.on('connection', (socket) => {
     io.to(`group_${groupId}`).emit(`group-members-update-${groupId}`, getUniqueGroupMembers(groupId));
   });
 
+  socket.on('group-message', ({ groupId, message }) => {
+    socket.to(`group_${groupId}`).emit(`new-group-message-${groupId}`, message);
+  });
+
   socket.on('leave-group', ({ groupId }) => {
     socket.leave(`group_${groupId}`);
     if (groupMembers.has(groupId)) {
@@ -179,6 +184,7 @@ app.use('/api/academic', academicRoutes);
 app.use('/api/scholarships', scholarshipRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/community', communityRoutes);
+app.use('/api/study-groups', studyGroupRoutes);
 app.use('/api/admin-pyq', require('./routes/adminPyqRoutes'));
 app.use('/api/gate-papers', gatePaperRoutes);
 

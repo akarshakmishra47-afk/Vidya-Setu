@@ -4914,11 +4914,17 @@ function CommunityForum({ search = "" }) {
         setLiveGroupMembers(prev => ({ ...prev, [openGroup]: members }));
       };
       
+      const handleGroupMessage = (msg) => {
+        setGroupMessages(prev => ({ ...prev, [openGroup]: [...(prev[openGroup] || []), msg] }));
+      };
+
       socketRef.current.on(`group-members-update-${openGroup}`, handleGroupMembersUpdate);
+      socketRef.current.on(`new-group-message-${openGroup}`, handleGroupMessage);
       
       return () => {
         socketRef.current.emit('leave-group', { groupId: openGroup });
         socketRef.current.off(`group-members-update-${openGroup}`, handleGroupMembersUpdate);
+        socketRef.current.off(`new-group-message-${openGroup}`, handleGroupMessage);
       };
     }
   }, [openGroup, user]);
@@ -4934,9 +4940,22 @@ function CommunityForum({ search = "" }) {
       .catch(() => setLoading(false));
   };
 
+  const fetchStudyGroups = () => {
+    fetch(`${API_BASE_URL}/api/study-groups`)
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          const mapped = data.map(g => ({ ...g, id: g._id, joined: g.members?.includes(user?.rollNo) }));
+          setStudyGroups(mapped);
+        }
+      })
+      .catch(console.error);
+  };
+
   React.useEffect(() => {
     fetchPosts();
-  }, []);
+    fetchStudyGroups();
+  }, [user]);
 
   const handleCreatePost = async () => {
     if (!postForm.title || !postForm.content) {
@@ -4976,6 +4995,24 @@ function CommunityForum({ search = "" }) {
     }
   };
 
+  const handleLikePost = async (postId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/community/${postId}/like`, {
+        method: "POST",
+        credentials: "include"
+      });
+      if (res.ok) {
+        const updatedPost = await res.json();
+        setPosts(prev => prev.map(p => p._id === updatedPost._id ? updatedPost : p));
+        if (viewPost && viewPost._id === updatedPost._id) {
+          setViewPost(updatedPost);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to like post", err);
+    }
+  };
+
   const handleAddComment = async () => {
     if (!commentText.trim()) return;
     try {
@@ -4999,25 +5036,60 @@ function CommunityForum({ search = "" }) {
     } catch (err) { }
   };
 
-  const handleSendGroupMsg = (groupId) => {
+  const handleSendGroupMsg = async (groupId) => {
     if (!groupMsg.trim()) return;
-    const newMsg = { author: user?.name || "You", text: groupMsg, time: "Just now" };
-    setGroupMessages(prev => ({ ...prev, [groupId]: [...(prev[groupId] || []), newMsg] }));
+    const currentMsg = groupMsg;
     setGroupMsg("");
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/study-groups/${groupId}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ text: currentMsg })
+      });
+      if (res.ok) {
+        const newMsg = await res.json();
+        socketRef.current?.emit('group-message', { groupId, message: newMsg });
+        setGroupMessages(prev => ({ ...prev, [groupId]: [...(prev[groupId] || []), newMsg] }));
+      }
+    } catch (err) {}
   };
 
-  const handleJoinGroup = (groupId) => {
-    setStudyGroups(prev => prev.map(g => g.id === groupId ? { ...g, joined: true, members: g.members + 1 } : g));
-    addToast("Joined!", "You've joined the study group.", <span className="material-symbols-outlined">group</span>, T.success);
+  const handleJoinGroup = async (groupId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/study-groups/${groupId}/join`, {
+        method: "POST",
+        credentials: "include"
+      });
+      if (res.ok) {
+        const group = await res.json();
+        group.id = group._id;
+        group.joined = true;
+        setStudyGroups(prev => prev.map(g => g.id === groupId ? group : g));
+        addToast("Joined!", "You've joined the study group.", <span className="material-symbols-outlined">group</span>, T.success);
+      }
+    } catch (err) { }
   };
 
-  const handleCreateGroup = () => {
+  const handleCreateGroup = async () => {
     if (!newGroupForm.name.trim()) return;
-    const ng = { id: Date.now(), name: newGroupForm.name, desc: newGroupForm.desc, members: 1, branch: newGroupForm.branch, year: newGroupForm.year, joined: true, createdBy: user?.name || "You", messages: [] };
-    setStudyGroups(prev => [...prev, ng]);
-    setCreateGroupOpen(false);
-    setNewGroupForm({ name: "", desc: "", branch: "CSE", year: "2nd Year" });
-    addToast("Group Created!", "Your study group is live.", <span className="material-symbols-outlined">check_circle</span>, T.success);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/study-groups`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(newGroupForm)
+      });
+      if (res.ok) {
+        const ng = await res.json();
+        ng.id = ng._id;
+        ng.joined = true;
+        setStudyGroups(prev => [ng, ...prev]);
+        setCreateGroupOpen(false);
+        setNewGroupForm({ name: "", desc: "", branch: "CSE", year: "2nd Year" });
+        addToast("Group Created!", "Your study group is live.", <span className="material-symbols-outlined">check_circle</span>, T.success);
+      }
+    } catch (err) { }
   };
 
 
@@ -5128,12 +5200,13 @@ function CommunityForum({ search = "" }) {
             {allMsgs.length === 0 ? (
               <div style={{ textAlign: "center", padding: "60px 20px", color: T.muted }}><div style={{ fontSize: 40, marginBottom: 8 }}>👋</div><div style={{ fontWeight: 700 }}>Be the first to say hello!</div></div>
             ) : allMsgs.map((msg, i) => {
-              const isOwn = msg.author === (user?.name || "You");
+              const authorText = msg.authorName || msg.author;
+              const isOwn = authorText === (user?.name || "You");
               return (
               <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                <div style={{ width: 34, height: 34, borderRadius: "50%", background: `linear-gradient(135deg, ${T.orange}, ${T.yellow})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{msg.author[0]}</div>
+                <div style={{ width: 34, height: 34, borderRadius: "50%", background: `linear-gradient(135deg, ${T.orange}, ${T.yellow})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{authorText[0]}</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}><span style={{ fontWeight: 700, fontSize: 13, color: T.text }}>{msg.author}</span><span style={{ fontSize: 11, color: T.muted }}>{msg.time}</span></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}><span style={{ fontWeight: 700, fontSize: 13, color: T.text }}>{authorText}</span><span style={{ fontSize: 11, color: T.muted }}>{msg.createdAt ? timeAgo(msg.createdAt) : msg.time}</span></div>
                   <div style={{ background: "#fff", padding: "10px 14px", borderRadius: "0 12px 12px 12px", fontSize: 14, color: "#444", border: `1px solid ${T.border}`, lineHeight: 1.5 }}>{msg.text}</div>
                 </div>
                 {isOwn && (
@@ -5428,8 +5501,8 @@ function CommunityForum({ search = "" }) {
                       </div>
                       {post.photoUrl && (<div style={{ marginTop: 10, borderRadius: 10, overflow: "hidden", maxHeight: 180, border: `1px solid ${T.border}` }}><img src={post.photoUrl} style={{ width: "100%", objectFit: "cover" }} /></div>)}
                       <div style={{ display: "flex", gap: 14, marginTop: 12, paddingTop: 12, borderTop: `1px solid ${T.border}`, alignItems: "center" }}>
-                        <button onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: T.muted, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}
-                          onMouseEnter={e => { e.currentTarget.style.background = "#FEF2F2"; e.currentTarget.style.color = "#DC2626"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = T.muted; }}>👍 {Math.floor(Math.random() * 5) + 1}</button>
+                        <button onClick={(e) => { e.stopPropagation(); handleLikePost(post._id); }} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: post.likes?.includes(user?.rollNo) ? "#DC2626" : T.muted, background: post.likes?.includes(user?.rollNo) ? "#FEF2F2" : "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}
+                          onMouseEnter={e => { e.currentTarget.style.background = "#FEF2F2"; e.currentTarget.style.color = "#DC2626"; }} onMouseLeave={e => { e.currentTarget.style.background = post.likes?.includes(user?.rollNo) ? "#FEF2F2" : "none"; e.currentTarget.style.color = post.likes?.includes(user?.rollNo) ? "#DC2626" : T.muted; }}>👍 {post.likes?.length || 0}</button>
                         <button onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: T.muted, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}
                           onMouseEnter={e => { e.currentTarget.style.background = "#F0F9FF"; e.currentTarget.style.color = "#0284C7"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = T.muted; }}>💬 {post.comments?.length || 0}</button>
                         <span style={{ marginLeft: "auto", color: T.orange, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>View Thread →</span>
@@ -5465,7 +5538,7 @@ function CommunityForum({ search = "" }) {
                   </div>
                   <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.5, margin: 0 }}>{grp.desc || `${grp.branch} • ${grp.year}`}</p>
                   <div style={{ fontSize: 12, color: T.muted, display: "flex", alignItems: "center", gap: 6 }}>
-                    <span>👥</span> <span style={{ fontWeight: 600 }}>{grp.members} students interested</span>
+                    <span>👥</span> <span style={{ fontWeight: 600 }}>{Array.isArray(grp.members) ? grp.members.length : (grp.members || 0)} students interested</span>
                     <span style={{ margin: "0 2px" }}>•</span>
                     <span>{grp.schedule || "Flexible"}</span>
                   </div>

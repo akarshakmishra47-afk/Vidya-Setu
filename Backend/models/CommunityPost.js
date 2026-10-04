@@ -16,6 +16,7 @@ const communityPostSchema = new mongoose.Schema({
   content: { type: String, required: true },
   photoUrl: { type: String, default: '' },
   category: { type: String, default: 'Doubt' },
+  likes: { type: [String], default: [] },
   comments: [commentSchema],
   createdAt: { type: Date, default: Date.now }
 });

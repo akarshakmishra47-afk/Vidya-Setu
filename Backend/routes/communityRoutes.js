@@ -108,4 +108,29 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// POST /api/community/:id/like - Toggle like on a post
+router.post('/:id/like', authenticateToken, async (req, res) => {
+  try {
+    const post = await CommunityPost.findById(req.params.id);
+    if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
+
+    const User = require('../models/User');
+    const user = await User.findById(req.user.userId).select('rollNo');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const userIndex = post.likes.indexOf(user.rollNo);
+    if (userIndex === -1) {
+      post.likes.push(user.rollNo); // Like
+    } else {
+      post.likes.splice(userIndex, 1); // Unlike
+    }
+
+    await post.save();
+    res.json(post);
+  } catch (err) {
+    console.error('Community like error:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to toggle like' });
+  }
+});
+
 module.exports = router;
