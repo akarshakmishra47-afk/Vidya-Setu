@@ -64,6 +64,27 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
   }
 });
 
+// POST /api/study-groups/:id/leave - Leave a study group
+router.post('/:id/leave', authenticateToken, async (req, res) => {
+  try {
+    const group = await StudyGroup.findById(req.params.id);
+    if (!group) return res.status(404).json({ success: false, message: 'Group not found' });
+
+    const user = await User.findById(req.user.userId).select('rollNo');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (group.members.includes(user.rollNo)) {
+      group.members = group.members.filter(rollNo => rollNo !== user.rollNo);
+      await group.save();
+    }
+    
+    res.json(group);
+  } catch (err) {
+    console.error('Leave study group error:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to leave study group' });
+  }
+});
+
 // POST /api/study-groups/:id/chat - Add a chat message
 router.post('/:id/chat', authenticateToken, async (req, res) => {
   try {

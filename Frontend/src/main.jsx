@@ -5071,6 +5071,25 @@ function CommunityForum({ search = "" }) {
     } catch (err) { }
   };
 
+  const handleLeaveGroup = async (groupId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/study-groups/${groupId}/leave`, {
+        method: "POST",
+        credentials: "include"
+      });
+      if (res.ok) {
+        const group = await res.json();
+        group.id = group._id;
+        group.joined = false;
+        setStudyGroups(prev => prev.map(g => g.id === groupId ? group : g));
+        setOpenGroup(null);
+        setLeaveConfirm(false);
+        setRoomTab("discussion");
+        addToast("Left group", "You've left the group.", <span className="material-symbols-outlined">logout</span>, T.rose);
+      }
+    } catch (err) { }
+  };
+
   const handleCreateGroup = async () => {
     if (!newGroupForm.name.trim()) return;
     try {
@@ -5158,7 +5177,7 @@ function CommunityForum({ search = "" }) {
               {isLeader && <span style={{ fontSize: 10, background: `linear-gradient(135deg, ${T.orange}, #EA580C)`, color: "#fff", borderRadius: 20, padding: "2px 8px", fontWeight: 700 }}>👑 Leader</span>}
             </div>
             <div style={{ fontSize: 12, color: T.muted }}>
-              {grp?.members} members • {grp?.branch} • {grp?.year} {grp?.createdBy && <>• Created by <span style={{ fontWeight: 600 }}>{grp.createdBy}</span></>}
+              {(Array.isArray(grp?.members) ? grp.members.length : (grp?.members || 0))} members • {grp?.branch} • {grp?.year} {grp?.createdBy && <>• Created by <span style={{ fontWeight: 600 }}>{grp.createdBy}</span></>}
             </div>
           </div>
           <button onClick={() => setLeaveConfirm(true)}
@@ -5186,7 +5205,7 @@ function CommunityForum({ search = "" }) {
                 <button onClick={() => setLeaveConfirm(false)}
                   style={{ flex: 1, padding: "11px", borderRadius: 12, border: `1.5px solid ${T.border}`, background: "#fff", color: T.text, fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}
                   onMouseEnter={e => e.currentTarget.style.background = "#F3F4F6"} onMouseLeave={e => e.currentTarget.style.background = "#fff"}>No, Stay</button>
-                <button onClick={() => { setStudyGroups(prev => prev.map(g => g.id === openGroup ? { ...g, joined: false, members: Math.max(1, g.members - 1) } : g)); setOpenGroup(null); setLeaveConfirm(false); setRoomTab("discussion"); addToast("Left group", "You've left the group.", <span className="material-symbols-outlined">logout</span>, T.rose); }}
+                <button onClick={() => handleLeaveGroup(openGroup)}
                   style={{ flex: 1, padding: "11px", borderRadius: 12, border: "none", background: "#DC2626", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}
                   onMouseEnter={e => e.currentTarget.style.background = "#B91C1C"} onMouseLeave={e => e.currentTarget.style.background = "#DC2626"}>Yes, Leave</button>
               </div>
