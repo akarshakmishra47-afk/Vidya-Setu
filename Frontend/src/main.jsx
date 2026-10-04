@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
+import { io } from 'socket.io-client';
 
 NProgress.configure({ showSpinner: false, speed: 400, minimum: 0.1 });
 
@@ -66,18 +67,21 @@ window.fetch = async function (resource, config) {
     }
   }
 
-  // 3. First execution
-  activeFetchRequests++;
-  if (activeFetchRequests === 1) {
-    NProgress.start();
+  // 3. Skip NProgress for silent/background fetches (e.g. Socket.io polling fallback)
+  const isSilent = config && config.headers && config.headers['X-Silent'];
+  if (!isSilent) {
+    activeFetchRequests++;
+    if (activeFetchRequests === 1) NProgress.start();
   }
 
   let response;
   try {
     response = await originalFetch(requestToFetch, config);
   } catch (err) {
-    activeFetchRequests--;
-    if (activeFetchRequests === 0) NProgress.done();
+    if (!isSilent) {
+      activeFetchRequests--;
+      if (activeFetchRequests === 0) NProgress.done();
+    }
     throw err;
   }
 
@@ -109,26 +113,34 @@ window.fetch = async function (resource, config) {
         if (retryResponse.status === 401 || retryResponse.status === 403) {
           window.dispatchEvent(new Event('vidyasetu_force_logout'));
         }
-        activeFetchRequests--;
-        if (activeFetchRequests === 0) NProgress.done();
+        if (!isSilent) {
+          activeFetchRequests--;
+          if (activeFetchRequests === 0) NProgress.done();
+        }
         return retryResponse;
       } else {
         // Refresh explicitly failed
         window.dispatchEvent(new Event('vidyasetu_force_logout'));
-        activeFetchRequests--;
-        if (activeFetchRequests === 0) NProgress.done();
+        if (!isSilent) {
+          activeFetchRequests--;
+          if (activeFetchRequests === 0) NProgress.done();
+        }
         return response; // Return original 401
       }
     } catch (err) {
       window.dispatchEvent(new Event('vidyasetu_force_logout'));
-      activeFetchRequests--;
-      if (activeFetchRequests === 0) NProgress.done();
+      if (!isSilent) {
+        activeFetchRequests--;
+        if (activeFetchRequests === 0) NProgress.done();
+      }
       return response;
     }
   }
 
-  activeFetchRequests--;
-  if (activeFetchRequests === 0) NProgress.done();
+  if (!isSilent) {
+    activeFetchRequests--;
+    if (activeFetchRequests === 0) NProgress.done();
+  }
   return response;
 };
 const { useState, useEffect, useRef, createContext, useContext } = React;
@@ -4840,7 +4852,22 @@ function CommunityForum({ search = "" }) {
   const [photoData, setPhotoData] = React.useState(null);
   const [photoPreview, setPhotoPreview] = React.useState(null);
   const [posting, setPosting] = React.useState(false);
+  const [studentsOnline, setStudentsOnline] = React.useState(0);
   const addToast = useToast();
+
+  // 🔌 Real-time online students via Socket.io (no HTTP polling)
+  React.useEffect(() => {
+    const socket = io(API_BASE_URL, { withCredentials: true });
+    socket.on('connect', () => {
+      if (user && user._id) socket.emit('student-online', user._id);
+      socket.emit('get-online-students');
+    });
+    socket.on('online-students-update', ({ count }) => setStudentsOnline(count));
+    return () => {
+      if (user && user._id) socket.emit('student-offline', user._id);
+      socket.disconnect();
+    };
+  }, [user]);
 
   const fetchPosts = () => {
     setLoading(true);
@@ -4933,11 +4960,16 @@ function CommunityForum({ search = "" }) {
     <div>
       <div className="screen-hero">
         <div className="screen-hero-inner" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-          <div>
-
-            <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, marginTop: 12, color: T.text, letterSpacing: '-0.4px' }}>Community Hub</h1>
-            <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Resolve doubts and share knowledge with fellow students</p>
-          </div>
+        <div>
+          <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, marginTop: 12, color: T.text, letterSpacing: '-0.4px' }}>Community Hub</h1>
+          <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Resolve doubts and share knowledge with fellow students</p>
+          {studentsOnline > 0 && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 13, color: '#16a34a', fontWeight: 600 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
+              {studentsOnline} student{studentsOnline !== 1 ? 's' : ''} online
+            </span>
+          )}
+        </div>
           <Btn variant="primary" style={{ padding: "12px 24px", flexShrink: 0 }} onClick={() => setPostOpen(true)}>+ Ask Doubt</Btn>
         </div>
       </div>

@@ -173,6 +173,12 @@ router.post('/login', async (req, res) => {
     delete userResponse.resumeText;
     userResponse.isAdmin = isAdmin;
 
+    // Update lastActive and notify all clients via Socket.io
+    user.lastActive = new Date();
+    await user.save();
+    const io = req.app.get('io');
+    if (io) io.emit('online-students-update', { count: io.engine.clientsCount });
+
     res.status(200).json({ user: userResponse, accessToken });
   } catch (error) {
     console.error('Login error:', error.message);
@@ -221,6 +227,12 @@ router.get('/refresh', async (req, res) => {
     delete userResponse.securityAnswer;
     delete userResponse.resumeText;
     userResponse.isAdmin = isAdmin;
+
+    // Update lastActive and notify all clients via Socket.io
+    user.lastActive = new Date();
+    await user.save();
+    const io = req.app.get('io');
+    if (io) io.emit('online-students-update', { count: io.engine.clientsCount });
 
     res.status(200).json({ user: userResponse, accessToken });
   } catch (error) {

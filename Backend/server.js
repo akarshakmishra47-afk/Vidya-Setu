@@ -4,6 +4,8 @@ const dns = require('dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
@@ -19,6 +21,7 @@ const gatePaperRoutes = require('./routes/gatePaperRoutes');
 const { initializePerkCron } = require('./services/aiPerkSync');
 
 const app = express();
+const server = http.createServer(app);
 app.use(cookieParser());
 
 const ALLOWED_ORIGINS = [
@@ -47,7 +50,7 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:5502'
 ];
 
-app.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (e.g. direct browser visits, curl, Postman, server-to-server)
     if (!origin) {
@@ -64,7 +67,57 @@ app.use(cors({
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true
-}));
+};
+
+app.use(cors(corsOptions));
+
+// ── Socket.io Setup ──────────────────────────────────────────────
+const io = new Server(server, {
+  cors: {
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      const envOrigin = process.env.FRONTEND_URL;
+      if ((envOrigin && origin === envOrigin) || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+      cb(new Error('Socket CORS blocked'));
+    },
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
+// Track connected socket IDs mapped to userId
+const onlineUsers = new Map(); // socketId -> userId
+
+io.on('connection', (socket) => {
+  console.log(`🔌 Socket connected: ${socket.id}`);
+
+  // Student comes online
+  socket.on('student-online', (userId) => {
+    onlineUsers.set(socket.id, userId);
+    io.emit('online-students-update', { count: onlineUsers.size });
+  });
+
+  // Student goes offline
+  socket.on('student-offline', (userId) => {
+    onlineUsers.delete(socket.id);
+    io.emit('online-students-update', { count: onlineUsers.size });
+  });
+
+  // Request current count
+  socket.on('get-online-students', () => {
+    socket.emit('online-students-update', { count: onlineUsers.size });
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`🔌 Socket disconnected: ${socket.id}`);
+    onlineUsers.delete(socket.id);
+    io.emit('online-students-update', { count: onlineUsers.size });
+  });
+});
+
+// Make io accessible in route handlers
+app.set('io', io);
+// ─────────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/api/users', userRoutes);
@@ -112,7 +165,8 @@ mongoose.connect(mongoURI)
   });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`🔌 Socket.io ready on port ${PORT}`);
 });
 
