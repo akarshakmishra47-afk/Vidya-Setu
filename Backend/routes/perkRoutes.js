@@ -145,6 +145,39 @@ router.post('/fetch-latest', authenticateToken, requireAdmin, async (req, res) =
 });
 
 /**
+ * Vercel Cron Job endpoint to sync perks daily.
+ * @route GET /api/perks/cron
+ * @access Public (Protected by CRON_SECRET)
+ */
+router.get('/cron', async (req, res) => {
+  // Check authorization if CRON_SECRET is set
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization;
+  
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  try {
+    const { syncPerksWithAI } = require('../services/aiPerkSync');
+    
+    // Trigger the regular fetcher
+    if (!refreshInProgress) {
+      triggerPerkFetch();
+    }
+    
+    // Trigger the AI fetcher
+    syncPerksWithAI();
+
+    res.status(200).json({ success: true, message: 'Cron job triggered successfully' });
+  } catch (error) {
+    console.error('[PerkRoutes] Cron error:', error.message);
+    res.status(500).json({ success: false, message: 'Cron job failed' });
+  }
+});
+
+
+/**
  * Claims a specific perk for the authenticated user.
  * @route POST /api/perks/claim/:id
  * @access Private
