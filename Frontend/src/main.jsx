@@ -4853,6 +4853,25 @@ function CommunityForum({ search = "" }) {
   const [photoPreview, setPhotoPreview] = React.useState(null);
   const [posting, setPosting] = React.useState(false);
   const [studentsOnline, setStudentsOnline] = React.useState(0);
+  const [onlinePopup, setOnlinePopup] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState("feed");
+  const [studyGroups, setStudyGroups] = React.useState([
+    { id: 1, name: "Automata & Theory of Computation", members: 4, branch: "CSE", year: "2nd Year", joined: false, createdBy: "Devansh Bajpai", tag: "Automata", tagColor: "#F97316", desc: "Solving TOC theory, DFA/NFA conversions, and GATE level Automata problems.", schedule: "Daily 7:00 PM", messages: [{ author: "Devansh Bajpai", text: "Welcome everyone! Let's ace Automata together 🚀", time: "2h ago" }, { author: "Vishu Singh", text: "Does anyone have notes from last lecture?", time: "1h ago" }] },
+    { id: 2, name: "DBMS & SQL Query Optimization", members: 5, branch: "CSE", year: "3rd Year", joined: false, createdBy: "Aryan Gupta", tag: "DBMS", tagColor: "#3B82F6", desc: "Practicing complex SQL joins, indexing, normalization and database system design.", schedule: "Mon-Wed-Fri 8:00 PM", messages: [{ author: "Aryan Gupta", text: "Check out this normalization cheat sheet 📄", time: "3h ago" }] },
+    { id: 3, name: "GATE CSE 2027 Sprint", members: 8, branch: "CSE", year: "3rd Year", joined: false, createdBy: "Priya Sharma", tag: "GATE", tagColor: "#10B981", desc: "Daily problem discussions covering Algorithms, Discrete Maths, OS and Computer Networks.", schedule: "Daily 9:30 PM", messages: [{ author: "Priya Sharma", text: "Graph problems session tomorrow at 7PM", time: "30m ago" }] },
+    { id: 4, name: "Smart India Hackathon 2026 Team", members: 4, branch: "All Branches", year: "All Years", joined: false, createdBy: "Rahul Verma", tag: "Hackathon", tagColor: "#F97316", desc: "Forming campus cross-functional teams to build impactful prototypes.", schedule: "Weekends 4:00 PM", messages: [] },
+  ]);
+  const [createGroupOpen, setCreateGroupOpen] = React.useState(false);
+  const [newGroupForm, setNewGroupForm] = React.useState({ name: "", branch: "CSE", year: "2nd Year" });
+  const [openGroup, setOpenGroup] = React.useState(null);
+  const [groupMsg, setGroupMsg] = React.useState("");
+  const [groupMessages, setGroupMessages] = React.useState({});
+  const [groupsFilter, setGroupsFilter] = React.useState("all");
+  const [leaveConfirm, setLeaveConfirm] = React.useState(false);
+  const [msgDeleteConfirm, setMsgDeleteConfirm] = React.useState(null);
+  const [roomTab, setRoomTab] = React.useState("discussion");
+  const [groupPyqs, setGroupPyqs] = React.useState({});
+  const [pyqDeleteConfirm, setPyqDeleteConfirm] = React.useState(null);
   const addToast = useToast();
 
   // 🔌 Real-time online students via Socket.io (no HTTP polling)
@@ -4945,205 +4964,583 @@ function CommunityForum({ search = "" }) {
     } catch (err) { }
   };
 
+  const handleSendGroupMsg = (groupId) => {
+    if (!groupMsg.trim()) return;
+    const newMsg = { author: user?.name || "You", text: groupMsg, time: "Just now" };
+    setGroupMessages(prev => ({ ...prev, [groupId]: [...(prev[groupId] || []), newMsg] }));
+    setGroupMsg("");
+  };
+
+  const handleJoinGroup = (groupId) => {
+    setStudyGroups(prev => prev.map(g => g.id === groupId ? { ...g, joined: true, members: g.members + 1 } : g));
+    addToast("Joined!", "You've joined the study group.", <span className="material-symbols-outlined">group</span>, T.success);
+  };
+
+  const handleCreateGroup = () => {
+    if (!newGroupForm.name.trim()) return;
+    const ng = { id: Date.now(), name: newGroupForm.name, members: 1, branch: newGroupForm.branch, year: newGroupForm.year, joined: true, createdBy: user?.name || "You", messages: [] };
+    setStudyGroups(prev => [...prev, ng]);
+    setCreateGroupOpen(false);
+    setNewGroupForm({ name: "", branch: "CSE", year: "2nd Year" });
+    addToast("Group Created!", "Your study group is live.", <span className="material-symbols-outlined">check_circle</span>, T.success);
+  };
+
+
+  const TRENDING = ["#Automata", "#Scholarship", "#Defence", "#DBMS", "#CSE"];
+  const TABS = [
+    { id: "feed", label: "Campus Feed", icon: "📢" },
+    { id: "dept", label: "My Department", icon: "🏫" },
+    { id: "groups", label: "Study Groups", icon: "👥" },
+
+  ];
+  const badgeColor = (cat) => {
+    const map = { Doubt: "#FEE2E2", Note: "#D1FAE5", Update: "#DBEAFE", General: "#F3E8FF" };
+    const textMap = { Doubt: "#DC2626", Note: "#059669", Update: "#2563EB", General: "#7C3AED" };
+    return { bg: map[cat] || "#F3F4F6", text: textMap[cat] || "#6B7280" };
+  };
+  const timeAgo = (date) => {
+    const diff = (Date.now() - new Date(date)) / 1000;
+    if (diff < 60) return "Just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return new Date(date).toLocaleDateString();
+  };
+
   // Apply Global Search Filter
   const searchLower = search.toLowerCase().trim();
   const filteredPosts = posts.filter(p => {
     if (!searchLower) return true;
-    return (
-      (p.title && p.title.toLowerCase().includes(searchLower)) ||
+    return (p.title && p.title.toLowerCase().includes(searchLower)) ||
       (p.content && p.content.toLowerCase().includes(searchLower)) ||
-      (p.category && p.category.toLowerCase().includes(searchLower))
-    );
+      (p.category && p.category.toLowerCase().includes(searchLower));
   });
+  const deptPosts = filteredPosts.filter(p => user?.branch && p.authorRoll && p.authorRoll.toUpperCase().includes((user.branch || "").substring(0, 2).toUpperCase()));
+  const displayedPosts = activeTab === "dept" ? (deptPosts.length > 0 ? deptPosts : filteredPosts) : filteredPosts;
+  const filteredGroups = groupsFilter === "joined" ? studyGroups.filter(g => g.joined) : studyGroups;
 
-  return (
-    <div>
-      <div className="screen-hero">
-        <div className="screen-hero-inner" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-        <div>
-          <h1 style={{ fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 32, fontWeight: 900, marginTop: 12, color: T.text, letterSpacing: '-0.4px' }}>Community Hub</h1>
-          <p style={{ color: T.muted, fontSize: 14, marginTop: 8 }}>Resolve doubts and share knowledge with fellow students</p>
-          {studentsOnline > 0 && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 13, color: '#16a34a', fontWeight: 600 }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
-              {studentsOnline} student{studentsOnline !== 1 ? 's' : ''} online
-            </span>
-          )}
-        </div>
-          <Btn variant="primary" style={{ padding: "12px 24px", flexShrink: 0 }} onClick={() => setPostOpen(true)}>+ Ask Doubt</Btn>
-        </div>
-      </div>
+  // ── GROUP ROOM VIEW ──────────────────────────────
+  if (openGroup) {
+    const grp = studyGroups.find(g => g.id === openGroup);
+    const allMsgs = [...(grp?.messages || []), ...(groupMessages[openGroup] || [])];
+    const isLeader = grp?.createdBy === (user?.name || "You");
+    const pyqs = groupPyqs[openGroup] || [];
 
-      <div className="screen-body">
-        {loading ? (
-          <div style={{ textAlign: "center", padding: "40px", color: T.muted }}>⏳ Loading discussions...</div>
-        ) : filteredPosts.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "80px 20px", background: "#fff", borderRadius: 20, border: `1px solid ${T.border}` }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>💬</div>
-            <div style={{ fontWeight: 700, fontSize: 18, color: T.text }}>{search ? "No matches found" : "No discussions yet"}</div>
-            <p style={{ color: T.muted, marginTop: 6 }}>{search ? "Try a different search term" : "Be the first to ask a doubt or share an update!"}</p>
-            {!search && <Btn variant="primary" style={{ marginTop: 20 }} onClick={() => setPostOpen(true)}>Start a Discussion</Btn>}
+    const handlePyqUpload = (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (file.size > 10 * 1024 * 1024) { addToast("Too Large", "Max 10MB allowed.", <span className="material-symbols-outlined">error</span>, T.rose); return; }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const newPyq = { id: Date.now(), name: file.name, size: (file.size / 1024).toFixed(1) + " KB", type: file.type, data: reader.result, uploadedAt: new Date().toLocaleDateString('en-GB'), uploadedBy: user?.name || "Leader" };
+        setGroupPyqs(prev => ({ ...prev, [openGroup]: [...(prev[openGroup] || []), newPyq] }));
+        addToast("PYQ Uploaded!", `${file.name} has been added.`, <span className="material-symbols-outlined">upload_file</span>, T.success);
+      };
+      reader.readAsDataURL(file);
+      e.target.value = "";
+    };
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", minHeight: 500 }}>
+        {/* ── HEADER ── */}
+        <div style={{ background: "#fff", borderBottom: `1px solid ${T.border}`, padding: "16px 20px", display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={() => { setOpenGroup(null); setRoomTab("discussion"); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, color: T.muted }}>←</button>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg, ${T.orange}, ${T.yellow})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>👥</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontWeight: 800, fontSize: 15, color: T.text }}>{grp?.name}</span>
+              {isLeader && <span style={{ fontSize: 10, background: `linear-gradient(135deg, ${T.orange}, #EA580C)`, color: "#fff", borderRadius: 20, padding: "2px 8px", fontWeight: 700 }}>👑 Leader</span>}
+            </div>
+            <div style={{ fontSize: 12, color: T.muted }}>{grp?.members} members • {grp?.branch} • {grp?.year}</div>
           </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {filteredPosts.map(post => (
-              <Card key={post._id} onClick={() => setViewPost(post)} style={{ cursor: "pointer", transition: "transform 0.2s" }}>
-                <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: post.authorPhoto ? "transparent" : `linear-gradient(135deg, ${T.orange}, ${T.yellow})`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", border: post.authorPhoto ? `1px solid ${T.border}` : "none" }}>
-                    {post.authorPhoto ? <img src={post.authorPhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#fff", fontWeight: 700, fontSize: 14 }}>{post.authorName[0]}</span>}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: T.text }}>{post.authorName}</div>
-                    <div style={{ fontSize: 11, color: T.muted }}>{new Date(post.createdAt).toLocaleDateString()} • {post.authorRoll}</div>
-                  </div>
-                  <Badge color={post.category === "Doubt" ? T.rose : T.teal}>{post.category}</Badge>
-                </div>
-                <div style={{ fontWeight: 800, fontSize: 17, color: T.text, marginBottom: 8, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>{post.title}</div>
-                <p style={{ fontSize: 14, color: "#555", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{post.content}</p>
+          <button onClick={() => setLeaveConfirm(true)}
+            style={{ background: "#FEE2E2", color: "#DC2626", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Leave</button>
+        </div>
 
-                {post.photoUrl && (
-                  <div style={{ marginTop: 12, borderRadius: 12, overflow: "hidden", maxHeight: 200, border: `1px solid ${T.border}` }}>
-                    <img src={post.photoUrl} style={{ width: "100%", objectFit: "cover" }} />
-                  </div>
+        {/* ── ROOM TABS ── */}
+        <div style={{ display: "flex", gap: 0, background: "#fff", borderBottom: `1px solid ${T.border}` }}>
+          {[{ id: "discussion", label: "💬 Discussion", icon: "chat" }, { id: "pyqs", label: "📄 PYQs & Resources", icon: "description" }].map(tab => (
+            <button key={tab.id} onClick={() => setRoomTab(tab.id)}
+              style={{ flex: 1, padding: "12px", fontSize: 13, fontWeight: 700, cursor: "pointer", border: "none", borderBottom: roomTab === tab.id ? `3px solid ${T.orange}` : "3px solid transparent", background: roomTab === tab.id ? `${T.orange}08` : "#fff", color: roomTab === tab.id ? T.orange : T.muted, transition: "all 0.2s" }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── LEAVE CONFIRMATION DIALOG ── */}
+        {leaveConfirm && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)", backdropFilter: "blur(4px)" }} onClick={() => setLeaveConfirm(false)}>
+            <div style={{ background: "#fff", borderRadius: 18, padding: "28px 24px", width: 340, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.18)", textAlign: "center" }} onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: 40, marginBottom: 10 }}>⚠️</div>
+              <div style={{ fontWeight: 800, fontSize: 17, color: T.text, marginBottom: 6 }}>Leave this group?</div>
+              <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.5, margin: "0 0 20px 0" }}>Are you sure you want to leave <strong>{grp?.name}</strong>? You can rejoin anytime later.</p>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => setLeaveConfirm(false)}
+                  style={{ flex: 1, padding: "11px", borderRadius: 12, border: `1.5px solid ${T.border}`, background: "#fff", color: T.text, fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#F3F4F6"} onMouseLeave={e => e.currentTarget.style.background = "#fff"}>No, Stay</button>
+                <button onClick={() => { setStudyGroups(prev => prev.map(g => g.id === openGroup ? { ...g, joined: false, members: Math.max(1, g.members - 1) } : g)); setOpenGroup(null); setLeaveConfirm(false); setRoomTab("discussion"); addToast("Left group", "You've left the group.", <span className="material-symbols-outlined">logout</span>, T.rose); }}
+                  style={{ flex: 1, padding: "11px", borderRadius: 12, border: "none", background: "#DC2626", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#B91C1C"} onMouseLeave={e => e.currentTarget.style.background = "#DC2626"}>Yes, Leave</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════ DISCUSSION TAB ═══════ */}
+        {roomTab === "discussion" && (<>
+          <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12, background: "#F8F9FA", minHeight: 300 }}>
+            {allMsgs.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "60px 20px", color: T.muted }}><div style={{ fontSize: 40, marginBottom: 8 }}>👋</div><div style={{ fontWeight: 700 }}>Be the first to say hello!</div></div>
+            ) : allMsgs.map((msg, i) => {
+              const isOwn = msg.author === (user?.name || "You");
+              return (
+              <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <div style={{ width: 34, height: 34, borderRadius: "50%", background: `linear-gradient(135deg, ${T.orange}, ${T.yellow})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{msg.author[0]}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}><span style={{ fontWeight: 700, fontSize: 13, color: T.text }}>{msg.author}</span><span style={{ fontSize: 11, color: T.muted }}>{msg.time}</span></div>
+                  <div style={{ background: "#fff", padding: "10px 14px", borderRadius: "0 12px 12px 12px", fontSize: 14, color: "#444", border: `1px solid ${T.border}`, lineHeight: 1.5 }}>{msg.text}</div>
+                </div>
+                {isOwn && (
+                  <button onClick={() => setMsgDeleteConfirm({ groupId: openGroup, msgIndex: i, msgText: msg.text })}
+                    title="Delete message"
+                    style={{ background: "none", border: "none", cursor: "pointer", color: T.muted, padding: 4, borderRadius: 6, alignSelf: "center", transition: "all 0.2s", opacity: 0.5 }}
+                    onMouseEnter={e => { e.currentTarget.style.color = "#DC2626"; e.currentTarget.style.opacity = "1"; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = T.muted; e.currentTarget.style.opacity = "0.5"; }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>delete</span>
+                  </button>
                 )}
+              </div>
+              );
+            })}
+          </div>
 
-                <div style={{ display: "flex", gap: 16, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.border}`, color: T.muted, fontSize: 12, fontWeight: 700 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>💬 {post.comments.length} Comments</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto", color: T.orange }}>View Thread →</div>
+          {/* DELETE MESSAGE CONFIRMATION */}
+          {msgDeleteConfirm && (
+            <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)", backdropFilter: "blur(4px)" }} onClick={() => setMsgDeleteConfirm(null)}>
+              <div style={{ background: "#fff", borderRadius: 18, padding: "28px 24px", width: 360, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.18)", textAlign: "center" }} onClick={e => e.stopPropagation()}>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>🗑️</div>
+                <div style={{ fontWeight: 800, fontSize: 17, color: T.text, marginBottom: 6 }}>Delete this message?</div>
+                <div style={{ background: "#FEF2F2", borderRadius: 10, padding: "10px 14px", margin: "10px 0 16px", fontSize: 13, color: "#555", lineHeight: 1.5, fontStyle: "italic", maxHeight: 60, overflow: "hidden", textOverflow: "ellipsis" }}>"{msgDeleteConfirm.msgText}"</div>
+                <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.5, margin: "0 0 20px 0" }}>Are you sure you want to delete this message? This action cannot be undone.</p>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => setMsgDeleteConfirm(null)}
+                    style={{ flex: 1, padding: "11px", borderRadius: 12, border: `1.5px solid ${T.border}`, background: "#fff", color: T.text, fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#F3F4F6"} onMouseLeave={e => e.currentTarget.style.background = "#fff"}>No, Keep</button>
+                  <button onClick={() => {
+                    const { groupId, msgIndex } = msgDeleteConfirm;
+                    const grpObj = studyGroups.find(g => g.id === groupId);
+                    const presetCount = grpObj?.messages?.length || 0;
+                    if (msgIndex < presetCount) {
+                      setStudyGroups(prev => prev.map(g => g.id === groupId ? { ...g, messages: g.messages.filter((_, idx) => idx !== msgIndex) } : g));
+                    } else {
+                      const dynamicIdx = msgIndex - presetCount;
+                      setGroupMessages(prev => ({ ...prev, [groupId]: (prev[groupId] || []).filter((_, idx) => idx !== dynamicIdx) }));
+                    }
+                    setMsgDeleteConfirm(null);
+                    addToast("Message deleted", "Your message has been removed.", <span className="material-symbols-outlined">delete</span>, T.rose);
+                  }}
+                    style={{ flex: 1, padding: "11px", borderRadius: 12, border: "none", background: "#DC2626", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#B91C1C"} onMouseLeave={e => e.currentTarget.style.background = "#DC2626"}>Yes, Delete</button>
                 </div>
-              </Card>
-            ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ padding: "12px 16px", background: "#fff", borderTop: `1px solid ${T.border}`, display: "flex", gap: 10, alignItems: "center" }}>
+            <input value={groupMsg} onChange={e => setGroupMsg(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleSendGroupMsg(openGroup)}
+              placeholder="Type a message..." style={{ flex: 1, padding: "10px 14px", borderRadius: 12, border: `1px solid ${T.border}`, fontSize: 14, outline: "none", background: "#F8F9FA" }} />
+            <Btn variant="primary" style={{ padding: "10px 18px", borderRadius: 12 }} onClick={() => handleSendGroupMsg(openGroup)}>Send</Btn>
+          </div>
+        </>)}
+
+        {/* ═══════ PYQs & RESOURCES TAB ═══════ */}
+        {roomTab === "pyqs" && (
+          <div style={{ flex: 1, overflowY: "auto", padding: "20px", background: "#F8F9FA" }}>
+            {/* Leader Upload Section */}
+            {isLeader ? (
+              <div style={{ background: `linear-gradient(135deg, ${T.orange}10, ${T.yellow}08)`, border: `1.5px dashed ${T.orange}`, borderRadius: 16, padding: "20px", marginBottom: 20, textAlign: "center" }}>
+                <div style={{ fontSize: 28, marginBottom: 6 }}>📤</div>
+                <div style={{ fontWeight: 800, fontSize: 14, color: T.text, marginBottom: 4 }}>Upload PYQ / Assignment / Notes</div>
+                <p style={{ fontSize: 12, color: T.muted, margin: "0 0 12px 0" }}>PDF, Images, Docs up to 10MB — only you (group leader) can manage these</p>
+                <label style={{ display: "inline-block", background: `linear-gradient(135deg, ${T.orange}, #EA580C)`, color: "#fff", padding: "10px 24px", borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
+                  <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.txt" style={{ display: "none" }} onChange={handlePyqUpload} />
+                  📎 Choose File to Upload
+                </label>
+              </div>
+            ) : (
+              <div style={{ background: "#fff", border: `1px solid ${T.border}`, borderRadius: 14, padding: "14px 18px", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
+                <span className="material-symbols-outlined" style={{ color: T.muted, fontSize: 20 }}>info</span>
+                <span style={{ fontSize: 13, color: T.muted }}>Only the group leader (<strong>{grp?.createdBy}</strong>) can upload or delete PYQs & resources.</span>
+              </div>
+            )}
+
+            {/* PYQ Files Grid */}
+            {pyqs.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "50px 20px", color: T.muted }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>📂</div>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>No PYQs uploaded yet</div>
+                <p style={{ fontSize: 13, marginTop: 4 }}>{isLeader ? "Upload your first PYQ or resource above!" : "Check back later — the leader will upload soon."}</p>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14 }}>
+                {pyqs.map(pyq => {
+                  const isPdf = pyq.name.toLowerCase().endsWith('.pdf');
+                  const isImg = /\.(png|jpg|jpeg|gif|webp)$/i.test(pyq.name);
+                  const icon = isPdf ? "📕" : isImg ? "🖼️" : "📄";
+                  return (
+                    <div key={pyq.id} style={{ background: "#fff", border: `1px solid ${T.border}`, borderRadius: 14, padding: "16px", display: "flex", flexDirection: "column", gap: 10, transition: "all 0.2s" }}
+                      onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)"} onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 28 }}>{icon}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: 13, color: T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pyq.name}</div>
+                          <div style={{ fontSize: 11, color: T.muted }}>{pyq.size} • {pyq.uploadedAt}</div>
+                        </div>
+                      </div>
+                      {isImg && pyq.data && (
+                        <div style={{ borderRadius: 10, overflow: "hidden", border: `1px solid ${T.border}`, maxHeight: 120 }}>
+                          <img src={pyq.data} style={{ width: "100%", objectFit: "cover", display: "block" }} alt={pyq.name} />
+                        </div>
+                      )}
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <a href={pyq.data} download={pyq.name} onClick={e => e.stopPropagation()}
+                          style={{ flex: 1, padding: "8px", borderRadius: 10, background: "#DBEAFE", color: "#2563EB", fontSize: 12, fontWeight: 700, textAlign: "center", textDecoration: "none", cursor: "pointer", transition: "all 0.2s" }}>
+                          ⬇ Download
+                        </a>
+                        {isLeader && (
+                          <button onClick={() => setPyqDeleteConfirm({ groupId: openGroup, pyqId: pyq.id, pyqName: pyq.name })}
+                            style={{ padding: "8px 12px", borderRadius: 10, background: "#FEE2E2", color: "#DC2626", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}
+                            onMouseEnter={e => e.currentTarget.style.background = "#FECACA"} onMouseLeave={e => e.currentTarget.style.background = "#FEE2E2"}>
+                            🗑 Delete
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* PYQ DELETE CONFIRMATION */}
+            {pyqDeleteConfirm && (
+              <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)", backdropFilter: "blur(4px)" }} onClick={() => setPyqDeleteConfirm(null)}>
+                <div style={{ background: "#fff", borderRadius: 18, padding: "28px 24px", width: 360, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.18)", textAlign: "center" }} onClick={e => e.stopPropagation()}>
+                  <div style={{ fontSize: 40, marginBottom: 10 }}>🗑️</div>
+                  <div style={{ fontWeight: 800, fontSize: 17, color: T.text, marginBottom: 6 }}>Delete this file?</div>
+                  <div style={{ background: "#FEF2F2", borderRadius: 10, padding: "10px 14px", margin: "10px 0 16px", fontSize: 13, color: "#555", fontWeight: 600 }}>📄 {pyqDeleteConfirm.pyqName}</div>
+                  <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.5, margin: "0 0 20px 0" }}>Are you sure you want to delete this file? All members will lose access.</p>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button onClick={() => setPyqDeleteConfirm(null)}
+                      style={{ flex: 1, padding: "11px", borderRadius: 12, border: `1.5px solid ${T.border}`, background: "#fff", color: T.text, fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}
+                      onMouseEnter={e => e.currentTarget.style.background = "#F3F4F6"} onMouseLeave={e => e.currentTarget.style.background = "#fff"}>No, Keep</button>
+                    <button onClick={() => {
+                      setGroupPyqs(prev => ({ ...prev, [pyqDeleteConfirm.groupId]: (prev[pyqDeleteConfirm.groupId] || []).filter(p => p.id !== pyqDeleteConfirm.pyqId) }));
+                      setPyqDeleteConfirm(null);
+                      addToast("File deleted", "The PYQ has been removed.", <span className="material-symbols-outlined">delete</span>, T.rose);
+                    }}
+                      style={{ flex: 1, padding: "11px", borderRadius: 12, border: "none", background: "#DC2626", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}
+                      onMouseEnter={e => e.currentTarget.style.background = "#B91C1C"} onMouseLeave={e => e.currentTarget.style.background = "#DC2626"}>Yes, Delete</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
+    );
+  }
 
-      {/* Post Detail Modal */}
+  return (
+    <div>
+      {/* ── COMPACT HEADER ── */}
+      <div style={{ background: "#fff", borderBottom: `1px solid ${T.border}`, padding: "16px 20px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+          <div>
+            <h1 style={{ fontFamily: 'Inter, system-ui, sans-serif', fontSize: 28, fontWeight: 900, color: T.text, margin: 0, letterSpacing: '-0.4px' }}>Community Hub</h1>
+            <p style={{ color: T.muted, fontSize: 14, margin: "4px 0 0 0" }}>Your campus. Your people. Your knowledge hub.</p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <button id="online-students-btn" onClick={() => setOnlinePopup(true)}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "#DCFCE7", color: "#16A34A", border: "none", borderRadius: 20, padding: "6px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+              onMouseEnter={e => e.currentTarget.style.background = "#BBF7D0"} onMouseLeave={e => e.currentTarget.style.background = "#DCFCE7"}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#16A34A", display: "inline-block", animation: "commPulse 1.5s ease-in-out infinite" }} />
+              🟢 {studentsOnline} Student{studentsOnline !== 1 ? "s" : ""} Online
+            </button>
+            <Btn variant="primary" id="ask-doubt-btn" style={{ padding: "8px 18px", borderRadius: 20, fontSize: 13 }} onClick={() => setPostOpen(true)}>+ Ask Doubt</Btn>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 18, overflowX: "auto" }}>
+          {TABS.map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              style={{ padding: "9px 20px", borderRadius: 22, fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.2s",
+                background: activeTab === tab.id ? T.orange : "#fff", color: activeTab === tab.id ? "#fff" : T.muted, border: `1.5px solid ${activeTab === tab.id ? T.orange : T.border}` }}>
+              {tab.icon} {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── STATS ROW ── */}
+      <div style={{ padding: "14px 20px", background: "#FAFAFA", borderBottom: `1px solid ${T.border}`, display: "flex", gap: 0 }}>
+        {[{ icon: "🟢", val: studentsOnline, label: "Online" }, { icon: "💬", val: posts.length, label: "Discussions" }, { icon: "👥", val: studyGroups.length, label: "Study Groups" }].map((stat, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, padding: "10px 16px", borderRight: i < 2 ? `1px solid ${T.border}` : "none" }}>
+            <span style={{ fontSize: 16 }}>{stat.icon}</span>
+            <div><div style={{ fontWeight: 900, fontSize: 16, color: T.text, lineHeight: 1 }}>{stat.val}</div><div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>{stat.label}</div></div>
+          </div>
+        ))}
+      </div>
+
+      <style>{`@keyframes commPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.3)} }`}</style>
+
+      <div className="screen-body">
+
+        {/* ── CAMPUS FEED + MY DEPARTMENT ── */}
+        {(activeTab === "feed" || activeTab === "dept") && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            {activeTab === "dept" && (
+              <div style={{ background: `linear-gradient(135deg, ${T.orange}15, ${T.yellow}10)`, border: `1px solid ${T.orange}30`, borderRadius: 14, padding: "14px 18px", marginBottom: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 14, color: T.text }}>🏫 Department of {user?.branch || "Your Department"}</div>
+                <div style={{ fontSize: 13, color: T.muted, marginTop: 3 }}>Connect with students from your department, share resources and discuss technical topics.</div>
+              </div>
+            )}
+            {activeTab === "feed" && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "#fff", borderRadius: 14, border: `1px solid ${T.border}`, marginBottom: 14, flexWrap: "wrap" }}>
+                <span style={{ fontWeight: 700, fontSize: 13, color: T.text, whiteSpace: "nowrap" }}>🔥 Trending on Campus:</span>
+                {TRENDING.map(tag => (
+                  <span key={tag} style={{ background: "#fff", border: `1px solid ${T.border}`, color: "#555", borderRadius: 20, padding: "5px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = T.orange; e.currentTarget.style.color = T.orange; }} onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = "#555"; }}>{tag}</span>
+                ))}
+              </div>
+            )}
+            {loading ? (
+              <div style={{ textAlign: "center", padding: "40px", color: T.muted }}>⏳ Loading discussions...</div>
+            ) : displayedPosts.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "60px 20px", background: "#fff", borderRadius: 16, border: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>💬</div>
+                <div style={{ fontWeight: 700, fontSize: 16, color: T.text }}>{search ? "No matches found" : "No discussions yet"}</div>
+                <p style={{ color: T.muted, marginTop: 6, fontSize: 13 }}>Be the first to ask a doubt or share an update!</p>
+                <Btn variant="primary" style={{ marginTop: 14, borderRadius: 20 }} onClick={() => setPostOpen(true)}>Start a Discussion</Btn>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {displayedPosts.map(post => {
+                  const bc = badgeColor(post.category);
+                  return (
+                    <div key={post._id} onClick={() => setViewPost(post)}
+                      style={{ background: "#fff", border: `1px solid ${T.border}`, borderRadius: 16, padding: "16px", cursor: "pointer", transition: "all 0.2s" }}
+                      onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.08)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: "50%", background: post.authorPhoto ? "transparent" : `linear-gradient(135deg, ${T.orange}, ${T.yellow})`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {post.authorPhoto ? <img src={post.authorPhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#fff", fontWeight: 700, fontSize: 15 }}>{post.authorName[0]}</span>}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <span style={{ fontWeight: 700, fontSize: 14, color: T.text }}>{post.authorName}</span>
+                            <span style={{ fontSize: 11, background: "#DCFCE7", color: "#16A34A", borderRadius: 20, padding: "2px 8px", fontWeight: 700 }}>✓ Verified Student</span>
+                          </div>
+                          <div style={{ fontSize: 11, color: T.muted, marginTop: 1 }}>{post.authorRoll && post.authorRoll.includes("CSE") ? "CSE" : post.authorRoll ? post.authorRoll.substring(0, 3) : ""} • {user?.year || "2nd Year"}</div>
+                        </div>
+                        <span style={{ fontSize: 12, color: T.muted, flexShrink: 0 }}>{post.createdAt ? new Date(post.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}</span>
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: T.text, marginBottom: 6, lineHeight: 1.4 }}>{post.title}</div>
+                      <p style={{ fontSize: 13, color: "#555", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", margin: "0 0 10px 0" }}>{post.content}</p>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: post.photoUrl ? 0 : 0 }}>
+                        <span style={{ background: bc.bg, color: bc.text, borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 700, border: `1px solid ${bc.text}30` }}>[{post.category}]</span>
+                        {post.title && post.title.toLowerCase().includes("automata") && <span style={{ borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 700, border: `1px solid ${T.border}`, color: "#555", background: "#fff" }}>[Automata]</span>}
+                      </div>
+                      {post.photoUrl && (<div style={{ marginTop: 10, borderRadius: 10, overflow: "hidden", maxHeight: 180, border: `1px solid ${T.border}` }}><img src={post.photoUrl} style={{ width: "100%", objectFit: "cover" }} /></div>)}
+                      <div style={{ display: "flex", gap: 14, marginTop: 12, paddingTop: 12, borderTop: `1px solid ${T.border}`, alignItems: "center" }}>
+                        <button onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: T.muted, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}
+                          onMouseEnter={e => { e.currentTarget.style.background = "#FEF2F2"; e.currentTarget.style.color = "#DC2626"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = T.muted; }}>👍 {Math.floor(Math.random() * 5) + 1}</button>
+                        <button onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: T.muted, background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 8 }}
+                          onMouseEnter={e => { e.currentTarget.style.background = "#F0F9FF"; e.currentTarget.style.color = "#0284C7"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = T.muted; }}>💬 {post.comments?.length || 0}</button>
+                        <span style={{ marginLeft: "auto", color: T.orange, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>View Thread →</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── STUDY GROUPS TAB ── */}
+        {activeTab === "groups" && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+              <div><div style={{ fontWeight: 800, fontSize: 18, color: T.text }}>Campus Study Groups</div><div style={{ fontSize: 13, color: T.muted, marginTop: 2 }}>Collaborate in focused peer groups, share notes, and solve doubts together</div></div>
+              <Btn variant="primary" style={{ borderRadius: 20, padding: "8px 18px", fontSize: 13 }} onClick={() => setCreateGroupOpen(true)}>+ Create Group</Btn>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+              {[{ id: "all", label: `All Groups (${studyGroups.length})` }, { id: "joined", label: `My Joined Groups (${studyGroups.filter(g => g.joined).length})` }].map(f => (
+                <button key={f.id} onClick={() => setGroupsFilter(f.id)} style={{ padding: "7px 16px", borderRadius: 20, border: `1.5px solid ${groupsFilter === f.id ? T.orange : T.border}`, background: groupsFilter === f.id ? `${T.orange}08` : "#fff", color: groupsFilter === f.id ? T.orange : T.muted, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{f.label}</button>
+              ))}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+              {filteredGroups.map(grp => (
+                <div key={grp.id} style={{ background: grp.joined ? "#F0FDF9" : "#fff", border: `1px solid ${grp.joined ? "#10B981" : T.border}`, borderLeft: grp.joined ? "4px solid #10B981" : `1px solid ${T.border}`, borderRadius: 16, padding: "20px", display: "flex", flexDirection: "column", gap: 12, transition: "all 0.2s" }}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.08)"} onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 20 }}>📚</span>
+                    <div style={{ fontWeight: 800, fontSize: 15, color: T.text, lineHeight: 1.3, flex: 1 }}>{grp.name}</div>
+                    {grp.tag && <span style={{ background: `${grp.tagColor || T.orange}15`, color: grp.tagColor || T.orange, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{grp.tag}</span>}
+                  </div>
+                  <p style={{ fontSize: 13, color: T.muted, lineHeight: 1.5, margin: 0 }}>{grp.desc || `${grp.branch} • ${grp.year}`}</p>
+                  <div style={{ fontSize: 12, color: T.muted, display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>👥</span> <span style={{ fontWeight: 600 }}>{grp.members} students interested</span>
+                    <span style={{ margin: "0 2px" }}>•</span>
+                    <span>{grp.schedule || "Flexible"}</span>
+                  </div>
+                  {grp.joined
+                    ? <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        <button onClick={() => setOpenGroup(grp.id)} style={{ flex: 1, background: "linear-gradient(135deg, #10B981, #059669)", border: "none", color: "#fff", borderRadius: 12, padding: "12px", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                          onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>🚀 Enter Group Room</button>
+                        <span style={{ background: "#fff", border: "1.5px solid #10B981", color: "#10B981", borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>✓ Joined</span>
+                      </div>
+                    : <button onClick={() => handleJoinGroup(grp.id)} style={{ background: `linear-gradient(135deg, ${T.orange}, #EA580C)`, border: "none", color: "#fff", borderRadius: 12, padding: "11px", fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all 0.2s", letterSpacing: "0.3px" }}
+                        onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>[Join Study Group]</button>}
+                </div>
+              ))}
+              {filteredGroups.length === 0 && <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px 20px", color: T.muted }}><div style={{ fontSize: 40, marginBottom: 10 }}>👥</div><div style={{ fontWeight: 700 }}>No groups joined yet</div></div>}
+            </div>
+          </div>
+        )}
+
+
+      </div>
+
+      {/* ── ONLINE STUDENTS POPUP ── */}
+      {onlinePopup && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.3)", backdropFilter: "blur(4px)" }} onClick={() => setOnlinePopup(false)}>
+          <div style={{ background: "#fff", borderRadius: 20, padding: "24px", width: 340, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ fontWeight: 800, fontSize: 16, color: T.text }}>🟢 Students Online Now</div>
+              <button onClick={() => setOnlinePopup(false)} style={{ background: "#F3F4F6", border: "none", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", fontSize: 14, color: T.muted }}>✕</button>
+            </div>
+            <div style={{ background: "#DCFCE7", borderRadius: 12, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#16A34A", display: "inline-block", animation: "commPulse 1.5s ease-in-out infinite" }} />
+              <span style={{ fontWeight: 700, fontSize: 14, color: "#15803D" }}>{studentsOnline} student{studentsOnline !== 1 ? "s" : ""} logged in recently</span>
+            </div>
+            {user && (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px", background: "#F8F9FA", borderRadius: 12, border: `1px solid ${T.border}` }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: user.profilePhoto ? "transparent" : `linear-gradient(135deg, ${T.orange}, ${T.yellow})`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {user.profilePhoto ? <img src={user.profilePhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#fff", fontWeight: 700 }}>{(user.name || "U")[0]}</span>}
+                </div>
+                <div style={{ flex: 1 }}><div style={{ fontWeight: 700, fontSize: 14, color: T.text }}>{user.name}</div><div style={{ fontSize: 12, color: T.muted }}>{user.branch} • {user.year} • Just now</div></div>
+                <span style={{ background: "#DBEAFE", color: "#2563EB", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>You</span>
+              </div>
+            )}
+            <div style={{ marginTop: 12, fontSize: 12, color: T.muted, textAlign: "center" }}>Real-time via Socket.io — updates automatically</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── POST DETAIL MODAL ── */}
       <Modal open={!!viewPost} onClose={() => setViewPost(null)} title="Discussion Thread" aboveNav={true}>
         {viewPost && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <div style={{ width: 44, height: 44, borderRadius: "12px", background: viewPost.authorPhoto ? "transparent" : `linear-gradient(135deg, ${T.orange}, ${T.yellow})`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", border: viewPost.authorPhoto ? `1px solid ${T.border}` : "none" }}>
+              <div style={{ width: 44, height: 44, borderRadius: "12px", background: viewPost.authorPhoto ? "transparent" : `linear-gradient(135deg, ${T.orange}, ${T.yellow})`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {viewPost.authorPhoto ? <img src={viewPost.authorPhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#fff", fontWeight: 700 }}>{viewPost.authorName[0]}</span>}
               </div>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>{viewPost.authorName}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ fontWeight: 700, fontSize: 15 }}>{viewPost.authorName}</span><span style={{ fontSize: 11, background: "#DBEAFE", color: "#2563EB", borderRadius: 20, padding: "2px 8px", fontWeight: 700 }}>✓ Verified Student</span></div>
                 <div style={{ fontSize: 12, color: T.muted }}>{viewPost.authorRoll} • {new Date(viewPost.createdAt).toLocaleString()}</div>
               </div>
             </div>
-
-            <div style={{ fontWeight: 800, fontSize: 20, color: T.text, marginTop: 4, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }}>{viewPost.title}</div>
+            <div style={{ fontWeight: 800, fontSize: 20, color: T.text }}>{viewPost.title}</div>
             <p style={{ fontSize: 15, color: "#444", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{viewPost.content}</p>
-
-            {viewPost.photoUrl && (
-              <div style={{ borderRadius: 16, overflow: "hidden", border: `1px solid ${T.border}`, background: "#F5F5F5" }}>
-                <img src={viewPost.photoUrl} style={{ width: "100%", maxHeight: 400, objectFit: "contain", display: "block" }} />
-              </div>
-            )}
-
-            <div style={{ marginTop: 8, paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
-              <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 16, color: T.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Comments Support ({viewPost.comments.length})</div>
+            {viewPost.photoUrl && (<div style={{ borderRadius: 16, overflow: "hidden", border: `1px solid ${T.border}` }}><img src={viewPost.photoUrl} style={{ width: "100%", maxHeight: 400, objectFit: "contain", display: "block" }} /></div>)}
+            <div style={{ paddingTop: 16, borderTop: `1px solid ${T.border}` }}>
+              <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 14, color: T.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Comments ({viewPost.comments.length})</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {viewPost.comments.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "20px 0", color: T.muted, fontSize: 13, fontStyle: "italic" }}>No replies yet. Be the first to help!</div>
-                ) : viewPost.comments.map((c, i) => (
-                  <div key={i} style={{ padding: "14px 16px", background: "#F8F9FA", borderRadius: 12, border: `1px solid ${T.border}` }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: "8px", background: c.authorPhoto ? "transparent" : T.indigo, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
-                        {c.authorPhoto ? <img src={c.authorPhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#fff", fontWeight: 700 }}>{c.authorName[0]}</span>}
+                {viewPost.comments.length === 0 ? <div style={{ textAlign: "center", padding: "20px 0", color: T.muted, fontSize: 13, fontStyle: "italic" }}>No replies yet. Be the first to help!</div>
+                  : viewPost.comments.map((c, i) => (
+                    <div key={i} style={{ padding: "14px 16px", background: "#F8F9FA", borderRadius: 12, border: `1px solid ${T.border}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: "8px", background: c.authorPhoto ? "transparent" : T.indigo, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
+                          {c.authorPhoto ? <img src={c.authorPhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#fff", fontWeight: 700 }}>{c.authorName[0]}</span>}
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: T.text }}>{c.authorName}</div>
+                        <div style={{ fontSize: 11, color: T.muted, marginLeft: "auto" }}>{new Date(c.createdAt).toLocaleDateString()}</div>
                       </div>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: T.text }}>{c.authorName}</div>
-                      <div style={{ fontSize: 11, color: T.muted, marginLeft: "auto" }}>{new Date(c.createdAt).toLocaleDateString()}</div>
+                      <div style={{ fontSize: 14, color: "#333", lineHeight: 1.5 }}>{c.text}</div>
                     </div>
-                    <div style={{ fontSize: 14, color: "#333", lineHeight: 1.5 }}>{c.text}</div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </div>
-
-            <div style={{ display: "flex", gap: 10, marginTop: 12, alignItems: "center", padding: "8px", background: "#fff", border: `1px solid ${T.border}`, borderRadius: 14, position: "sticky", bottom: 0 }}>
-              <input
-                value={commentText}
-                onChange={e => setCommentText(e.target.value)}
-                placeholder="Provide a solution or helpful tip..."
+            <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px", background: "#fff", border: `1px solid ${T.border}`, borderRadius: 14, position: "sticky", bottom: 0 }}>
+              <input value={commentText} onChange={e => setCommentText(e.target.value)} placeholder="Provide a solution or helpful tip..."
                 style={{ flex: 1, padding: "10px 14px", border: "none", outline: "none", fontSize: 14, background: "transparent" }}
-                onKeyPress={e => e.key === 'Enter' && handleAddComment()}
-              />
+                onKeyPress={e => e.key === 'Enter' && handleAddComment()} />
               <Btn variant="primary" style={{ padding: "10px 18px", borderRadius: 10 }} onClick={handleAddComment}>Reply</Btn>
             </div>
           </div>
         )}
       </Modal>
 
-      {/* Create Post Modal */}
+      {/* ── CREATE POST MODAL ── */}
       <Modal open={postOpen} onClose={() => setPostOpen(false)} title="📝 Start a Discussion" aboveNav={true}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
             <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase" }}>Post Category</label>
             <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
               {["Doubt", "Note", "Update", "General"].map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setPostForm(p => ({ ...p, category: cat }))}
-                  style={{
-                    flex: 1, padding: "8px", borderRadius: 10, fontSize: 12, fontWeight: 700,
-                    border: `1.5px solid ${postForm.category === cat ? T.orange : T.border}`,
-                    background: postForm.category === cat ? `${T.orange}10` : "#fff",
-                    color: postForm.category === cat ? T.orange : T.muted,
-                    transition: "all 0.2s"
-                  }}
-                >
-                  {cat}
-                </button>
+                <button key={cat} onClick={() => setPostForm(p => ({ ...p, category: cat }))}
+                  style={{ flex: 1, padding: "8px", borderRadius: 10, fontSize: 12, fontWeight: 700, border: `1.5px solid ${postForm.category === cat ? T.orange : T.border}`, background: postForm.category === cat ? `${T.orange}10` : "#fff", color: postForm.category === cat ? T.orange : T.muted, transition: "all 0.2s" }}>{cat}</button>
               ))}
             </div>
           </div>
-
           <div>
             <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase" }}>Heading</label>
-            <input value={postForm.title} onChange={e => setPostForm(p => ({ ...p, title: e.target.value }))} style={{ width: "100%", padding: "12px 14px", marginTop: 6, borderRadius: 10, border: `1px solid ${T.border}`, background: T.gray, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' }} placeholder="e.g., Struggling with Fourier Series..." />
+            <input value={postForm.title} onChange={e => setPostForm(p => ({ ...p, title: e.target.value }))}
+              style={{ width: "100%", padding: "12px 14px", marginTop: 6, borderRadius: 10, border: `1px solid ${T.border}`, background: T.gray, boxSizing: "border-box" }} placeholder="e.g., Struggling with Fourier Series..." />
           </div>
-
           <div>
             <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase" }}>Content / Doubt Details</label>
-            <textarea rows="5" value={postForm.content} onChange={e => setPostForm(p => ({ ...p, content: e.target.value }))} style={{ width: "100%", padding: "12px 14px", marginTop: 6, borderRadius: 10, border: `1px solid ${T.border}`, background: T.gray, fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', resize: "none", fontSize: 14 }} placeholder="Explain your query clearly so others can help you better..." />
+            <textarea rows="5" value={postForm.content} onChange={e => setPostForm(p => ({ ...p, content: e.target.value }))}
+              style={{ width: "100%", padding: "12px 14px", marginTop: 6, borderRadius: 10, border: `1px solid ${T.border}`, background: T.gray, resize: "none", fontSize: 14, boxSizing: "border-box" }} placeholder="Explain your query clearly so others can help you better..." />
           </div>
-
           <div>
             <label style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase" }}>Attach Image (Optional)</label>
-            <label style={{ display: "block", padding: photoPreview ? "10px" : "20px", borderRadius: 12, border: `2px dashed ${photoPreview ? T.success : "#C0C0C0"}`, background: photoPreview ? `${T.success}05` : "#FAFAFA", textAlign: "center", cursor: "pointer", marginTop: 6, transition: "all .2s ease" }}>
+            <label style={{ display: "block", padding: photoPreview ? "10px" : "20px", borderRadius: 12, border: `2px dashed ${photoPreview ? T.success : "#C0C0C0"}`, background: photoPreview ? `${T.success}05` : "#FAFAFA", textAlign: "center", cursor: "pointer", marginTop: 6 }}>
               <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => {
                 if (e.target.files && e.target.files[0]) {
                   const file = e.target.files[0];
-                  if (file.size > 5 * 1024 * 1024) {
-                    addToast("Too Large", "Max 5MB allowed", <span className="material-symbols-outlined">error</span>, T.rose);
-                    return;
-                  }
+                  if (file.size > 5 * 1024 * 1024) { addToast("Too Large", "Max 5MB allowed", <span className="material-symbols-outlined">error</span>, T.rose); return; }
                   const reader = new FileReader();
-                  reader.onloadend = () => {
-                    setPhotoData(reader.result);
-                    setPhotoPreview(reader.result);
-                  };
+                  reader.onloadend = () => { setPhotoData(reader.result); setPhotoPreview(reader.result); };
                   reader.readAsDataURL(file);
                 }
               }} />
               {photoPreview ? (
                 <div style={{ position: "relative" }}>
                   <img src={photoPreview} style={{ width: "100%", maxHeight: 180, objectFit: "contain", borderRadius: 8 }} />
-                  <div style={{ position: "absolute", top: 5, right: 5, background: "rgba(0,0,0,0.5)", color: "#fff", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }} onClick={(e) => { e.preventDefault(); setPhotoData(null); setPhotoPreview(null); }}>✕</div>
+                  <div style={{ position: "absolute", top: 5, right: 5, background: "rgba(0,0,0,0.5)", color: "#fff", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }} onClick={e => { e.preventDefault(); setPhotoData(null); setPhotoPreview(null); }}>✕</div>
                 </div>
-              ) : (
-                <>
-                  <div style={{ fontSize: 24, marginBottom: 8 }}>📷</div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: T.text }}>Tap to upload photo</div>
-                  <div style={{ fontSize: 11, color: T.muted, marginTop: 4 }}>Capture your notebook or problem sheet</div>
-                </>
-              )}
+              ) : (<><div style={{ fontSize: 24, marginBottom: 8 }}>📷</div><div style={{ fontWeight: 700, fontSize: 13, color: T.text }}>Tap to upload photo</div><div style={{ fontSize: 11, color: T.muted, marginTop: 4 }}>Capture your notebook or problem sheet</div></>)}
             </label>
           </div>
-
           <Btn variant="primary" style={{ padding: 16, fontSize: 15, marginTop: 4 }} disabled={posting} onClick={handleCreatePost}>
             {posting ? "⏳ Posting Activity..." : "🚀 Share to Community"}
           </Btn>
+        </div>
+      </Modal>
+
+      {/* ── CREATE GROUP MODAL ── */}
+      <Modal open={createGroupOpen} onClose={() => setCreateGroupOpen(false)} title="👥 Create Study Group" aboveNav={true}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div><label style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase" }}>Group Name</label>
+            <input value={newGroupForm.name} onChange={e => setNewGroupForm(p => ({ ...p, name: e.target.value }))} style={{ width: "100%", padding: "12px 14px", marginTop: 6, borderRadius: 10, border: `1px solid ${T.border}`, background: T.gray, boxSizing: "border-box" }} placeholder="e.g., Automata & Theory of Computation" /></div>
+          <div><label style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase" }}>Branch</label>
+            <select value={newGroupForm.branch} onChange={e => setNewGroupForm(p => ({ ...p, branch: e.target.value }))} style={{ width: "100%", padding: "12px 14px", marginTop: 6, borderRadius: 10, border: `1px solid ${T.border}`, background: T.gray, fontSize: 14, boxSizing: "border-box" }}>
+              {["CSE","ECE","ME","CE","EE","IT","All Branches"].map(b => <option key={b}>{b}</option>)}
+            </select></div>
+          <div><label style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: "uppercase" }}>Year</label>
+            <select value={newGroupForm.year} onChange={e => setNewGroupForm(p => ({ ...p, year: e.target.value }))} style={{ width: "100%", padding: "12px 14px", marginTop: 6, borderRadius: 10, border: `1px solid ${T.border}`, background: T.gray, fontSize: 14, boxSizing: "border-box" }}>
+              {["1st Year","2nd Year","3rd Year","4th Year","All Years"].map(y => <option key={y}>{y}</option>)}
+            </select></div>
+          <Btn variant="primary" style={{ padding: 14, fontSize: 14, marginTop: 4, borderRadius: 12 }} onClick={handleCreateGroup}>🚀 Create Group</Btn>
         </div>
       </Modal>
     </div>
