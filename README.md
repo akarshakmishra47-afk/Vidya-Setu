@@ -2,35 +2,37 @@
 
 > **Empowering Students with Opportunities, Insights, and AI-Driven Career Growth.**
 
-Vidya Setu is a comprehensive, full-stack platform designed to bridge the gap between university students and their professional futures. Built with a robust MERN stack and powered by cutting-edge AI integrations, it provides students with intelligent resume analysis, curated job and internship listings, and streamlined scholarship tracking.
+Vidya Setu is a comprehensive, full-stack platform designed to bridge the gap between university students and their professional futures. Built with a robust MERN stack and powered by cutting-edge AI integrations, it provides students with intelligent resume analysis, curated job and internship listings, and a highly advanced automated scholarship tracking system.
 
 ---
 
 ## ✨ Key Features
 
+- **🎓 Advanced Scholarship Hub:** A centralized dashboard for finding verified financial aid.
+  - **Automated Live Scraper:** Built-in web scraper that dynamically pulls the latest Private, Trending, and Recently Added scholarships directly from `indiascholarships.in`.
+  - **Dynamic Filtering:** Real-time client-side filters for Education Level, State Domicile, Gender, and Social Category with smooth-scroll pagination.
+  - **DBT & Portal Troubleshooting:** A dedicated help center providing step-by-step resolution guides for DBT bank linking, AICTE verification, and university enrollment mismatches.
 - **🤖 AI-Powered Resume Analyzer:** Upload your resume and receive instant, actionable feedback and ATS optimization suggestions powered by the Groq LLM API.
 - **💼 Job & Internship Portal:** A curated, easily searchable database of early-career opportunities, hackathons, and internships.
-- **🎓 Scholarship Tracking:** Stay on top of financial aid with a centralized dashboard for tracking, applying, and monitoring active scholarships.
-- **🛒 Community & Marketplace:** Built-in community interactions and a marketplace for students.
+- **🛒 Community & Marketplace:** Built-in community interactions and a marketplace designed specifically for students.
 - **🔐 Secure Authentication:** Production-grade JWT authentication with strict route protection and role-based access control (RBAC).
 - **📊 Real-Time Analytics & Admin Dashboard:** Comprehensive insights into platform usage, application statuses, and active opportunities.
 
 ## 🛠️ Tech Stack
 
-**Frontend:**
+**Frontend (Client):**
 - [React.js](https://reactjs.org/) - UI Library.
 - [Vite](https://vitejs.dev/) - Next-generation frontend tooling.
-- HTML5 / CSS3 - Modern, responsive styling.
-- NProgress - Minimalist progress bar.
+- Custom CSS & Modern UI - Responsive, premium "human-designed" interface with optimized typography and layouts.
 
-**Backend:**
+**Backend (API & Services):**
 - [Node.js](https://nodejs.org/) & [Express.js](https://expressjs.com/) - RESTful API architecture.
 - [MongoDB](https://www.mongodb.com/) & Mongoose - NoSQL database and schema management.
+- [Cheerio](https://cheerio.js.org/) & [Axios](https://axios-http.com/) - HTML parsing and HTTP requests for the automated scholarship scraper.
 - [Groq LLM API](https://groq.com/) - High-speed AI inference for resume analysis.
 - [JSON Web Tokens (JWT)](https://jwt.io/) & [Bcrypt.js](https://www.npmjs.com/package/bcryptjs) - Authentication and password hashing.
 - [Cloudinary](https://cloudinary.com/) - Cloud image and asset storage.
 - PDF-Parse & PDFKit - For handling and analyzing resume PDFs.
-- Cheerio - For web scraping and parsing.
 
 ---
 
@@ -43,16 +45,15 @@ Vidya Setu/
 ├── Backend/                 # Express.js REST API
 │   ├── middleware/          # JWT auth, error handling, and rate limiting
 │   ├── models/              # Mongoose schemas (User, Job, Scholarship, etc.)
-│   ├── routes/              # API route definitions & controllers (userRoutes, etc.)
-│   ├── scripts/             # Database seeding and migration scripts
-│   ├── services/            # External service integrations
+│   ├── routes/              # API routes (scholarshipRoutes.js, userRoutes.js)
+│   ├── services/            # Background services (scholarshipFetcher.js scraper)
 │   ├── cloudinaryConfig.js  # Cloudinary configuration
 │   └── server.js            # Node.js entry point
 │
 └── Frontend/                # React.js Client (Vite)
     ├── public/              # Static assets (images, icons)
     ├── src/
-    │   └── main.jsx         # Single-file React application (Contains all UI/Logic)
+    │   └── main.jsx         # Core React application (Contains unified UI & Logic)
     ├── index.html           # Main HTML template
     └── vite.config.js       # Vite configuration
 ```
@@ -69,8 +70,8 @@ Follow these steps to get a local copy up and running.
 
 ### 2. Clone the Repository
 ```bash
-git clone https://github.com/your-username/vidya-setu.git
-cd vidya-setu
+git clone https://github.com/akarshakmishra47-afk/Vidya-Setu.git
+cd Vidya-Setu
 ```
 
 ### 3. Backend Setup
@@ -100,8 +101,6 @@ cd Frontend
 npm install
 ```
 
-*(Note: The frontend does not currently require a `.env` file, as the API URL is dynamically determined based on the environment (`localhost:5000` for local dev).)*
-
 ### 5. Running the Application
 
 **Start the Backend Server:**
@@ -116,7 +115,7 @@ npm run dev
 cd Frontend
 npm run dev
 ```
-*(The React app will start with Vite. Check the terminal for the exact localhost URL, usually `http://localhost:5173`)*
+*(The React app will start with Vite at `http://localhost:5173`)*
 
 ---
 
