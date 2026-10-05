@@ -36,20 +36,37 @@ async function fetchAllScholarships() {
   const hfUrl = 'https://huggingface.co/datasets/Eshanjog/Indian-Scholarships/raw/main/scholarships.json';
   try {
     const res = await fetchJson(hfUrl);
+    let hfData = [];
     if (res.status === 200 && Array.isArray(res.data)) {
-      results.huggingface.fetched = res.data.length;
-      for (const item of res.data) {
-        const validated = validateScholarship(item, 'huggingface');
-        if (validated) {
-          allScholarships.push(validated);
-          results.huggingface.accepted++;
-        } else {
-          results.huggingface.rejected++;
-        }
+      hfData = res.data;
+    } else {
+      console.log(`[ScholarshipFetcher] HF failed with ${res.status}, using fallback data...`);
+      hfData = require('./fallbackData');
+    }
+    
+    results.huggingface.fetched = hfData.length;
+    for (const item of hfData) {
+      const validated = validateScholarship(item, 'huggingface');
+      if (validated) {
+        allScholarships.push(validated);
+        results.huggingface.accepted++;
+      } else {
+        results.huggingface.rejected++;
       }
     }
   } catch (err) {
     console.error(`[ScholarshipFetcher] Error fetching HuggingFace: ${err.message}`);
+    const hfData = require('./fallbackData');
+    results.huggingface.fetched = hfData.length;
+    for (const item of hfData) {
+      const validated = validateScholarship(item, 'huggingface');
+      if (validated) {
+        allScholarships.push(validated);
+        results.huggingface.accepted++;
+      } else {
+        results.huggingface.rejected++;
+      }
+    }
   }
 
   // 2. Fetch from a generic RSS feed (e.g. FreeJobAlert or generic education feed)
