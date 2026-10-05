@@ -6408,6 +6408,7 @@ function VidyaSetuAssistant() {
       const [selectedGender, setSelectedGender] = useState("all");
       const [sortBy, setSortBy] = useState("deadline");
       const [pipelineStatus, setPipelineStatus] = useState(null);
+      const [currentPage, setCurrentPage] = useState(1);
 
       const [applyingFor, setApplyingFor] = useState(null);
       const [uploadedDoc, setUploadedDoc] = useState({});
@@ -6578,6 +6579,10 @@ function VidyaSetuAssistant() {
 
       React.useEffect(() => { loadData(); }, []);
 
+      React.useEffect(() => {
+        setCurrentPage(1);
+      }, [searchQuery, selectedLevel, selectedState, selectedGender, activeTab, sortBy]);
+
       const handleApply = async () => {
         if (!applyingFor) return;
         addToast("Applying...", "Verifying B.Tech Engineering Eligibility", <span className="material-symbols-outlined" style={{ fontSize: 18 }}>sync</span>, T.teal);
@@ -6606,11 +6611,8 @@ function VidyaSetuAssistant() {
         { id: "pg", label: <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>menu_book</span> Postgraduate (PG)</>, c: T.indigo },
         { id: "Defence", label: <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>shield</span> Defence Wards</>, c: T.rose },
         { id: "CAPF", label: <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>local_police</span> CAPF Wards</>, c: T.rose },
-        { id: "recommended", label: <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>star</span> Recommended</>, c: T.orange },
         { id: "Government", label: <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>account_balance</span> Government</>, c: T.success },
         { id: "Private/NGO", label: <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>volunteer_activism</span> CSR / Foundation</>, c: T.orange },
-        { id: "dashboard", label: <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>dashboard</span> My Applications</>, c: T.teal },
-        { id: "troubleshooting", label: <><span className="material-symbols-outlined" style={{ fontSize: 16 }}>help_center</span> DBT & Portal Help</>, c: T.orange },
       ];
 
       const LEVEL_OPTIONS = [
@@ -6810,108 +6812,102 @@ function VidyaSetuAssistant() {
       return (
         <div className="hub-container">
           <style>{`
-            .hub-container { animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); background: #fdfdfd; }
+            .hub-container { background: #fafafa; }
             .premium-hero {
-              background: linear-gradient(145deg, #ffffff 0%, #f4f7fb 100%);
-              border-bottom: 1px solid rgba(226, 232, 240, 0.9);
-              padding: 40px 48px; position: relative; overflow: hidden;
-            }
-            .premium-hero::after {
-              content: ''; position: absolute; right: -5%; top: -20%;
-              width: 600px; height: 600px;
-              background: radial-gradient(circle, rgba(99,102,241,0.05) 0%, rgba(255,255,255,0) 60%);
-              border-radius: 50%; pointer-events: none;
+              background: #ffffff;
+              border-bottom: 1px solid #e5e7eb;
+              padding: 32px 48px;
             }
             .premium-hero-inner {
-              position: relative; z-index: 1; display: flex; justify-content: space-between;
-              align-items: center; flex-wrap: wrap; gap: 24px; max-width: 1600px; margin: 0 auto;
+              display: flex; justify-content: space-between;
+              align-items: center; flex-wrap: wrap; gap: 24px; max-width: 1200px; margin: 0 auto;
             }
             .premium-badge {
-              background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-              color: white; box-shadow: 0 4px 12px rgba(16,185,129,0.25);
-              border-radius: 20px; padding: 5px 14px; font-size: 12px; font-weight: 700;
-              display: inline-flex; align-items: center; gap: 6px;
+              background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;
+              border-radius: 4px; padding: 4px 10px; font-size: 12px; font-weight: 600;
+              display: inline-flex; align-items: center; gap: 4px;
             }
             .premium-btn-sync {
-              background: white; color: #4f46e5; border: 1px solid #e2e8f0;
-              box-shadow: 0 4px 12px rgba(0,0,0,0.03); border-radius: 12px; padding: 10px 18px;
-              font-size: 13.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center;
-              gap: 6px; transition: all 0.25s ease;
+              background: #fff7ed; color: #ea580c; border: 1px solid #fdba74;
+              border-radius: 6px; padding: 8px 16px;
+              font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center;
+              gap: 6px; transition: background 0.15s;
             }
             .premium-btn-sync:hover:not(:disabled) {
-              transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); border-color: #cbd5e1;
+              background: #ffedd5;
+            }
+            .premium-btn-help {
+              background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;
+              border-radius: 6px; padding: 8px 16px;
+              font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center;
+              gap: 6px; transition: background 0.15s;
+            }
+            .premium-btn-help:hover {
+              background: #dbeafe;
             }
             .premium-tabs-container {
-              display: flex; gap: 10px; margin-bottom: 28px; padding-bottom: 8px;
-              overflow-x: auto; scrollbar-width: none;
+              display: flex; gap: 8px; margin-bottom: 24px; padding-bottom: 12px;
+              border-bottom: 1px solid #e5e7eb;
+              flex-wrap: wrap;
             }
             .premium-tab {
-              background: white; border: 1px solid #e2e8f0; color: #64748b;
-              padding: 10px 20px; border-radius: 100px; font-size: 14px; font-weight: 600;
-              cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center;
-              gap: 8px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+              background: transparent; border: none; color: #6b7280;
+              padding: 8px 12px; border-radius: 6px; font-size: 14px; font-weight: 500;
+              cursor: pointer; display: flex; align-items: center;
+              gap: 6px;
             }
-            .premium-tab:hover { background: #f8fafc; color: #334155; transform: translateY(-1px); }
+            .premium-tab:hover { background: #f3f4f6; color: #111827; }
             .premium-tab.active {
-              background: linear-gradient(135deg, #1e293b, #0f172a); color: white;
-              border-color: #0f172a; box-shadow: 0 6px 16px rgba(15,23,42,0.2);
+              background: #fff7ed; color: #ea580c; border: 1px solid #ffedd5;
             }
             .premium-filter-bar {
-              background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-              border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 10px 40px rgba(0,0,0,0.05);
-              border-radius: 20px; padding: 24px; margin-bottom: 32px; display: flex; flex-direction: column; gap: 16px;
+              background: #ffffff; border: 1px solid #e5e7eb;
+              border-radius: 8px; padding: 20px; margin-bottom: 32px; display: flex; flex-direction: column; gap: 16px;
             }
             .premium-input, .premium-select {
-              padding: 12px 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
-              font-size: 13.5px; font-weight: 500; color: #334155; outline: none; transition: all 0.2s ease;
+              padding: 10px 14px; background: #ffffff; border: 1px solid #d1d5db; border-radius: 6px;
+              font-size: 14px; color: #111827; outline: none;
             }
             .premium-input:focus, .premium-select:focus {
-              background: white; border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
+              border-color: #ea580c; box-shadow: 0 0 0 2px rgba(234,88,12,0.2);
             }
             .premium-filter-btn {
-              background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; border-radius: 100px;
-              padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+              background: #ffffff; color: #4b5563; border: 1px solid #d1d5db; border-radius: 6px;
+              padding: 6px 12px; font-size: 13px; cursor: pointer;
             }
-            .premium-filter-btn:hover { background: #f1f5f9; color: #334155; }
+            .premium-filter-btn:hover { background: #f9fafb; }
             .premium-filter-btn.active {
-              background: #4f46e5; color: white; border-color: #4338ca; box-shadow: 0 4px 10px rgba(79,70,229,0.25);
+              background: #fff7ed; color: #ea580c; border-color: #fdba74;
             }
             .premium-card {
-              background: white; border-radius: 20px; border: 1px solid #f1f5f9; padding: 28px;
-              display: flex; flex-direction: column; transition: all 0.35s ease;
-              box-shadow: 0 4px 20px rgba(0,0,0,0.03); position: relative; overflow: hidden;
+              background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; padding: 24px;
+              display: flex; flex-direction: column; position: relative;
             }
             .premium-card:hover {
-              transform: translateY(-6px); box-shadow: 0 20px 40px rgba(0,0,0,0.08); border-color: #e2e8f0;
+              box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
             }
-            .premium-card::before {
-              content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 5px;
-              background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899); opacity: 0; transition: opacity 0.3s ease;
-            }
-            .premium-card:hover::before { opacity: 1; }
             .premium-pill {
-              background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; border-radius: 8px;
-              padding: 6px 10px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;
+              background: #f3f4f6; border: 1px solid #e5e7eb; color: #4b5563; border-radius: 4px;
+              padding: 4px 8px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;
             }
             .premium-btn-outline {
-              flex: 1; padding: 12px; border-radius: 12px; font-size: 13.5px; font-weight: 700; cursor: pointer;
-              display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.25s ease;
-              background: white; border: 1px solid #cbd5e1; color: #334155;
+              flex: 1; padding: 10px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer;
+              display: flex; align-items: center; justify-content: center; gap: 6px;
+              background: #ffffff; border: 1px solid #d1d5db; color: #374151;
             }
-            .premium-btn-outline:hover { background: #f8fafc; border-color: #94a3b8; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+            .premium-btn-outline:hover { background: #f9fafb; }
             .premium-btn-primary {
-              flex: 1.2; padding: 12px; border-radius: 12px; font-size: 13.5px; font-weight: 700; cursor: pointer; text-decoration: none;
-              display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.25s ease;
-              background: linear-gradient(135deg, #FF4F1F, #E04419); border: none; color: white;
-              box-shadow: 0 4px 12px rgba(255, 79, 31, 0.25);
+              flex: 1.2; padding: 10px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none;
+              display: flex; align-items: center; justify-content: center; gap: 6px;
+              background: #ea580c; border: 1px solid #c2410c; color: #ffffff;
             }
             .premium-btn-primary:hover {
-              transform: translateY(-2px); box-shadow: 0 8px 20px rgba(255, 79, 31, 0.35); background: linear-gradient(135deg, #E04419, #C23A13);
+              background: #c2410c;
             }
             .premium-btn-disabled {
-              flex: 1.2; padding: 12px; border-radius: 12px; font-size: 13.5px; font-weight: 700; cursor: not-allowed; text-decoration: none;
-              display: flex; align-items: center; justify-content: center; gap: 8px;
-              background: #9ca3af; border: none; color: white;
+              flex: 1.2; padding: 10px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: not-allowed; text-decoration: none;
+              display: flex; align-items: center; justify-content: center; gap: 6px;
+              background: #d1d5db; border: 1px solid #9ca3af; color: #ffffff;
             }
           `}</style>
             {/* ── SCREEN HERO ── */}
@@ -6919,118 +6915,75 @@ function VidyaSetuAssistant() {
               <div className="premium-hero-inner">
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
-                    <h1 style={{ fontFamily: '"Plus Jakarta Sans", sans-serif', fontSize: 32, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px', margin: 0 }}>Higher Education Scholarships</h1>
-                    <span className="premium-badge">
-                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>verified</span> B.Tech • PG • Defence • CAPF
-                    </span>
+                    <h1 style={{ fontFamily: '"Plus Jakarta Sans", sans-serif', fontSize: 32, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px', margin: 0 }}>Scholarship Hub</h1>
                   </div>
-                  <p style={{ color: '#475569', fontSize: 15, margin: 0, maxWidth: 800, lineHeight: 1.5 }}>
-                    Verified scholarships for undergraduate engineering (B.Tech/B.E.), postgraduate programs (M.Tech/MCA/MSc/MBA), and Defence/CAPF personnel wards across India.
+                  <p style={{ color: '#ea580c', fontSize: 16, fontWeight: 600, margin: 0 }}>
+                    Your one-stop destination for verified academic funding and financial aid.
                   </p>
                 </div>
 
-                {/* 12-Hour Sync Telemetry Badge */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 12, padding: '8px 16px', fontSize: 13, color: '#475569', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#10B981' }}>autorenew</span>
-                    <span>12-hr Sync: <b style={{ color: '#0f172a' }}>Active</b></span>
-                    {pipelineStatus && pipelineStatus.lastRefresh && (
-                      <span style={{ color: '#94a3b8' }}>• {new Date(pipelineStatus.lastRefresh).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    )}
-                  </div>
+                {/* Sync Button & Help Link */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
                   <button onClick={handleSyncExternal} disabled={isSyncing} className="premium-btn-sync">
                     <span className="material-symbols-outlined" style={{ fontSize: 18, animation: isSyncing ? 'spin 1s linear infinite' : 'none' }}>sync</span>
                     {isSyncing ? 'Refreshing...' : 'Sync Latest'}
                   </button>
+                  {activeTab === 'troubleshooting' ? (
+                    <button onClick={() => setActiveTab('all')} className="premium-btn-help" style={{ width: '100%', justifyContent: 'center', background: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span> Back to Scholarships
+                    </button>
+                  ) : (
+                    <button onClick={() => setActiveTab('troubleshooting')} className="premium-btn-help" style={{ width: '100%', justifyContent: 'center' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 18 }}>help_center</span> DBT & Portal Help
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
 
             <div className="screen-body" style={{ padding: "32px 48px 60px", maxWidth: 1600, margin: "0 auto" }}>
-              {/* ── TOP-LEVEL TABS ── */}
-              <div className="premium-tabs-container">
-                {TABS.map(t => (
-                  <button key={t.id} onClick={() => setActiveTab(t.id)} className={`premium-tab ${activeTab === t.id ? 'active' : ''}`}>
-                    {t.label}
-                    {t.id === "dashboard" && myApplications.length > 0 && (
-                      <span style={{ background: activeTab === t.id ? 'white' : '#FF4F1F', color: activeTab === t.id ? '#0f172a' : 'white', borderRadius: 20, padding: "2px 8px", fontSize: 11, fontWeight: 700, marginLeft: 4 }}>
-                        {myApplications.length}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
+              <div className="premium-filter-bar">
+                {/* ── TOP-LEVEL TABS ── */}
+                <div className="premium-tabs-container" style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid #e5e7eb' }}>
+                  {TABS.map(t => (
+                    <button key={t.id} onClick={() => setActiveTab(t.id)} className={`premium-tab ${activeTab === t.id ? 'active' : ''}`}>
+                      {t.label}
+                      {t.id === "dashboard" && myApplications.length > 0 && (
+                        <span style={{ background: activeTab === t.id ? 'white' : '#FF4F1F', color: activeTab === t.id ? '#0f172a' : 'white', borderRadius: 20, padding: "2px 8px", fontSize: 11, fontWeight: 700, marginLeft: 4 }}>
+                          {myApplications.length}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
 
-              {/* ── SEARCH & SPECIFIC FILTERS ── */}
-              {activeTab !== "troubleshooting" && activeTab !== "dashboard" && (
-                <div className="premium-filter-bar">
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <div style={{ flex: '1 1 300px', position: 'relative' }}>
-                      <span className="material-symbols-outlined" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', fontSize: 20, color: '#94a3b8' }}>search</span>
+                {/* ── SEARCH & SPECIFIC FILTERS ── */}
+                {activeTab !== "troubleshooting" && activeTab !== "dashboard" && (
+                  <>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+                      <div style={{ flex: 1, minWidth: '300px', position: 'relative' }}>
+                        <span className="material-symbols-outlined" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 18, color: '#9ca3af' }}>search</span>
                       <input
                         type="text"
                         placeholder="Search scholarships by name, degree, branch, provider, state..."
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         className="premium-input"
-                        style={{ width: '100%', paddingLeft: 44, paddingRight: 36 }}
+                        style={{ width: '100%', paddingLeft: 40, paddingRight: 36 }}
                       />
                       {searchQuery && (
-                        <button onClick={() => setSearchQuery("")} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 16 }}>✕</button>
+                        <button onClick={() => setSearchQuery("")} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: 16 }}>✕</button>
                       )}
                     </div>
 
-                    <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value)} className="premium-select">
-                      {LEVEL_OPTIONS.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
-                    </select>
-
-                    <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)} className="premium-select">
-                      {BTECH_YEARS.map(y => <option key={y.id} value={y.id}>{y.label}</option>)}
-                    </select>
-
-                    <select value={selectedScope} onChange={e => { setSelectedScope(e.target.value); if (e.target.value === 'all_india') setSelectedState('all'); }} className="premium-select">
-                      <option value="all">🌐 All India & States</option>
-                      <option value="all_india">🇮🇳 All India Schemes Only</option>
-                      <option value="state_specific">📍 State Specific Schemes</option>
-                    </select>
-
-                    <select value={selectedState} onChange={e => { setSelectedState(e.target.value); if (e.target.value !== 'all' && e.target.value !== 'All States / UTs') setSelectedScope('all'); }} className="premium-select">
-                      {STATE_OPTIONS.map(st => <option key={st} value={st === 'All States / UTs' ? 'all' : st}>{st}</option>)}
-                    </select>
 
                     <button onClick={() => setSelectedGender(prev => prev === 'female' ? 'all' : 'female')} 
-                      className="premium-select" style={{ background: selectedGender === 'female' ? '#FDF2F8' : '#f8fafc', color: selectedGender === 'female' ? '#BE185D' : '#334155', borderColor: selectedGender === 'female' ? '#FBCFE8' : '#e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      className="premium-select" style={{ background: selectedGender === 'female' ? '#fff1f2' : '#ffffff', color: selectedGender === 'female' ? '#be123c' : '#111827', borderColor: selectedGender === 'female' ? '#fecdd3' : '#d1d5db', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span className="material-symbols-outlined" style={{ fontSize: 18 }}>female</span> Girls Only
                     </button>
-
-                    <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="premium-select" style={{ marginLeft: 'auto' }}>
-                      <option value="deadline">⏳ Deadline (Earliest)</option>
-                      <option value="latest">✨ Recently Added</option>
-                      <option value="government">🏛️ Government First</option>
-                    </select>
                   </div>
 
-                  {(activeTab === 'pg' || selectedLevel === 'pg') ? (
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5, marginRight: 8 }}>PG Course:</span>
-                      {PG_COURSES.map(pg => (
-                        <button key={pg.id} onClick={() => setSelectedPgCourse(pg.id)} className={`premium-filter-btn ${selectedPgCourse === pg.id ? 'active' : ''}`}>
-                          {pg.label}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5, marginRight: 8 }}>Branch:</span>
-                      {BRANCH_FILTERS.map(b => (
-                        <button key={b.id} onClick={() => setSelectedBranch(b.id)} className={`premium-filter-btn ${selectedBranch === b.id ? 'active' : ''}`}>
-                          {b.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {(selectedBranch !== 'all' || selectedPgCourse !== 'all' || selectedLevel !== 'all' || selectedYear !== 'all' || selectedScope !== 'all' || selectedState !== 'all' || selectedGender !== 'all' || searchQuery) && (
+                  {(selectedLevel !== 'all' || selectedState !== 'all' || selectedGender !== 'all' || searchQuery) && (
                     <div>
                       <button onClick={() => { setSelectedLevel('all'); setSelectedBranch('all'); setSelectedPgCourse('all'); setSelectedYear('all'); setSelectedScope('all'); setSelectedState('all'); setSelectedGender('all'); setSearchQuery(''); }}
                         style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: 13, fontWeight: 700, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
@@ -7038,8 +6991,9 @@ function VidyaSetuAssistant() {
                       </button>
                     </div>
                   )}
-                </div>
+                </>
               )}
+              </div>
 
               {/* ── CONTENT AREA ── */}
               {loading ? (
@@ -7131,7 +7085,7 @@ function VidyaSetuAssistant() {
               ) : (
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                    <div style={{ fontSize: 14, color: '#64748b', fontWeight: 500 }}>
+                    <div style={{ fontSize: 16, color: '#475569', fontWeight: 400 }}>
                       Showing <b style={{ color: '#0f172a', fontWeight: 700 }}>{visibleScholarships.length}</b> verified higher education scholarships
                     </div>
                   </div>
@@ -7149,108 +7103,131 @@ function VidyaSetuAssistant() {
                       </button>
                     </div>
                   ) : (
-                    <div className="grid-2" style={{ gap: 24 }}>
-                      {visibleScholarships.map(s => {
-                        const badgeStyle = catColors[s.category] || { bg: '#f1f5f9', text: '#334155', border: '#e2e8f0' };
-                        const statusInfo = s.status === 'closed'
-                          ? { bg: '#fef2f2', text: '#e11d48', border: '#fecdd3', label: 'Closed', icon: 'cancel' }
-                          : s.status === 'closing_soon'
-                            ? { bg: '#fffbeb', text: '#d97706', border: '#fde68a', label: 'Closing Soon', icon: 'hourglass_top' }
-                            : s.status === 'upcoming'
-                              ? { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe', label: 'Upcoming', icon: 'event' }
-                              : { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0', label: 'Open', icon: 'check_circle' };
-                        const isStateSpecific = s.coverageScope === 'State Specific' && s.state && s.state !== 'All India';
+                    <>
+                      <div className="grid-2" style={{ gap: 24 }}>
+                        {visibleScholarships.slice((currentPage - 1) * 6, currentPage * 6).map(s => {
+                          const badgeStyle = catColors[s.category] || { bg: '#f1f5f9', text: '#334155', border: '#e2e8f0' };
+                          const statusInfo = s.status === 'closed'
+                            ? { bg: '#fef2f2', text: '#e11d48', border: '#fecdd3', label: 'Closed', icon: 'cancel' }
+                            : s.status === 'closing_soon'
+                              ? { bg: '#fffbeb', text: '#d97706', border: '#fde68a', label: 'Closing Soon', icon: 'hourglass_top' }
+                              : s.status === 'upcoming'
+                                ? { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe', label: 'Upcoming', icon: 'event' }
+                                : { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0', label: 'Open', icon: 'check_circle' };
+                          const isStateSpecific = s.coverageScope === 'State Specific' && s.state && s.state !== 'All India';
 
-                        return (
-                          <div key={s._id || s.deduplicationKey} className="premium-card">
-                            <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 16 }}>
-                              <div className="premium-icon-box">
-                                <span className="material-symbols-outlined" style={{ fontSize: 26 }}>{getCategoryIcon(s.category)}</span>
+                          return (
+                            <div key={s._id || s.deduplicationKey} className="premium-card">
+                              <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 16 }}>
+                                <div className="premium-icon-box">
+                                  <span className="material-symbols-outlined" style={{ fontSize: 26 }}>{getCategoryIcon(s.category)}</span>
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div className="premium-card-title">{s.title}</div>
+                                  <div style={{ color: '#64748b', fontSize: 13.5, marginTop: 4, fontWeight: 500 }}>{s.provider}</div>
+                                </div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
+                                  <span style={{ background: badgeStyle.bg, color: badgeStyle.text, border: `1px solid ${badgeStyle.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 11.5, fontWeight: 700, whiteSpace: "nowrap" }}>
+                                    {s.category}
+                                  </span>
+                                  <span style={{ background: statusInfo.bg, color: statusInfo.text, border: `1px solid ${statusInfo.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{statusInfo.icon}</span> {statusInfo.label}
+                                  </span>
+                                </div>
                               </div>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div className="premium-card-title">{s.title}</div>
-                                <div style={{ color: '#64748b', fontSize: 13.5, marginTop: 4, fontWeight: 500 }}>{s.provider}</div>
+
+                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
+                                {isStateSpecific ? (
+                                  <span className="premium-pill" style={{ background: '#fff7ed', color: '#c2410c', borderColor: '#ffedd5' }}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>location_on</span> {s.state}
+                                  </span>
+                                ) : (
+                                  <span className="premium-pill" style={{ background: '#eff6ff', color: '#1d4ed8', borderColor: '#dbeafe' }}>
+                                    🇮🇳 All India
+                                  </span>
+                                )}
+                                {s.isBTechEligible && (
+                                  <span className="premium-pill" style={{ background: '#eef2ff', color: '#4338ca', borderColor: '#e0e7ff' }}>
+                                    ⚙️ B.Tech / B.E.
+                                  </span>
+                                )}
+                                {s.isPGEligible && (
+                                  <span className="premium-pill" style={{ background: '#faf5ff', color: '#7e22ce', borderColor: '#f3e8ff' }}>
+                                    🎓 Postgraduate {(s.pgCourses && s.pgCourses[0] && s.pgCourses[0] !== 'All PG Programs') ? `(${s.pgCourses[0]})` : ''}
+                                  </span>
+                                )}
+                                {s.isDefenceEligible && (
+                                  <span className="premium-pill" style={{ background: '#fef2f2', color: '#b91c1c', borderColor: '#fecaca' }}>
+                                    🛡️ Defence Ward
+                                  </span>
+                                )}
+                                {s.isCapfEligible && (
+                                  <span className="premium-pill" style={{ background: '#ecfeff', color: '#0e7490', borderColor: '#cffafe' }}>
+                                    👮 CAPF Ward
+                                  </span>
+                                )}
+                                {s.gender === 'Female' && (
+                                  <span className="premium-pill" style={{ background: '#fdf2f8', color: '#be185d', borderColor: '#fce7f3' }}>
+                                    👩 Girls Only
+                                  </span>
+                                )}
                               </div>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
-                                <span style={{ background: badgeStyle.bg, color: badgeStyle.text, border: `1px solid ${badgeStyle.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 11.5, fontWeight: 700, whiteSpace: "nowrap" }}>
-                                  {s.category}
+
+                              {s.description && (
+                                <p style={{ color: '#475569', fontSize: 14, lineHeight: 1.6, margin: "0 0 20px", flexGrow: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                  {s.description}
+                                </p>
+                              )}
+
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, background: "#f8fafc", border: "1px solid #e2e8f0", padding: "12px 16px", borderRadius: 8 }}>
+                                <span style={{ fontSize: 13.5, color: '#475569', display: "flex", alignItems: "center", gap: 6, fontWeight: 500 }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#64748b' }}>schedule</span> Deadline: <b style={{ color: '#0f172a' }}>{s.deadlineText || s.deadline || 'Not announced'}</b>
                                 </span>
-                                <span style={{ background: statusInfo.bg, color: statusInfo.text, border: `1px solid ${statusInfo.border}`, borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{statusInfo.icon}</span> {statusInfo.label}
+                                <span style={{ fontSize: 14, color: '#059669', display: "flex", alignItems: "center", gap: 6, fontWeight: 700 }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: 20 }}>payments</span> {s.amount}
                                 </span>
                               </div>
-                            </div>
 
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
-                              {isStateSpecific ? (
-                                <span className="premium-pill" style={{ background: '#fff7ed', color: '#c2410c', borderColor: '#ffedd5' }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>location_on</span> {s.state}
-                                </span>
-                              ) : (
-                                <span className="premium-pill" style={{ background: '#eff6ff', color: '#1d4ed8', borderColor: '#dbeafe' }}>
-                                  🇮🇳 All India
-                                </span>
-                              )}
-                              {s.isBTechEligible && (
-                                <span className="premium-pill" style={{ background: '#eef2ff', color: '#4338ca', borderColor: '#e0e7ff' }}>
-                                  ⚙️ B.Tech / B.E.
-                                </span>
-                              )}
-                              {s.isPGEligible && (
-                                <span className="premium-pill" style={{ background: '#faf5ff', color: '#7e22ce', borderColor: '#f3e8ff' }}>
-                                  🎓 Postgraduate {(s.pgCourses && s.pgCourses[0] && s.pgCourses[0] !== 'All PG Programs') ? `(${s.pgCourses[0]})` : ''}
-                                </span>
-                              )}
-                              {s.isDefenceEligible && (
-                                <span className="premium-pill" style={{ background: '#fef2f2', color: '#b91c1c', borderColor: '#fecaca' }}>
-                                  🛡️ Defence Ward
-                                </span>
-                              )}
-                              {s.isCapfEligible && (
-                                <span className="premium-pill" style={{ background: '#ecfeff', color: '#0e7490', borderColor: '#cffafe' }}>
-                                  👮 CAPF Ward
-                                </span>
-                              )}
-                              {s.gender === 'Female' && (
-                                <span className="premium-pill" style={{ background: '#fdf2f8', color: '#be185d', borderColor: '#fce7f3' }}>
-                                  👩 Girls Only
-                                </span>
-                              )}
+                              <div style={{ display: "flex", gap: 12 }}>
+                                <button onClick={() => setHowToApplyScholarship(s)} 
+                                  style={{ flex: 1, padding: "10px", borderRadius: 6, fontSize: 14, fontWeight: 600, background: "#ffffff", border: "1px solid #e2e8f0", color: "#475569", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer" }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>checklist</span> Guide & Eligibility
+                                </button>
+                                <a href={s.officialUrl || "https://scholarships.gov.in"} target="_blank" rel="noopener noreferrer"
+                                  style={{ flex: 1.2, padding: "10px", borderRadius: 6, fontSize: 14, fontWeight: 600, background: s.status === 'closed' ? "#d1d5db" : "#ea580c", border: "none", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: s.status === 'closed' ? "not-allowed" : "pointer", textDecoration: "none" }}>
+                                  {s.status === 'closed' ? 'Closed' : <>Official Portal <span className="material-symbols-outlined" style={{ fontSize: 18 }}>open_in_new</span></>}
+                                </a>
+                              </div>
                             </div>
+                          );
+                        })}
+                      </div>
 
-                            {s.description && (
-                              <p style={{ color: '#475569', fontSize: 14, lineHeight: 1.6, margin: "0 0 20px", flexGrow: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                {s.description}
-                              </p>
-                            )}
-
-                            <div style={{ display: "flex", gap: 16, marginBottom: 20, flexWrap: "wrap", background: "#f8fafc", border: "1px solid #e2e8f0", padding: "12px 16px", borderRadius: 12, alignItems: 'center' }}>
-                              {s.startDate && (
-                                <span style={{ fontSize: 13, color: '#475569', display: "flex", alignItems: "center", gap: 6, fontWeight: 500 }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#6366f1' }}>event_available</span> Opens: <b style={{ color: '#0f172a' }}>{new Date(s.startDate).toLocaleDateString()}</b>
-                                </span>
-                              )}
-                              <span style={{ fontSize: 13, color: '#475569', display: "flex", alignItems: "center", gap: 6, fontWeight: 500 }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: 16, color: s.status === 'closing_soon' ? '#d97706' : '#64748b' }}>schedule</span> Deadline: <b style={{ color: s.status === 'closing_soon' ? '#d97706' : '#0f172a' }}>{s.deadlineText || s.deadline || 'Not announced'}</b>
-                              </span>
-                              <span style={{ fontSize: 13, color: '#475569', display: "flex", alignItems: "center", gap: 6, marginLeft: 'auto', fontWeight: 500 }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#10b981' }}>payments</span> <b style={{ color: '#059669', fontSize: 14 }}>{s.amount}</b>
-                              </span>
-                            </div>
-
-                            <div style={{ display: "flex", gap: 12 }}>
-                              <button onClick={() => setHowToApplyScholarship(s)} className="premium-btn-outline">
-                                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>checklist</span> Guide & Eligibility
-                              </button>
-                              <a href={s.officialUrl || "https://scholarships.gov.in"} target="_blank" rel="noopener noreferrer"
-                                className={s.status === 'closed' ? "premium-btn-disabled" : "premium-btn-primary"}>
-                                {s.status === 'closed' ? 'Portal Closed' : <>Official Portal <span className="material-symbols-outlined" style={{ fontSize: 18 }}>open_in_new</span></>}
-                              </a>
-                            </div>
+                      {/* PAGINATION CONTROLS */}
+                      {Math.ceil(visibleScholarships.length / 6) > 1 && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#ffffff', borderRadius: 8, border: '1px solid #e5e7eb', marginTop: 32 }}>
+                          <button 
+                            onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                            disabled={currentPage === 1}
+                            style={{ background: currentPage === 1 ? '#f3f4f6' : '#eff6ff', color: currentPage === 1 ? '#9ca3af' : '#2563eb', border: 'none', borderRadius: 6, padding: '8px 16px', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 4, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>chevron_left</span> Previous
+                          </button>
+                          
+                          <div style={{ fontWeight: 600, color: '#374151', fontSize: 14 }}>
+                            Page {currentPage} of {Math.ceil(visibleScholarships.length / 6)}
                           </div>
-                        );
-                      })}
-                    </div>
+                          
+                          <button 
+                            onClick={() => { setCurrentPage(p => Math.min(Math.ceil(visibleScholarships.length / 6), p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                            disabled={currentPage === Math.ceil(visibleScholarships.length / 6)}
+                            style={{ background: currentPage === Math.ceil(visibleScholarships.length / 6) ? '#f3f4f6' : '#e0e7ff', color: currentPage === Math.ceil(visibleScholarships.length / 6) ? '#9ca3af' : '#4338ca', border: 'none', borderRadius: 6, padding: '8px 16px', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 4, cursor: currentPage === Math.ceil(visibleScholarships.length / 6) ? 'not-allowed' : 'pointer' }}
+                          >
+                            Next <span className="material-symbols-outlined" style={{ fontSize: 16 }}>chevron_right</span>
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}

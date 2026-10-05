@@ -27,10 +27,11 @@ async function triggerScholarshipFetch() {
 
     for (const s of newScholarships) {
       try {
+        const { status, lastVerifiedAt, ...insertData } = s;
         const result = await Scholarship.updateOne(
           { deduplicationKey: s.deduplicationKey },
           { 
-            $setOnInsert: s, 
+            $setOnInsert: insertData, 
             $set: { status: 'active', lastVerifiedAt: Date.now() } 
           },
           { upsert: true }
@@ -54,6 +55,11 @@ async function triggerScholarshipFetch() {
 autoRefreshTimer = setInterval(() => {
   triggerScholarshipFetch();
 }, 12 * 60 * 60 * 1000);
+
+// Fetch on startup
+setTimeout(() => {
+  triggerScholarshipFetch();
+}, 2000); // 2 second delay to let server init
 
 /**
  * Retrieves all active scholarships.
@@ -135,13 +141,13 @@ router.post('/issues', authenticateToken, async (req, res) => {
 /**
  * Manually triggers a scholarship pipeline fetch.
  * @route POST /api/scholarships/fetch-latest
- * @access Private/Admin
+ * @access Private
  */
-router.post('/fetch-latest', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/fetch-latest', authenticateToken, async (req, res) => {
   if (refreshInProgress) {
     return res.status(429).json({ success: false, message: 'Refresh already in progress' });
   }
-  triggerScholarshipFetch();
+  await triggerScholarshipFetch();
   res.status(200).json({ success: true, message: 'Refresh triggered successfully' });
 });
 

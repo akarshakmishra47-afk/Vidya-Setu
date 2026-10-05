@@ -1,6 +1,44 @@
 const axios = require('axios');
-const xml2js = require('xml2js');
+const cheerio = require('cheerio');
 const { validateScholarship } = require('./scholarshipValidator');
+
+async function fetchIndiaScholarships() {
+  try {
+    const url = 'https://www.indiascholarships.in/private-scholarships';
+    const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const $ = cheerio.load(response.data);
+    const items = [];
+    
+    $('a.group.flex.flex-col').each((i, el) => {
+      const href = $(el).attr('href');
+      const title = $(el).find('h3').text().trim();
+      const provider = $(el).find('p.text-slate-500').text().trim() || $(el).find('p').first().text().trim();
+      
+      let amount = 'Unknown';
+      let deadline = 'Unknown';
+      
+      $(el).find('span').each((j, span) => {
+        const text = $(span).text().trim();
+        if (text.includes('₹')) amount = text;
+        else if (text.includes('Deadline:')) deadline = text.replace('Deadline:', '').trim();
+      });
+      
+      if (title && href) {
+        items.push({
+          title,
+          provider,
+          amount,
+          deadline,
+          link: href.startsWith('http') ? href : `https://www.indiascholarships.in${href}`,
+          description: `${provider} is offering ${amount}. Deadline: ${deadline}`
+        });
+      }
+    });
+    return { status: 200, items };
+  } catch (error) {
+    return { status: 500, error: error.message };
+  }
+}
 
 async function fetchJson(url) {
   try {
@@ -11,81 +49,45 @@ async function fetchJson(url) {
   }
 }
 
-async function fetchRss(url) {
-  try {
-    const response = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 10000 });
-    const result = await xml2js.parseStringPromise(response.data);
-    const items = result.rss?.channel[0]?.item || [];
-    return { status: 200, items };
-  } catch (error) {
-    return { status: 500, error: error.message };
-  }
-}
-
 async function fetchAllScholarships() {
   const allScholarships = [];
   const results = {
-    huggingface: { fetched: 0, accepted: 0, rejected: 0 },
-    rssFeed: { fetched: 0, accepted: 0, rejected: 0 }
+    indiascholarships: { fetched: 0, accepted: 0, rejected: 0 }
   };
 
   console.log('🚀 [ScholarshipFetcher] Starting full fetch cycle...');
 
-  // 1. Fetch from a sample open JSON dataset (representing an aggregator)
-  // We strictly mark it as 'huggingface' so it is NOT presented as the official government source.
-  const hfUrl = 'https://huggingface.co/datasets/Eshanjog/Indian-Scholarships/raw/main/scholarships.json';
+  // Fetch from indiascholarships.in/private-scholarships
   try {
-    const res = await fetchJson(hfUrl);
-    if (res.status === 200 && Array.isArray(res.data)) {
-      results.huggingface.fetched = res.data.length;
-      for (const item of res.data) {
-        const validated = validateScholarship(item, 'huggingface');
-        if (validated) {
-          allScholarships.push(validated);
-          results.huggingface.accepted++;
-        } else {
-          results.huggingface.rejected++;
-        }
-      }
-    }
-  } catch (err) {
-    console.error(`[ScholarshipFetcher] Error fetching HuggingFace: ${err.message}`);
-  }
-
-  // 2. Fetch from a generic RSS feed (e.g. FreeJobAlert or generic education feed)
-  // Currently pointed to a placeholder/generic feed; easily swappable to any official RSS.
-  const rssUrl = 'https://www.freejobalert.com/feed/';
-  try {
-    const res = await fetchRss(rssUrl);
+    const res = await fetchIndiaScholarships();
     if (res.status === 200 && Array.isArray(res.items)) {
-      // Filter RSS for scholarship related terms
-      const scholarshipItems = res.items.filter(i => {
-        const title = i.title?.[0]?.toLowerCase() || '';
-        return title.includes('scholarship') || title.includes('fellowship');
-      });
-      results.rssFeed.fetched = scholarshipItems.length;
-      for (const item of scholarshipItems) {
-        const validated = validateScholarship({
-          title: item.title?.[0],
-          description: item.description?.[0],
-          link: item.link?.[0],
-          pubDate: item.pubDate?.[0]
-        }, 'rssFeed');
+      results.indiascholarships.fetched = res.items.length;
+      for (const item of res.items) {
+        const validated = validateScholarship(item, 'indiascholarships');
         if (validated) {
+          // Override fields the validator might have overwritten with defaults
+          validated.amount = item.amount;
+          validated.provider = item.provider;
+          // Set an actual Date if we can parse it from string like "15 Oct 2026"
+          const parsedDate = new Date(item.deadline);
+          if (!isNaN(parsedDate)) {
+             validated.deadlineDate = parsedDate;
+          }
+          validated.deadline = item.deadline;
+          
           allScholarships.push(validated);
-          results.rssFeed.accepted++;
+          results.indiascholarships.accepted++;
         } else {
-          results.rssFeed.rejected++;
+          results.indiascholarships.rejected++;
         }
       }
     }
   } catch (err) {
-    console.error(`[ScholarshipFetcher] Error fetching RSS: ${err.message}`);
+    console.error(`[ScholarshipFetcher] Error fetching IndiaScholarships: ${err.message}`);
   }
 
   console.log('📊 [ScholarshipFetcher] Source Results:');
-  console.log(`  huggingface: fetched=${results.huggingface.fetched} accepted=${results.huggingface.accepted} rejected=${results.huggingface.rejected}`);
-  console.log(`  rssFeed: fetched=${results.rssFeed.fetched} accepted=${results.rssFeed.accepted} rejected=${results.rssFeed.rejected}`);
+  console.log(`  indiascholarships: fetched=${results.indiascholarships.fetched} accepted=${results.indiascholarships.accepted} rejected=${results.indiascholarships.rejected}`);
 
   return allScholarships;
 }
