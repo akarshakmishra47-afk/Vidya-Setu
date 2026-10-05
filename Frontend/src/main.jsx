@@ -5111,7 +5111,7 @@ function CommunityForum({ search = "" }) {
   };
 
 
-  const TRENDING = ["#Automata", "#Scholarship", "#Defence", "#DBMS", "#CSE"];
+  const TRENDING = ["#Internship", "#Scholarship", "#Placement", "#Semester Exam", "#Projects"];
   const TABS = [
     { id: "feed", label: "Campus Feed", icon: "📢" },
     { id: "dept", label: "My Department", icon: "🏫" },
