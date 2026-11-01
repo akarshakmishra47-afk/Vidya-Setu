@@ -15,6 +15,8 @@ Vidya Setu is a comprehensive, full-stack platform designed to bridge the gap be
 - **🤖 AI-Powered Resume Analyzer:** Upload your resume and receive instant, actionable feedback and ATS optimization suggestions powered by the Groq LLM API.
 - **💼 Job & Internship Portal:** A curated, easily searchable database of early-career opportunities, hackathons, and internships.
 - **🛒 Community & Marketplace:** Built-in community interactions and a marketplace designed specifically for students.
+- **⚡ Real-Time Study Lounges:** Low-latency Socket.io collaborative study rooms with live student presence indicators and topic-based group chat.
+- **📚 Academic Vault & GATE Preparation:** Categorized repository of university PYQs and competitive GATE question papers with an interactive mock test simulator.
 - **🔐 Secure Authentication:** Production-grade JWT authentication with strict route protection and role-based access control (RBAC).
 - **📊 Real-Time Analytics & Admin Dashboard:** Comprehensive insights into platform usage, application statuses, and active opportunities.
 
