@@ -121,6 +121,35 @@ npm run dev
 
 ---
 
+## 📖 Usage Instructions
+
+1. **🎓 Scholarship Discovery & Eligibility Filtering:**
+   - Navigate to the **Scholarship Hub** from the navigation bar.
+   - Filter listings dynamically by Education Level (Undergraduate, Diploma, PG), State Domicile, Gender, and Social Category.
+   - Click any card to inspect full eligibility requirements, award amounts, deadlines, and direct application links.
+   - Access the **DBT Help Desk** tab for step-by-step resolution guides on Aadhaar bank seeding and portal errors.
+
+2. **🤖 AI-Powered Resume & ATS Audit:**
+   - Head over to **Career Compass / Resume Analyzer**.
+   - Upload your resume (PDF/DOCX format) and click **Analyze Resume**.
+   - Review your comprehensive ATS score (0–100%), skill breakdown (Impact, Brevity, Action Verbs), detected missing industry keywords, and AI-tailored bullet-point recommendations powered by Groq LLM.
+
+3. **📚 Academic Vault & GATE Preparation:**
+   - Open **Academic Vault** or **GATE Insights**.
+   - Filter previous years' question papers (PYQs) by engineering branch, semester, and target subject code.
+   - Launch the interactive **Timed Mock Examination Simulator** to practice questions under real exam conditions with immediate automated grading.
+
+4. **⚡ Real-Time Study Lounges & Community Discussions:**
+   - Check the live online student counter and join subject-specific **Study Lounges**.
+   - Collaborate via real-time WebSocket group chat and shared study attachments.
+   - Participate in the **Community Hub** to post queries, share insights, and interact with peers and student mentors.
+
+5. **🛍️ Campus Store (P2P Marketplace) & Student Perks:**
+   - Visit the **Campus Store** to buy or sell used textbooks, calculators, and hostel essentials directly with verified campus peers.
+   - Browse the **Student Perks** tab to claim verified software discounts, student developer packs, and free educational licenses.
+
+---
+
 ## 🛡️ Security & Best Practices
 - **NoSQL Injection Prevention:** All inputs and ObjectIds are strictly validated before database queries.
 - **Data Privacy:** Passwords are never sent to the client, and sensitive tokens are securely managed.
